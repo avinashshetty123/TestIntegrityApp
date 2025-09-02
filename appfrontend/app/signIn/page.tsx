@@ -1,17 +1,24 @@
 "use client";
-
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Apple, Mail, Lock, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useRouter } from "next/navigation";
 
 export default function SignInPage() {
   const [isSignUp, setIsSignUp] = useState(false);
+  const router = useRouter();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    localStorage.setItem("isLoggedIn", "true");
+    router.push("/");
+  };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen w-screen flex">
       {/* Left side - Branding */}
       <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-gray-900 to-black text-white items-center justify-center p-12">
         <div className="text-center">
@@ -24,7 +31,7 @@ export default function SignInPage() {
       </div>
 
       {/* Right side - Auth form */}
-      <div className="flex w-full lg:w-1/2 items-center justify-center p-8 bg-gray-50">
+      <div className="flex flex-1 items-center justify-center p-8 bg-gray-50">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -43,7 +50,7 @@ export default function SignInPage() {
                 </p>
               </div>
 
-              <form className="space-y-4">
+              <form className="space-y-4" onSubmit={handleSubmit}>
                 {/* Full Name (signup only) */}
                 {isSignUp && (
                   <div className="relative">
