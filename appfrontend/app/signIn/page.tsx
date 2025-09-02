@@ -1,164 +1,126 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { Apple, Mail, Lock, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
-export default function AuthCard() {
-  const [isLogin, setIsLogin] = useState(true);
+export default function SignInPage() {
+  const [isSignUp, setIsSignUp] = useState(false);
 
   return (
-    <Card className="w-full max-w-sm overflow-hidden">
-      <CardHeader>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={isLogin ? 'login-header' : 'register-header'}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-          >
-            <CardTitle>
-              {isLogin ? 'Login to your account' : 'Create an account'}
-            </CardTitle>
-            <CardDescription>
-              {isLogin
-                ? 'Enter your email below to login to your account'
-                : 'Enter your information to create an account'}
-            </CardDescription>
-          </motion.div>
-        </AnimatePresence>
-        <CardAction>
-          <Button 
-            variant="link" 
-            onClick={() => setIsLogin(!isLogin)}
-          >
-            {isLogin ? 'Sign Up' : 'Sign In'}
-          </Button>
-        </CardAction>
-      </CardHeader>
+    <div className="min-h-screen flex">
+      {/* Left side - Branding */}
+      <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-gray-900 to-black text-white items-center justify-center p-12">
+        <div className="text-center">
+          <Apple size={64} className="mx-auto mb-6" />
+          <h1 className="text-4xl font-bold mb-4">Welcome to TestIntegrityApp</h1>
+          <p className="text-gray-300 text-lg max-w-md mx-auto">
+            Secure exams, proctoring, and collaboration all in one platform.
+          </p>
+        </div>
+      </div>
 
-      <div className="relative h-[300px] overflow-hidden">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={isLogin ? 'login' : 'register'}
-            initial={{ x: isLogin ? 300 : -300, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: isLogin ? -300 : 300, opacity: 0 }}
-            transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-            className="absolute w-full px-6"
-          >
+      {/* Right side - Auth form */}
+      <div className="flex w-full lg:w-1/2 items-center justify-center p-8 bg-gray-50">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-md"
+        >
+          <Card className="rounded-2xl shadow-lg p-8 bg-white">
             <CardContent>
-              {isLogin ? <LoginForm /> : <RegisterForm />}
+              {/* Header */}
+              <div className="flex flex-col items-center mb-6">
+                <Apple size={40} className="text-black" />
+                <h1 className="text-2xl font-semibold mt-2">
+                  {isSignUp ? "Create Account" : "Sign In"}
+                </h1>
+                <p className="text-gray-500 text-sm">
+                  {isSignUp ? "Join us today." : "Welcome back!"}
+                </p>
+              </div>
+
+              <form className="space-y-4">
+                {/* Full Name (signup only) */}
+                {isSignUp && (
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      type="text"
+                      placeholder="Full Name"
+                      className="pl-10 rounded-xl"
+                    />
+                  </div>
+                )}
+
+                {/* Email */}
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    type="email"
+                    placeholder="Email Address"
+                    className="pl-10 rounded-xl"
+                  />
+                </div>
+
+                {/* Password */}
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    type="password"
+                    placeholder="Password"
+                    className="pl-10 rounded-xl"
+                  />
+                </div>
+
+                {/* Submit */}
+                <Button
+                  type="submit"
+                  className="w-full rounded-xl bg-black text-white hover:bg-gray-900 transition"
+                >
+                  {isSignUp ? "Create Account" : "Sign In"}
+                </Button>
+              </form>
+
+              {/* Social Logins */}
+              <div className="flex flex-col gap-3 mt-6">
+                <Button
+                  variant="outline"
+                  className="w-full rounded-xl flex items-center justify-center gap-2"
+                >
+                  <Apple size={18} /> Continue with Apple
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full rounded-xl flex items-center justify-center gap-2"
+                >
+                  <img
+                    src="https://www.svgrepo.com/show/475656/google-color.svg"
+                    alt="Google"
+                    className="w-4 h-4"
+                  />
+                  Continue with Google
+                </Button>
+              </div>
+
+              {/* Switch Sign In / Sign Up */}
+              <p className="text-center text-sm text-gray-500 mt-4">
+                {isSignUp ? "Already have an account?" : "Don’t have an account?"}{" "}
+                <button
+                  type="button"
+                  onClick={() => setIsSignUp(!isSignUp)}
+                  className="text-black font-medium hover:underline"
+                >
+                  {isSignUp ? "Sign In" : "Create One"}
+                </button>
+              </p>
             </CardContent>
-            <CardFooter className="flex-col gap-2 pb-4">
-              {isLogin ? <LoginFooter /> : <RegisterFooter />}
-            </CardFooter>
-          </motion.div>
-        </AnimatePresence>
+          </Card>
+        </motion.div>
       </div>
-    </Card>
-  );
-}
-
-function LoginForm() {
-  return (
-    <form>
-      <div className="flex flex-col gap-6">
-        <div className="grid gap-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            placeholder="m@example.com"
-            required
-          />
-        </div>
-        <div className="grid gap-2">
-          <div className="flex items-center">
-            <Label htmlFor="password">Password</Label>
-            <a
-              href="#"
-              className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
-            >
-              Forgot your password?
-            </a>
-          </div>
-          <Input id="password" type="password" required />
-        </div>
-      </div>
-    </form>
-  );
-}
-
-function RegisterForm() {
-  return (
-    <form>
-      <div className="flex flex-col gap-6">
-        <div className="grid gap-2">
-          <Label htmlFor="name">Full Name</Label>
-          <Input
-            id="name"
-            type="text"
-            placeholder="John Doe"
-            required
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="reg-email">Email</Label>
-          <Input
-            id="reg-email"
-            type="email"
-            placeholder="m@example.com"
-            required
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="reg-password">Password</Label>
-          <Input id="reg-password" type="password" required />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="confirm-password">Confirm Password</Label>
-          <Input id="confirm-password" type="password" required />
-        </div>
-      </div>
-    </form>
-  );
-}
-
-function LoginFooter() {
-  return (
-    <>
-      <Button type="submit" className="w-full">
-        Login
-      </Button>
-      <Button variant="outline" className="w-full">
-        Login with Google
-      </Button>
-    </>
-  );
-}
-
-function RegisterFooter() {
-  return (
-    <>
-      <Button type="submit" className="w-full">
-        Create Account
-      </Button>
-      <Button variant="outline" className="w-full">
-        Sign up with Google
-      </Button>
-    </>
+    </div>
   );
 }

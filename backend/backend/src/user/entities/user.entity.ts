@@ -27,13 +27,13 @@ export class User {
     enum: UserRole,
     default: UserRole.STUDENT,
   })
-  role: UserRole;
+  role: UserRole|null;
 
   // --- Student-specific fields ---
   @Column({ nullable: true })
   rollNumber: string;
-
-
+  @Column({nullable:true,unique:true})
+  studentUid:string;
 
   @Column({ nullable: true })
   institutionName: string;
@@ -47,7 +47,10 @@ export class User {
 
   // --- Common fields ---
   @Column({ nullable: true })
-  profilePic: string; // link to profile picture
+  profilePic: string;
+  
+@Column({ nullable: true })
+publicId: string; // link to profile picture
 
   @Column({ nullable: true })
   googleId: string; // for Google login
@@ -58,6 +61,8 @@ export class User {
   @Column({ nullable: true })
   refreshToken: string; // JWT refresh token for auth
 
+  @Column({ default: 'pending' })
+  status: 'pending' | 'active';
   // --- Relations ---
   @OneToMany(() => Submission, (s) => s.student)
   submissions: Submission[];

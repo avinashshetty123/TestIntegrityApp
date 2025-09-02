@@ -1,54 +1,31 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { 
-  Calendar, 
-  Clock, 
-  FileText, 
-  Settings, 
-  LogOut, 
-  Info, 
+import { motion } from "framer-motion"
+import {
+  Calendar,
+  Clock,
+  FileText,
+  Settings,
+  LogOut,
+  Info,
   Video,
   Users,
   FolderOpen,
   PlayCircle,
-  ChevronLeft,
-  ChevronRight
+  Apple,
 } from "lucide-react"
 
-const menuItems = [
-  { icon: Users, label: "Attend Meeting", color: "bg-blue-500" },
-  { icon: Calendar, label: "Scheduler", color: "bg-green-500" },
-  { icon: PlayCircle, label: "Records", color: "bg-purple-500" },
-  { icon: FolderOpen, label: "Files", color: "bg-orange-500" },
-  { icon: Settings, label: "Settings", color: "bg-gray-500" },
-  { icon: FileText, label: "Reports", color: "bg-red-500" }
-]
-
-const slides = [
-  {
-    title: "About Us",
-    content: "We provide seamless meeting solutions for modern teams",
-    bg: "bg-gradient-to-r from-blue-600 to-purple-600"
-  },
-  {
-    title: "Our Mission",
-    content: "Connecting people through innovative video conferencing",
-    bg: "bg-gradient-to-r from-green-600 to-blue-600"
-  },
-  {
-    title: "Why Choose Us",
-    content: "Reliable, secure, and user-friendly meeting platform",
-    bg: "bg-gradient-to-r from-purple-600 to-pink-600"
-  }
+const dockItems = [
+  { icon: Users, label: "Meet" },
+  { icon: Calendar, label: "Schedule" },
+  { icon: PlayCircle, label: "Records" },
+  { icon: FolderOpen, label: "Files" },
+  { icon: FileText, label: "Reports" },
+  { icon: Settings, label: "Settings" },
 ]
 
 export default function Home() {
-  const [currentSlide, setCurrentSlide] = useState(0)
   const [currentTime, setCurrentTime] = useState(new Date())
 
   useEffect(() => {
@@ -56,176 +33,115 @@ export default function Home() {
     return () => clearInterval(timer)
   }, [])
 
-  useEffect(() => {
-    const slideTimer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length)
-    }, 4000)
-    return () => clearInterval(slideTimer)
-  }, [])
-
-  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % slides.length)
-  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Navbar */}
-      <nav className="bg-white shadow-sm border-b px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-2xl font-bold text-slate-800">MeetApp</h1>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Avatar>
-              <AvatarImage src="/placeholder-user.jpg" />
-              <AvatarFallback className="bg-blue-500 text-white">U</AvatarFallback>
-            </Avatar>
-            <span className="text-sm text-slate-600">John Doe</span>
-          </div>
+    <div className="relative min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-black text-white overflow-hidden">
+      {/* Menu Bar (top like macOS) */}
+      <div className="fixed top-0 left-0 w-full backdrop-blur-md bg-white/10 border-b border-white/20 z-50 flex items-center justify-between px-6 py-2">
+        <div className="flex items-center space-x-4">
+          <Apple className="w-5 h-5" />
+          <span className="text-sm">MeetApp</span>
         </div>
-      </nav>
-
-      <div className="flex">
-        {/* Left Sidebar - Slider */}
-        <div className="w-80 p-6">
-          <div className="relative h-64 rounded-xl overflow-hidden shadow-lg">
-            <div 
-              className={`absolute inset-0 ${slides[currentSlide].bg} flex items-center justify-center text-white transition-all duration-500`}
-            >
-              <div className="text-center p-6">
-                <h3 className="text-xl font-bold mb-2">{slides[currentSlide].title}</h3>
-                <p className="text-sm opacity-90">{slides[currentSlide].content}</p>
-              </div>
-            </div>
-            <button 
-              onClick={prevSlide}
-              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/20 hover:bg-black/40 text-white p-1 rounded-full transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button 
-              onClick={nextSlide}
-              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/20 hover:bg-black/40 text-white p-1 rounded-full transition-colors"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
-              {slides.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentSlide(index)}
-                  className={`w-2 h-2 rounded-full transition-colors ${
-                    index === currentSlide ? 'bg-white' : 'bg-white/50'
-                  }`}
-                />
-              ))}
-            </div>
-          </div>
-          
-          {/* Quick Actions */}
-          <div className="mt-6 space-y-3">
-            <Button variant="outline" className="w-full justify-start" size="sm">
-              <Info className="w-4 h-4 mr-2" />
-              About Us
-            </Button>
-            <Button variant="outline" className="w-full justify-start" size="sm">
-              <LogOut className="w-4 h-4 mr-2" />
-              Logout
-            </Button>
-            <Button variant="outline" className="w-full justify-start" size="sm">
-              <Settings className="w-4 h-4 mr-2" />
-              Settings
-            </Button>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="flex-1 p-6">
-          {/* Welcome Section */}
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold text-slate-800 mb-2">Welcome Back!</h2>
-            <p className="text-slate-600">Ready to start your next meeting?</p>
-          </div>
-
-          {/* Menu Grid */}
-          <div className="grid grid-cols-3 gap-6 mb-8">
-            {menuItems.map((item, index) => {
-              const Icon = item.icon
-              return (
-                <Card key={index} className="hover:shadow-lg transition-shadow cursor-pointer group">
-                  <CardContent className="p-6 text-center">
-                    <div className={`${item.color} w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform`}>
-                      <Icon className="w-8 h-8 text-white" />
-                    </div>
-                    <h3 className="font-semibold text-slate-800">{item.label}</h3>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
-
-          {/* Start Meeting Button */}
-          <div className="text-center">
-            <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl transition-all">
-              <Video className="w-6 h-6 mr-2" />
-              Start Meeting
-            </Button>
-          </div>
-        </div>
-
-        {/* Right Sidebar - Time & Animations */}
-        <div className="w-80 p-6">
-          {/* Current Time */}
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="text-center">Current Time</CardTitle>
-            </CardHeader>
-            <CardContent className="text-center">
-              <div className="text-3xl font-bold text-slate-800 mb-2">
-                {currentTime.toLocaleTimeString()}
-              </div>
-              <div className="text-sm text-slate-600">
-                {currentTime.toLocaleDateString()}
-              </div>
-              <div className="mt-4">
-                <Badge variant="secondary" className="animate-pulse">
-                  <Clock className="w-3 h-3 mr-1" />
-                  Live
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Status Card */}
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="text-center">Status</CardTitle>
-            </CardHeader>
-            <CardContent className="text-center">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-600">Active Users</span>
-                  <Badge className="bg-green-500 animate-bounce">24</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-600">Meetings Today</span>
-                  <Badge className="bg-blue-500">12</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-600">Server Status</span>
-                  <Badge className="bg-green-500 animate-pulse">Online</Badge>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Animated Elements */}
-          <div className="space-y-4">
-            <div className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full animate-pulse"></div>
-            <div className="bg-gradient-to-r from-green-500 to-blue-500 h-2 rounded-full animate-pulse" style={{animationDelay: '0.5s'}}></div>
-            <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
-          </div>
+        <div className="flex items-center space-x-6 text-sm">
+          <span>{currentTime.toLocaleTimeString()}</span>
+          <span>{currentTime.toLocaleDateString()}</span>
         </div>
       </div>
+
+      {/* Desktop Widgets */}
+      <div className="pt-16 pb-24 px-8 grid grid-cols-3 gap-6">
+        {/* Welcome Widget */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="col-span-2 rounded-2xl p-6 backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl"
+        >
+          <h2 className="text-3xl font-bold mb-2">Welcome Back 👋</h2>
+          <p className="text-slate-300">Ready to start your next meeting?</p>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            className="mt-6 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 font-semibold shadow-lg"
+          >
+            <Video className="w-5 h-5 inline-block mr-2" />
+            Start Meeting
+          </motion.button>
+        </motion.div>
+
+        {/* Time Widget */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="rounded-2xl p-6 text-center backdrop-blur-xl bg-white/10 border border-white/20 shadow-xl"
+        >
+          <h3 className="text-lg font-semibold mb-2">Current Time</h3>
+          <div className="text-3xl font-bold">{currentTime.toLocaleTimeString()}</div>
+          <p className="text-sm text-slate-300">{currentTime.toLocaleDateString()}</p>
+        </motion.div>
+
+        {/* Status Widget */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="rounded-2xl p-6 backdrop-blur-xl bg-white/10 border border-white/20 shadow-xl"
+        >
+          <h3 className="text-lg font-semibold mb-4 text-center">Status</h3>
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between">
+              <span>Active Users</span>
+              <span className="px-2 py-1 rounded-full bg-green-500 text-white text-xs">24</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Meetings Today</span>
+              <span className="px-2 py-1 rounded-full bg-blue-500 text-white text-xs">12</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Server Status</span>
+              <span className="px-2 py-1 rounded-full bg-green-500 animate-pulse text-xs">
+                Online
+              </span>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* About Widget */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+          className="rounded-2xl p-6 backdrop-blur-xl bg-white/10 border border-white/20 shadow-xl"
+        >
+          <h3 className="text-lg font-semibold mb-2">About Us</h3>
+          <p className="text-slate-300 text-sm">
+            We provide seamless meeting solutions with an Apple-like design philosophy.
+          </p>
+        </motion.div>
+      </div>
+
+      {/* Dock (bottom like macOS) */}
+      <motion.div
+        initial={{ opacity: 0, y: 50 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8 }}
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 flex space-x-6 px-6 py-3 backdrop-blur-2xl bg-white/20 border border-white/30 rounded-2xl shadow-2xl"
+      >
+        {dockItems.map((item, index) => {
+          const Icon = item.icon
+          return (
+            <motion.div
+              key={index}
+              whileHover={{ scale: 1.2 }}
+              className="flex flex-col items-center cursor-pointer"
+            >
+              <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 shadow-md">
+                <Icon className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xs mt-1">{item.label}</span>
+            </motion.div>
+          )
+        })}
+      </motion.div>
     </div>
   )
 }
