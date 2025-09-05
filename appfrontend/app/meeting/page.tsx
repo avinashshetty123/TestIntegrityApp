@@ -1,293 +1,264 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
-import Peer from "peerjs";
-import * as faceapi from "face-api.js";
-import {
-  Mic,
-  MicOff,
-  Video,
-  VideoOff,
-  PhoneOff,
-  Maximize,
-  Minimize,
-  LogOut,
-  Clock,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
 
-export default function MeetingRoom() {
-  const [inMeeting, setInMeeting] = useState(false);
-  const [isHost, setIsHost] = useState(false);
-  const [roomId, setRoomId] = useState("");
-  const [peers, setPeers] = useState<{ [id: string]: MediaStream }>({});
-  const [isMuted, setIsMuted] = useState(false);
-  const [cameraOn, setCameraOn] = useState(true);
-  const [time, setTime] = useState(0);
-  const [isFullScreen, setIsFullScreen] = useState(false);
+interface Meeting {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  duration: string;
+  participants: string;
+  link: string | null; // null until started
+  status: "scheduled" | "live" | "ended";
+}
 
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-  const myStreamRef = useRef<MediaStream | null>(null);
-  const peersRef = useRef<{ [id: string]: any }>({});
-  const canvasRefs = useRef<{ [id: string]: HTMLCanvasElement }>({});
+export default function MeetingsPage() {
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [form, setForm] = useState<Omit<Meeting, "id" | "link" | "status">>({
+    title: "",
+    description: "",
+    date: "",
+    time: "",
+    duration: "",
+    participants: "",
+  });
 
-  // Load face-api.js models
+  // Auto start scheduled meetings at correct time
   useEffect(() => {
-    const loadModels = async () => {
-      await faceapi.nets.tinyFaceDetector.loadFromUri('/models/face_expression_model-weights_manifest.json');
-      await faceapi.nets.faceLandmark68Net.loadFromUri('/models/face_landmark_68_model-weights_manifest.json');
-      await faceapi.nets.faceExpressionNet.loadFromUri('/models/tiny_face_detector_model-weights_manifest.json');
-      console.log("✅ Face-api models loaded");
-    };
-    loadModels();
+    const interval = setInterval(() => {
+      const now = new Date();
+      setMeetings((prev) =>
+        prev.map((m) => {
+          const meetingDateTime = new Date(`${m.date}T${m.time}`);
+          if (
+            m.status === "scheduled" &&
+            now >= meetingDateTime &&
+            !m.link
+          ) {
+            return {
+              ...m,
+              status: "live",
+              link: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/meet/${m.id}`,
+            };
+          }
+          return m;
+        })
+      );
+    }, 1000);
+    return () => clearInterval(interval);
   }, []);
 
-  // Meeting timer
-  useEffect(() => {
-    if (!inMeeting) return;
-    const timer = setInterval(() => setTime((t: number) => t + 1), 1000);
-    return () => clearInterval(timer);
-  }, [inMeeting]);
-
-  const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${m}:${s < 10 ? "0" : ""}${s}`;
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Fullscreen toggle
-  const toggleFullScreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
-      setIsFullScreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullScreen(false);
-    }
+  // Start Meeting Now
+  const handleStartNow = () => {
+    const id = crypto.randomUUID();
+    const newMeeting: Meeting = {
+      id,
+      title: "Instant Meeting",
+      description: "Quick meeting started instantly",
+      date: new Date().toISOString().split("T")[0],
+      time: new Date().toTimeString().slice(0, 5),
+      duration: "Ongoing",
+      participants: "Shared via link",
+      link: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/meet/${id}`,
+      status: "live",
+    };
+    setMeetings((prev) => [...prev, newMeeting]);
   };
 
-  // Start / Join Meeting
-  const startMeeting = async (host: boolean) => {
-    setIsHost(host);
-    setInMeeting(true);
-
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: true,
-    });
-    myStreamRef.current = stream;
-    if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-
-    const peer = new Peer();
-
-    peer.on("open", (id: string) => {
-      console.log("My peer ID:", id);
-      if (host) setRoomId(id);
-      else {
-        const call = peer.call(roomId, stream);
-        call.on("stream", (remoteStream: MediaStream) =>
-          addPeerStream(call.peer, remoteStream)
-        );
-        peersRef.current[call.peer] = call;
-      }
-    });
-
-    peer.on("call", (call: any) => {
-      call.answer(stream);
-      call.on("stream", (remoteStream: MediaStream) =>
-        addPeerStream(call.peer, remoteStream)
-      );
-      peersRef.current[call.peer] = call;
-    });
+  // Schedule Meeting
+  const handleSchedule = (e: React.FormEvent) => {
+    e.preventDefault();
+    const id = crypto.randomUUID();
+    const newMeeting: Meeting = {
+      id,
+      ...form,
+      link: null,
+      status: "scheduled",
+    };
+    setMeetings((prev) => [...prev, newMeeting]);
+    setForm({ title: "", description: "", date: "", time: "", duration: "", participants: "" });
   };
 
-  const addPeerStream = (peerId: string, stream: MediaStream) => {
-    setPeers((prev) => ({ ...prev, [peerId]: stream }));
-    setTimeout(() => runFaceDetection(peerId), 500);
+  const handleEnd = (id: string) => {
+    setMeetings((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, status: "ended" } : m))
+    );
   };
 
-  const runFaceDetection = async (peerId: string) => {
-    const canvas = canvasRefs.current[peerId];
-    const video = document.getElementById(`video-${peerId}`) as HTMLVideoElement;
-    if (!video || !canvas) return;
-
-    video.addEventListener("loadedmetadata", () => {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-    });
-
-    const displaySize = { width: video.videoWidth, height: video.videoHeight };
-    faceapi.matchDimensions(canvas, displaySize);
-
-    setInterval(async () => {
-      if (video.paused || video.ended) return;
-      const detections = await faceapi
-        .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-        .withFaceLandmarks()
-        .withFaceExpressions();
-
-      const resized = faceapi.resizeResults(detections, displaySize);
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      faceapi.draw.drawDetections(canvas, resized);
-      faceapi.draw.drawFaceExpressions(canvas, resized);
-    }, 1000);
-  };
-
-  const leaveMeeting = () => {
-    myStreamRef.current?.getTracks().forEach((track: MediaStreamTrack) => track.stop());
-    Object.values(peersRef.current).forEach((call: any) => call.close());
-    setInMeeting(false);
-    setPeers({});
-    setTime(0);
+  const handleDelete = (id: string) => {
+    setMeetings((prev) => prev.filter((m) => m.id !== id));
   };
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 flex flex-col items-center p-4">
-      {!inMeeting ? (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-white p-8 rounded-3xl shadow-xl text-center max-w-lg"
-        >
-          <h1 className="text-4xl font-bold mb-6">Multi-User Meeting</h1>
-          <div className="flex flex-col md:flex-row gap-4 justify-center items-center">
-            <Button
-              onClick={() => startMeeting(true)}
-              className="px-6 py-3 bg-black text-white text-lg rounded-xl"
-            >
-              Start as Host
-            </Button>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-purple-900 via-black to-gray-900 text-white p-6 font-poppins">
+      <div className="w-full max-w-5xl bg-black/50 p-10 rounded-2xl shadow-2xl border border-white/10">
+        <h2 className="text-3xl font-bold text-center bg-gradient-to-r from-pink-500 to-purple-400 bg-clip-text text-transparent">
+          Meetings
+        </h2>
+        <p className="text-gray-400 text-center mb-6">
+          Start an instant meeting or schedule one
+        </p>
+
+        {/* Start Meeting Now */}
+        <div className="flex justify-center mb-8">
+          <button
+            onClick={handleStartNow}
+            className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 transition font-semibold shadow-lg"
+          >
+            🚀 Start Meeting Now
+          </button>
+        </div>
+
+        {/* Schedule Meeting Form */}
+        <form onSubmit={handleSchedule} className="space-y-6 mb-10">
+          <h3 className="text-xl font-semibold">📅 Schedule Meeting</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input
               type="text"
-              placeholder="Enter Room ID"
-              className="px-4 py-2 border rounded-xl text-lg"
-              value={roomId}
-              onChange={(e) => setRoomId(e.target.value)}
+              name="title"
+              value={form.title}
+              onChange={handleChange}
+              placeholder="Meeting Title"
+              required
+              className="px-4 py-2 rounded-lg bg-white/10 focus:bg-white/20 outline-none"
             />
-            <Button
-              onClick={() => startMeeting(false)}
-              className="px-6 py-3 bg-blue-600 text-white text-lg rounded-xl"
-            >
-              Join Meeting
-            </Button>
-          </div>
-          {isHost && <p className="mt-2 text-gray-500 text-lg">Room ID: {roomId}</p>}
-        </motion.div>
-      ) : (
-        <>
-          {/* Top bar */}
-          <motion.div
-            initial={{ y: -50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className="flex items-center justify-between w-full px-6 py-4 bg-white shadow-md rounded-xl mb-4"
-          >
-            <h1 className="text-3xl font-bold">Meeting Room</h1>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1 text-gray-600 text-lg">
-                <Clock className="w-6 h-6" />
-                {formatTime(time)}
-              </div>
-              <Button onClick={() => {
-                if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-                else document.exitFullscreen();
-                setIsFullScreen(!isFullScreen);
-              }} variant="outline" className="text-lg">
-                {isFullScreen ? <Minimize /> : <Maximize />}
-              </Button>
-              <Button onClick={leaveMeeting} variant="destructive" className="text-lg">
-                <LogOut /> Leave
-              </Button>
-            </div>
-          </motion.div>
-
-          {/* Videos */}
-          <div className="flex flex-wrap gap-6 justify-center w-full">
-            {/* Local */}
-            <div className="relative w-96 h-72 bg-black rounded-2xl overflow-hidden shadow-lg">
-              <video
-                ref={localVideoRef}
-                autoPlay
-                muted
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute bottom-2 left-2 bg-black/50 text-white px-3 py-1 rounded-lg text-lg">
-                You
-              </div>
-            </div>
-
-            {/* Remote participants */}
-            {Object.entries(peers).map(([peerId, stream]) => (
-              <div
-                key={peerId}
-                className="relative w-96 h-72 bg-gray-800 rounded-2xl overflow-hidden shadow-lg"
-              >
-                <video
-                  id={`video-${peerId}`}
-                  autoPlay
-                  playsInline
-                  className="w-full h-full object-cover"
-                  ref={(video) => {
-                    if (video) video.srcObject = stream;
-                  }}
-                />
-                <canvas
-                  ref={(canvas) => {
-                    if (canvas) canvasRefs.current[peerId] = canvas;
-                  }}
-                  className="absolute top-0 left-0 w-full h-full"
-                />
-                <div className="absolute bottom-2 left-2 bg-black/50 text-white px-3 py-1 rounded-lg text-lg">
-                  {peerId}
-                </div>
-              </div>
-            ))}
+            <input
+              type="text"
+              name="duration"
+              value={form.duration}
+              onChange={handleChange}
+              placeholder="Duration (e.g. 1h)"
+              required
+              className="px-4 py-2 rounded-lg bg-white/10 focus:bg-white/20 outline-none"
+            />
           </div>
 
-          {/* Controls */}
-          <motion.div
-            initial={{ y: 50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className="flex gap-6 mt-6"
+          <textarea
+            name="description"
+            value={form.description}
+            onChange={handleChange}
+            placeholder="Description"
+            className="w-full px-4 py-2 rounded-lg bg-white/10 focus:bg-white/20 outline-none resize-none h-20"
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input
+              type="date"
+              name="date"
+              value={form.date}
+              onChange={handleChange}
+              required
+              className="px-4 py-2 rounded-lg bg-white/10 focus:bg-white/20 outline-none"
+            />
+            <input
+              type="time"
+              name="time"
+              value={form.time}
+              onChange={handleChange}
+              required
+              className="px-4 py-2 rounded-lg bg-white/10 focus:bg-white/20 outline-none"
+            />
+          </div>
+
+          <input
+            type="text"
+            name="participants"
+            value={form.participants}
+            onChange={handleChange}
+            placeholder="Participants (comma separated emails)"
+            className="w-full px-4 py-2 rounded-lg bg-white/10 focus:bg-white/20 outline-none"
+          />
+
+          <button
+            type="submit"
+            className="w-full py-3 rounded-lg bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 transition font-semibold shadow-lg"
           >
-            <Button
-              variant={isMuted ? "destructive" : "outline"}
-              className="rounded-full w-16 h-16 flex items-center justify-center"
-              onClick={() => {
-                (localVideoRef.current?.srcObject as MediaStream | null)
-                  ?.getAudioTracks()
-                  .forEach((track: MediaStreamTrack) => (track.enabled = !track.enabled));
-                setIsMuted(!isMuted);
-              }}
-            >
-              {isMuted ? <MicOff className="w-7 h-7" /> : <Mic className="w-7 h-7" />}
-            </Button>
+            Schedule Meeting
+          </button>
+        </form>
 
-            <Button
-              variant={cameraOn ? "outline" : "destructive"}
-              className="rounded-full w-16 h-16 flex items-center justify-center"
-              onClick={() => {
-                (localVideoRef.current?.srcObject as MediaStream | null)
-                  ?.getVideoTracks()
-                  .forEach((track: MediaStreamTrack) => (track.enabled = !track.enabled));
-                setCameraOn(!cameraOn);
-              }}
-            >
-              {cameraOn ? <Video className="w-7 h-7" /> : <VideoOff className="w-7 h-7" />}
-            </Button>
-
-            <Button
-              variant="destructive"
-              className="rounded-full w-16 h-16 flex items-center justify-center"
-              onClick={leaveMeeting}
-            >
-              <PhoneOff className="w-7 h-7" />
-            </Button>
-          </motion.div>
-        </>
-      )}
+        {/* Meetings List */}
+        <div>
+          <h3 className="text-xl font-semibold mb-4">🗂 My Meetings</h3>
+          {meetings.length === 0 ? (
+            <p className="text-gray-400">No meetings yet.</p>
+          ) : (
+            <ul className="space-y-4">
+              {meetings.map((meeting) => (
+                <li
+                  key={meeting.id}
+                  className="p-4 rounded-lg bg-white/5 border border-white/10"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="text-lg font-semibold">{meeting.title}</h4>
+                      <p className="text-gray-400">{meeting.description}</p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {meeting.date} at {meeting.time} • {meeting.duration}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Participants: {meeting.participants}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Status:{" "}
+                        <span
+                          className={
+                            meeting.status === "live"
+                              ? "text-green-400"
+                              : meeting.status === "scheduled"
+                              ? "text-yellow-400"
+                              : "text-red-400"
+                          }
+                        >
+                          {meeting.status}
+                        </span>
+                      </p>
+                      {meeting.link && (
+                        <p className="text-sm mt-2">
+                          🔗{" "}
+                          <a
+                            href={meeting.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-400 underline"
+                          >
+                            Join Meeting
+                          </a>
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {meeting.status === "live" && (
+                        <button
+                          onClick={() => handleEnd(meeting.id)}
+                          className="px-3 py-1 rounded bg-red-600 hover:bg-red-700 text-white text-sm"
+                        >
+                          End
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDelete(meeting.id)}
+                        className="px-3 py-1 rounded bg-gray-600 hover:bg-gray-700 text-white text-sm"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

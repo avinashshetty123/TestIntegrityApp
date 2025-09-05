@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 
 const dockItems = [
-  { icon: Users, label: "Meet", path: "/meet" },
+  { icon: Users, label: "meeting", path: "/meeting" },
   { icon: Calendar, label: "Schedule", path: "/schedule" },
   { icon: PlayCircle, label: "Records", path: "/records" },
   { icon: FolderOpen, label: "Files", path: "/files" },
@@ -69,10 +69,20 @@ export default function Home() {
             </div>
             {showMenu && (
               <div className="absolute right-0 mt-3 w-44 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-lg overflow-hidden text-sm">
-                <div className="px-4 py-3 hover:bg-white/10 cursor-pointer">
+                <div
+                  onClick={() => {
+                    router.push("/profile");
+                  }}
+                  className="px-4 py-3 hover:bg-white/10 cursor-pointer"
+                >
                   Profile
                 </div>
-                <div className="px-4 py-3 hover:bg-white/10 cursor-pointer">
+                <div
+                  onClick={() => {
+                    router.push("/setting");
+                  }}
+                  className="px-4 py-3 hover:bg-white/10 cursor-pointer"
+                >
                   Settings
                 </div>
                 <div
@@ -104,7 +114,7 @@ export default function Home() {
             Ready to start your next secure meeting?
           </p>
           <div className="flex gap-4 mt-6">
-            <Link href="/meet">
+            <Link href="/meeting">
               <motion.button
                 whileHover={{ scale: 1.08 }}
                 whileTap={{ scale: 0.95 }}
