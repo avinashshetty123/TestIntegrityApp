@@ -1,41 +1,44 @@
 "use client";
+
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import Peer from "peerjs";
+import * as faceapi from "face-api.js";
 import {
   Mic,
   MicOff,
   Video,
   VideoOff,
   PhoneOff,
-  MessageSquare,
-  MonitorUp,
-  LogOut,
   Maximize,
   Minimize,
+  LogOut,
   Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import * as faceapi from "face-api.js";
 
 export default function MeetingRoom() {
-  const [isMuted, setIsMuted] = useState(false);
-  const [cameraOn, setCameraOn] = useState(true);
-  const [showChat, setShowChat] = useState(false);
-  const [isFullScreen, setIsFullScreen] = useState(false);
-  const [time, setTime] = useState(0);
   const [inMeeting, setInMeeting] = useState(false);
   const [isHost, setIsHost] = useState(false);
+  const [roomId, setRoomId] = useState("");
+  const [peers, setPeers] = useState<{ [id: string]: MediaStream }>({});
+  const [isMuted, setIsMuted] = useState(false);
+  const [cameraOn, setCameraOn] = useState(true);
+  const [time, setTime] = useState(0);
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
-  const remoteVideoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const myStreamRef = useRef<MediaStream | null>(null);
+  const peersRef = useRef<{ [id: string]: any }>({});
+  const canvasRefs = useRef<{ [id: string]: HTMLCanvasElement }>({});
 
-  // Load FaceAPI models
+  // Load face-api.js models
   useEffect(() => {
     const loadModels = async () => {
-      await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
-      await faceapi.nets.faceLandmark68Net.loadFromUri("/models");
-      await faceapi.nets.faceExpressionNet.loadFromUri("/models");
+      await faceapi.nets.tinyFaceDetector.loadFromUri('/models/face_expression_model-weights_manifest.json');
+      await faceapi.nets.faceLandmark68Net.loadFromUri('/models/face_landmark_68_model-weights_manifest.json');
+      await faceapi.nets.faceExpressionNet.loadFromUri('/models/tiny_face_detector_model-weights_manifest.json');
+      console.log("✅ Face-api models loaded");
     };
     loadModels();
   }, []);
@@ -43,7 +46,7 @@ export default function MeetingRoom() {
   // Meeting timer
   useEffect(() => {
     if (!inMeeting) return;
-    const timer = setInterval(() => setTime((t) => t + 1), 1000);
+    const timer = setInterval(() => setTime((t: number) => t + 1), 1000);
     return () => clearInterval(timer);
   }, [inMeeting]);
 
@@ -53,11 +56,7 @@ export default function MeetingRoom() {
     return `${m}:${s < 10 ? "0" : ""}${s}`;
   };
 
-  const handleLeave = () => {
-    setInMeeting(false);
-    setTime(0);
-  };
-
+  // Fullscreen toggle
   const toggleFullScreen = () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen();
@@ -68,205 +67,227 @@ export default function MeetingRoom() {
     }
   };
 
-  const startMeeting = async (host = false) => {
-    setInMeeting(true);
+  // Start / Join Meeting
+  const startMeeting = async (host: boolean) => {
     setIsHost(host);
+    setInMeeting(true);
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true,
+    });
+    myStreamRef.current = stream;
+    if (localVideoRef.current) localVideoRef.current.srcObject = stream;
 
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
+    const peer = new Peer();
+
+    peer.on("open", (id: string) => {
+      console.log("My peer ID:", id);
+      if (host) setRoomId(id);
+      else {
+        const call = peer.call(roomId, stream);
+        call.on("stream", (remoteStream: MediaStream) =>
+          addPeerStream(call.peer, remoteStream)
+        );
+        peersRef.current[call.peer] = call;
       }
+    });
 
-      // 🔹 For participants, run face detection
-      if (!host) {
-        runFaceDetection();
-      }
-    } catch (err) {
-      console.error("Error accessing camera/microphone:", err);
-    }
+    peer.on("call", (call: any) => {
+      call.answer(stream);
+      call.on("stream", (remoteStream: MediaStream) =>
+        addPeerStream(call.peer, remoteStream)
+      );
+      peersRef.current[call.peer] = call;
+    });
   };
 
-  // Face Detection (Participants only)
-  const runFaceDetection = async () => {
-    if (!remoteVideoRef.current || !canvasRef.current) return;
+  const addPeerStream = (peerId: string, stream: MediaStream) => {
+    setPeers((prev) => ({ ...prev, [peerId]: stream }));
+    setTimeout(() => runFaceDetection(peerId), 500);
+  };
 
-    const video = remoteVideoRef.current;
-    const canvas = canvasRef.current;
-    const displaySize = { width: video.width, height: video.height };
+  const runFaceDetection = async (peerId: string) => {
+    const canvas = canvasRefs.current[peerId];
+    const video = document.getElementById(`video-${peerId}`) as HTMLVideoElement;
+    if (!video || !canvas) return;
+
+    video.addEventListener("loadedmetadata", () => {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+    });
+
+    const displaySize = { width: video.videoWidth, height: video.videoHeight };
     faceapi.matchDimensions(canvas, displaySize);
 
     setInterval(async () => {
-      if (!video.paused && !video.ended) {
-        const detections = await faceapi
-          .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-          .withFaceLandmarks()
-          .withFaceExpressions();
+      if (video.paused || video.ended) return;
+      const detections = await faceapi
+        .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks()
+        .withFaceExpressions();
 
-        const resized = faceapi.resizeResults(detections, displaySize);
-        canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
-        faceapi.draw.drawDetections(canvas, resized);
-        faceapi.draw.drawFaceExpressions(canvas, resized);
-      }
+      const resized = faceapi.resizeResults(detections, displaySize);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      faceapi.draw.drawDetections(canvas, resized);
+      faceapi.draw.drawFaceExpressions(canvas, resized);
     }, 1000);
   };
 
-  // If no meeting started
-  if (!inMeeting) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 text-center p-8">
+  const leaveMeeting = () => {
+    myStreamRef.current?.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+    Object.values(peersRef.current).forEach((call: any) => call.close());
+    setInMeeting(false);
+    setPeers({});
+    setTime(0);
+  };
+
+  return (
+    <div className="min-h-screen w-full bg-gray-50 flex flex-col items-center p-4">
+      {!inMeeting ? (
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
+          initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3 }}
-          className="bg-white rounded-2xl shadow-xl p-10 max-w-lg"
+          className="bg-white p-8 rounded-3xl shadow-xl text-center max-w-lg"
         >
-          <h1 className="text-3xl font-bold mb-4">No Active Meeting</h1>
-          <p className="text-lg text-gray-600 mb-6">
-            Start a new meeting or join one.
-          </p>
-          <div className="flex gap-4 justify-center">
+          <h1 className="text-4xl font-bold mb-6">Multi-User Meeting</h1>
+          <div className="flex flex-col md:flex-row gap-4 justify-center items-center">
             <Button
               onClick={() => startMeeting(true)}
-              className="px-8 py-3 text-lg rounded-xl bg-black text-white hover:bg-gray-900"
+              className="px-6 py-3 bg-black text-white text-lg rounded-xl"
             >
               Start as Host
             </Button>
+            <input
+              type="text"
+              placeholder="Enter Room ID"
+              className="px-4 py-2 border rounded-xl text-lg"
+              value={roomId}
+              onChange={(e) => setRoomId(e.target.value)}
+            />
             <Button
               onClick={() => startMeeting(false)}
-              className="px-8 py-3 text-lg rounded-xl bg-blue-600 text-white hover:bg-blue-700"
+              className="px-6 py-3 bg-blue-600 text-white text-lg rounded-xl"
             >
-              Join as Participant
+              Join Meeting
             </Button>
           </div>
+          {isHost && <p className="mt-2 text-gray-500 text-lg">Room ID: {roomId}</p>}
         </motion.div>
-      </div>
-    );
-  }
-
-  // Meeting UI
-  return (
-    <div className="min-h-screen w-screen flex flex-col bg-gray-100">
-      {/* Top bar */}
-      <motion.div
-        initial={{ y: -40, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="flex items-center justify-between px-8 py-5 border-b bg-white shadow-sm text-xl"
-      >
-        <h1 className="font-bold text-2xl">Meeting Room</h1>
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2 text-gray-600">
-            <Clock className="w-5 h-5" />
-            <span className="font-medium">{formatTime(time)}</span>
-          </div>
-          <Button variant="outline" size="sm" className="rounded-xl flex gap-2">
-            <MonitorUp className="w-5 h-5" /> Share Screen
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-xl flex gap-2"
-            onClick={toggleFullScreen}
+      ) : (
+        <>
+          {/* Top bar */}
+          <motion.div
+            initial={{ y: -50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="flex items-center justify-between w-full px-6 py-4 bg-white shadow-md rounded-xl mb-4"
           >
-            {isFullScreen ? (
-              <>
-                <Minimize className="w-5 h-5" /> Exit Fullscreen
-              </>
-            ) : (
-              <>
-                <Maximize className="w-5 h-5" /> Fullscreen
-              </>
-            )}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-xl flex gap-2"
-            onClick={handleLeave}
-          >
-            <LogOut className="w-5 h-5" /> Leave
-          </Button>
-        </div>
-      </motion.div>
-
-      {/* Video area */}
-      <div className="flex-1 grid md:grid-cols-2 gap-4 p-6 bg-black">
-        {/* Host / Your Video */}
-        <div className="relative bg-gray-900 rounded-2xl overflow-hidden shadow-lg">
-          <video
-            ref={localVideoRef}
-            autoPlay
-            playsInline
-            muted
-            className="w-full h-full object-cover rounded-2xl"
-          />
-          <div className="absolute bottom-3 left-3 bg-black/70 text-white px-3 py-1 rounded-lg text-lg">
-            {isHost ? "Host (You)" : "You"}
-          </div>
-        </div>
-
-        {/* Remote Participant */}
-        {!isHost && (
-          <div className="relative bg-gray-900 rounded-2xl overflow-hidden shadow-lg">
-            <video
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
-              className="w-full h-full object-cover rounded-2xl"
-            />
-            <canvas
-              ref={canvasRef}
-              className="absolute top-0 left-0 w-full h-full"
-            />
-            <div className="absolute bottom-3 left-3 bg-black/70 text-white px-3 py-1 rounded-lg text-lg">
-              Other Participant
+            <h1 className="text-3xl font-bold">Meeting Room</h1>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1 text-gray-600 text-lg">
+                <Clock className="w-6 h-6" />
+                {formatTime(time)}
+              </div>
+              <Button onClick={() => {
+                if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+                else document.exitFullscreen();
+                setIsFullScreen(!isFullScreen);
+              }} variant="outline" className="text-lg">
+                {isFullScreen ? <Minimize /> : <Maximize />}
+              </Button>
+              <Button onClick={leaveMeeting} variant="destructive" className="text-lg">
+                <LogOut /> Leave
+              </Button>
             </div>
+          </motion.div>
+
+          {/* Videos */}
+          <div className="flex flex-wrap gap-6 justify-center w-full">
+            {/* Local */}
+            <div className="relative w-96 h-72 bg-black rounded-2xl overflow-hidden shadow-lg">
+              <video
+                ref={localVideoRef}
+                autoPlay
+                muted
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute bottom-2 left-2 bg-black/50 text-white px-3 py-1 rounded-lg text-lg">
+                You
+              </div>
+            </div>
+
+            {/* Remote participants */}
+            {Object.entries(peers).map(([peerId, stream]) => (
+              <div
+                key={peerId}
+                className="relative w-96 h-72 bg-gray-800 rounded-2xl overflow-hidden shadow-lg"
+              >
+                <video
+                  id={`video-${peerId}`}
+                  autoPlay
+                  playsInline
+                  className="w-full h-full object-cover"
+                  ref={(video) => {
+                    if (video) video.srcObject = stream;
+                  }}
+                />
+                <canvas
+                  ref={(canvas) => {
+                    if (canvas) canvasRefs.current[peerId] = canvas;
+                  }}
+                  className="absolute top-0 left-0 w-full h-full"
+                />
+                <div className="absolute bottom-2 left-2 bg-black/50 text-white px-3 py-1 rounded-lg text-lg">
+                  {peerId}
+                </div>
+              </div>
+            ))}
           </div>
-        )}
-      </div>
 
-      {/* Bottom controls */}
-      <motion.div
-        initial={{ y: 40, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="flex items-center justify-center gap-8 py-5 bg-white border-t shadow-md"
-      >
-        <Button
-          variant={isMuted ? "destructive" : "outline"}
-          className="rounded-full w-16 h-16 flex items-center justify-center"
-          onClick={() => setIsMuted(!isMuted)}
-        >
-          {isMuted ? <MicOff className="w-7 h-7" /> : <Mic className="w-7 h-7" />}
-        </Button>
+          {/* Controls */}
+          <motion.div
+            initial={{ y: 50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="flex gap-6 mt-6"
+          >
+            <Button
+              variant={isMuted ? "destructive" : "outline"}
+              className="rounded-full w-16 h-16 flex items-center justify-center"
+              onClick={() => {
+                (localVideoRef.current?.srcObject as MediaStream | null)
+                  ?.getAudioTracks()
+                  .forEach((track: MediaStreamTrack) => (track.enabled = !track.enabled));
+                setIsMuted(!isMuted);
+              }}
+            >
+              {isMuted ? <MicOff className="w-7 h-7" /> : <Mic className="w-7 h-7" />}
+            </Button>
 
-        <Button
-          variant={cameraOn ? "outline" : "destructive"}
-          className="rounded-full w-16 h-16 flex items-center justify-center"
-          onClick={() => setCameraOn(!cameraOn)}
-        >
-          {cameraOn ? <Video className="w-7 h-7" /> : <VideoOff className="w-7 h-7" />}
-        </Button>
+            <Button
+              variant={cameraOn ? "outline" : "destructive"}
+              className="rounded-full w-16 h-16 flex items-center justify-center"
+              onClick={() => {
+                (localVideoRef.current?.srcObject as MediaStream | null)
+                  ?.getVideoTracks()
+                  .forEach((track: MediaStreamTrack) => (track.enabled = !track.enabled));
+                setCameraOn(!cameraOn);
+              }}
+            >
+              {cameraOn ? <Video className="w-7 h-7" /> : <VideoOff className="w-7 h-7" />}
+            </Button>
 
-        <Button
-          variant="destructive"
-          className="rounded-full w-16 h-16 flex items-center justify-center"
-          onClick={handleLeave}
-        >
-          <PhoneOff className="w-7 h-7" />
-        </Button>
-
-        <Button
-          variant={showChat ? "destructive" : "outline"}
-          className="rounded-full w-16 h-16 flex items-center justify-center"
-          onClick={() => setShowChat(!showChat)}
-        >
-          <MessageSquare className="w-7 h-7" />
-        </Button>
-      </motion.div>
+            <Button
+              variant="destructive"
+              className="rounded-full w-16 h-16 flex items-center justify-center"
+              onClick={leaveMeeting}
+            >
+              <PhoneOff className="w-7 h-7" />
+            </Button>
+          </motion.div>
+        </>
+      )}
     </div>
   );
 }

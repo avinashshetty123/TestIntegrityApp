@@ -22,6 +22,7 @@
     "framer-motion": "^12.23.12",
     "lucide-react": "^0.525.0",
     "next": "15.3.5",
+    "peerjs": "^1.5.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwind-merge": "^3.3.1"
@@ -30,6 +31,7 @@
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/peerjs": "^0.0.30",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19",
     "concurrently": "^9.2.0",
