@@ -16,9 +16,7 @@ export class TestService {
     @InjectRepository(Answer) private answerRepo: Repository<Answer>,
   ) {}
 
-  /**
-   * Tutor creates a test with questions
-   */
+
 async createTest(
   tutor: User,
   title: string,
@@ -26,9 +24,7 @@ async createTest(
   questions: { questionText: string; type: QuestionType; options?: string[]; correctAnswer?: string }[],
   institutionName?: string,
 ) {
-  if (tutor.role !== UserRole.TUTOR && tutor.role !== UserRole.ADMIN) {
-    throw new ForbiddenException('Only tutors or admins can create tests');
-  }
+
 
   const test = this.testRepo.create({
     title,
@@ -54,15 +50,22 @@ async createTest(
   /**
    * Get all tests (optionally filter by tutor or institution)
    */
-  async getAllTests(filter?: { tutorId?: number; institutionName?: string }) {
-    return this.testRepo.find({
-      where: {
-        ...(filter?.tutorId ? { creator: { id: filter.tutorId } } : {}),
-        ...(filter?.institutionName ? { institutionName: filter.institutionName } : {}),
-      },
-      relations: ['creator', 'questions'],
-    });
+async getAllTests(filter?: { tutorId?: number; institutionName?: string }) {
+  const where: any = {};
+
+  if (filter?.tutorId) {
+    where.creator = { id: filter.tutorId };
   }
+  if (filter?.institutionName) {
+    where.institutionName = filter.institutionName;
+  }
+
+  return this.testRepo.find({
+    where,
+    relations: ['creator', 'questions'],
+  });
+}
+
 
   /**
    * Get one test with questions
