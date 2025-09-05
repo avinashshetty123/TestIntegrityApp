@@ -131,14 +131,15 @@ async getAllTests(filter?: { tutorId?: number; institutionName?: string }) {
   /**
    * Grade a submission (basic auto grading for MCQs/short answers)
    */
-  async gradeSubmission(submissionId: number) {
-    const submission = await this.submissionRepo.findOne({
-      where: { id: submissionId },
-      relations: ['answers', 'answers.question'],
-    });
+async autoGradeAllSubmissions(testId: number) {
+  const submissions = await this.submissionRepo.find({
+    where: { test: { id: testId } },
+    relations: ['answers', 'answers.question'],
+  });
 
-    if (!submission) throw new NotFoundException('Submission not found');
+  if (!submissions.length) throw new NotFoundException('No submissions found for this test');
 
+  for (const submission of submissions) {
     let score = 0;
     let total = submission.answers.length;
 
@@ -153,9 +154,11 @@ async getAllTests(filter?: { tutorId?: number; institutionName?: string }) {
 
     submission.score = score;
     submission.totalScore = total;
-
-    return this.submissionRepo.save(submission);
+    await this.submissionRepo.save(submission);
   }
+
+  return { message: `${submissions.length} submissions graded successfully` };
+}
 
   /**
    * Delete a test (only tutor/admin who created it can delete)
@@ -174,4 +177,33 @@ async getAllTests(filter?: { tutorId?: number; institutionName?: string }) {
     await this.testRepo.remove(test);
     return { message: 'Test deleted successfully' };
   }
+  async updateStudentMarks(
+  submissionId: number,
+  updatedScores: { answerId: number; score: number }[],
+) {
+  const submission = await this.submissionRepo.findOne({
+    where: { id: submissionId },
+    relations: ['answers', 'answers.question'],
+  });
+
+  if (!submission) throw new NotFoundException('Submission not found');
+
+  let total = 0;
+
+  // update each answer score
+  submission.answers.forEach((ans) => {
+    const update = updatedScores.find((u) => u.answerId === ans.id);
+    if (update) {
+      ans.score = update.score; // 👈 store teacher's marks per answer
+      total += update.score;
+    }
+  });
+
+  submission.score = total;
+  submission.totalScore = submission.answers.length;
+
+  // save updated answers + submission
+  await this.answerRepo.save(submission.answers);
+  return this.submissionRepo.save(submission);
+}
 }

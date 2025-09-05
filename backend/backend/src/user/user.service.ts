@@ -15,7 +15,7 @@ export class UserService {
     return this.userRepository.save(user);
   }
 
-  async findById(userId: number): Promise<User | null> {
+  async findById(userId: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { id: userId } });
   }
 

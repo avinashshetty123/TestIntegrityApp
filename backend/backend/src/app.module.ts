@@ -7,6 +7,8 @@ import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { CacheModule } from '@nestjs/cache-manager';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
+import { LivekitModule } from './livekit/livekit.module';
+import { DeepfakeModule } from './deepfake/deepfake.module';
 @Module({
   imports: [
     TypeOrmModule.forRoot({
@@ -37,6 +39,9 @@ import { LoggerMiddleware } from './common/middleware/logger.middleware';
     AuthModule,
     UserModule,
     TestsModule,
+    LivekitModule,
+    DeepfakeModule,
+    
   ],
 })
 export class AppModule implements NestModule{
