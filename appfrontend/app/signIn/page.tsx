@@ -143,7 +143,7 @@ return (
                   transition={{ duration: 0.6 }}
                 >
                   <h2 className="text-3xl font-bold text-white text-center mb-8">
-                    Welcome Back 👋
+                    Login
                   </h2>
 
                   {/* Login Form */}
@@ -184,7 +184,7 @@ return (
                   transition={{ duration: 0.6 }}
                 >
                   <h2 className="text-3xl font-bold text-white text-center mb-8">
-                    Join Us 🚀
+                   Register
                   </h2>
 
                   {/* Register Form */}
