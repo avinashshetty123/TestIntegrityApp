@@ -26,7 +26,7 @@ export class Question {
   options: string[]; // for MCQ/TrueFalse
 
   @Column({ nullable: true })
-  correctAnswer: string; // for MCQ/TrueFalse
+  correctAnswer?: string; // for MCQ/TrueFalse
 
   @Column({ type: 'int', default: 1 })
   marks: number;
