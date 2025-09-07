@@ -19,7 +19,7 @@ export class User {
   @Column({ nullable: true })
   password: string; // hashed password (nullable for Google login)
 
-  @Column()
+  @Column({ default: 'Unknown' })
   fullName: string;
 
   @Column({

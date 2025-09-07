@@ -2,4 +2,4 @@ port: 7880
 rtc:
   udp_port: 7881
 keys:
-  devkey: devsecret
+  devkey: avinashashokshettyandchatgptpartnership

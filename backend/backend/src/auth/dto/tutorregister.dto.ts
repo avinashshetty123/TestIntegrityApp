@@ -27,5 +27,4 @@ export class TutorRegisterDto {
   @IsString({ message: 'Department must be a string.' })
   department: string;
 
-  role: UserRole = UserRole.TUTOR; // default role
 }

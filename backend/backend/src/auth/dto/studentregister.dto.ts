@@ -1,3 +1,4 @@
+import { Exclude } from 'class-transformer';
 import { IsString, IsNotEmpty, IsEmail, MinLength,Matches } from 'class-validator';
 import { UserRole } from '../../user/entities/user.entity';
 
@@ -42,5 +43,4 @@ export class StudentRegisterDto {
 
   
 
-  role: UserRole = UserRole.STUDENT; // default role
 }
