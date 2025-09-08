@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Toaster } from "@/components/ui/sonner"
 
 
 
@@ -15,6 +16,7 @@ export default function RootLayout({
 }>) {
   return (
     <section className="flex justify-center items-center min-h-screen bg-black">
+      <Toaster/>
       {children}
     </section>
   );
