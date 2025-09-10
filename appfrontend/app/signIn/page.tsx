@@ -10,6 +10,7 @@ import { z } from "zod";
 import { ZodError } from "zod";
 import { Upload, Loader2, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import {jwtDecode} from "jwt-decode";
 
 // --- Schemas ---
 const loginSchema = z.object({
@@ -26,7 +27,7 @@ const studentSchema = z.object({
   institutionName: z.string().min(1, "Institution cannot be blank"),
   profilePic: z.string().url("Must be a valid URL"),
   publicId: z.string().min(1, "Public ID is required"),
-  role: z.literal("student"),
+ 
 });
 
 const tutorSchema = z.object({
@@ -36,7 +37,7 @@ const tutorSchema = z.object({
   institutionName: z.string().min(1, "Institution cannot be blank"),
   designation: z.string().min(1, "Designation cannot be blank"),
   department: z.string().min(1, "Department cannot be blank"),
-  role: z.literal("tutor"),
+
 });
 
 export default function AuthPage() {
@@ -57,12 +58,12 @@ export default function AuthPage() {
 
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("upload_preset", "your_unsigned_preset"); // replace with your preset
+    formData.append("upload_preset", "TestIntegrityApp"); // replace with your preset
     formData.append("folder", "profile_pics");
 
     try {
       const res = await fetch(
-        "https://api.cloudinary.com/v1_1/<your-cloud-name>/image/upload",
+        "https://api.cloudinary.com/v1_1/dizvgbpai/image/upload",
         {
           method: "POST",
           body: formData,
@@ -92,55 +93,99 @@ export default function AuthPage() {
   };
 
   // 🔹 Handle Submit
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const data = Object.fromEntries(formData) as Record<string, string>;
 
-    // Attach Cloudinary fields for students
-    if (role === "student") {
-      data.profilePic = profilePic;
-      data.publicId = publicId;
-    }
+type JwtPayload = {
+  sub: string;
+  email: string;
+  role: "student" | "tutor";
+  exp: number;
+};
 
-    let schema;
-    if (isLogin) schema = loginSchema;
-    else if (role === "student") schema = studentSchema;
-    else schema = tutorSchema;
+const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+  const formData = new FormData(e.currentTarget);
+  const data = Object.fromEntries(formData) as Record<string, string>;
 
-    const result = schema.safeParse(data);
+  // Remove role from data if it exists
+  delete data.role;
 
-    if (!result.success) {
-      const fieldErrors: Record<string, string> = {};
-      result.error.issues.forEach(({ path, message }) => {
-        fieldErrors[path[0] as string] = message;
-      });
-      setErrors(fieldErrors);
+  // Add profile pic info only for student
+  if (!isLogin && role === "student") {
+    data.profilePic = profilePic;
+    data.publicId = publicId;
+  }
+
+  // Choose Zod schema
+  let schema;
+  if (isLogin) schema = loginSchema;
+  else if (role === "student") schema = studentSchema;
+  else schema = tutorSchema;
+
+  const result = schema.safeParse(data);
+
+  if (!result.success) {
+    const fieldErrors: Record<string, string> = {};
+    result.error.issues.forEach(({ path, message }) => {
+      fieldErrors[path[0] as string] = message;
+    });
+    console.log(result);
+    setErrors(fieldErrors);
+    toast.error("Validation failed ❌", {
+      description: "Please correct the highlighted fields.",
+    });
+    return;
+  }
+
+  setErrors({});
+
+  try {
+    const endpoint = isLogin
+      ? "http://localhost:4000/auth/login"
+      : `http://localhost:4000/auth/register/${role}`; // dynamic endpoint
+
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(result.data),
+    });
+
+    const responseData = await res.json();
+
+    if (!res.ok) {
+      // Handle structured backend errors
+      if (responseData.errors) {
+        responseData.errors.forEach((err: { field?: string; message: string }) => {
+          if (err.field) {
+            setErrors((prev) => ({ ...prev, [err.field!]: err.message }));
+          }
+          toast.error(err.message, { description: `Error in ${err.field ?? "form"}` });
+        });
+      } else if (responseData.message) {
+        toast.error(responseData.message);
+      } else {
+        toast.error("Something went wrong ❌");
+      }
       return;
     }
 
-    setErrors({});
+    // Success: save tokens & redirect
+    const tokens = responseData; // backend returns { accessToken, refreshToken }
+    const decoded = jwtDecode<JwtPayload>(tokens.accessToken);
 
-    try {
-      const endpoint = isLogin
-        ? "http://localhost:4000/auth/login"
-        : "http://localhost:4000/auth/register";
+    localStorage.setItem("accessToken", tokens.accessToken);
+    localStorage.setItem("refreshToken", tokens.refreshToken);
+    localStorage.setItem("role", decoded.role);
 
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(result.data),
-      });
+    router.push(decoded.role === "tutor" ? "/tutor" : "/student");
+  } catch (err) {
+    console.error("Auth error", err);
+    toast.error("Authentication failed ❌", {
+      description: "Server unreachable or invalid credentials.",
+    });
+  }
+};
 
-      if (!res.ok) throw new Error("Request failed");
 
-      localStorage.setItem("isLoggedIn", "true");
-      router.push("/");
-    } catch (err) {
-      console.error("Auth error", err);
-      alert("Authentication failed!");
-    }
-  };
 
   // 🔹 Google Sign-in (placeholder - you can integrate NextAuth.js or Firebase)
   const handleGoogleSignIn = () => {

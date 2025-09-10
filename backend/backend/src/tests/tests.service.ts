@@ -7,6 +7,7 @@ import { Submission } from './entities/submissions.entity';
 import { Answer } from './entities/answers.entity';
 import { User, UserRole } from '../user/entities/user.entity';
 import { QuestionType } from './entities/questions.entity';
+import { DeepPartial } from 'typeorm';
 @Injectable()
 export class TestService {
   constructor(
@@ -15,34 +16,46 @@ export class TestService {
     @InjectRepository(Submission) private submissionRepo: Repository<Submission>,
     @InjectRepository(Answer) private answerRepo: Repository<Answer>,
   ) {}
-
-
 async createTest(
   tutor: User,
   title: string,
   description: string,
-  questions: { questionText: string; type: QuestionType; options?: string[]; correctAnswer?: string }[],
+  questions: {
+    questionText: string;
+    type: QuestionType;
+    options?: string[];
+    correctAnswers?: string[];
+    mcqMode?: 'single' | 'multiple';
+    marks?: number;
+    testPic?: string;
+    publicId?: string;
+  }[],
   institutionName?: string,
 ) {
-
-
   const test = this.testRepo.create({
     title,
     description,
     institutionName: institutionName ?? tutor.institutionName,
-    creator: { id: tutor.id } as User, // just pass id
-    questions: questions.map((q) =>
-      this.questionRepo.create({
-        questionText: q.questionText,
-        type: q.type as QuestionType, // ✅ ensure it matches enum
-        options: q.options,
-        correctAnswer: q.correctAnswer,
-      }),
-    ),
+    creator: { id: tutor.id } as User,
+    questions: questions.map((q) => ({
+      questionText: q.questionText,
+      type: q.type,
+      options: q.options ?? null,
+      correctAnswers: q.correctAnswers ?? null,
+      marks: q.marks ?? 1,
+      testPic: q.testPic ?? null,
+      publicId: q.publicId ?? null,
+    })) as DeepPartial<Question>[], // ✅ cast fixes TS error
   });
 
   return await this.testRepo.save(test);
 }
+
+
+
+
+
+
 
 
 
@@ -83,10 +96,10 @@ async getAllTests(filter?: { tutorId?: number; institutionName?: string }) {
   /**
    * Student submits answers to a test
    */
-  async submitAnswers(
+async submitAnswers(
     student: User,
     testId: number,
-    answers: { questionId: number; response: string }[],
+    answers: { questionId: number; response: string | string[] }[],
   ) {
     const test = await this.testRepo.findOne({
       where: { id: testId },
@@ -99,15 +112,14 @@ async getAllTests(filter?: { tutorId?: number; institutionName?: string }) {
       test,
       answers: answers.map((a) =>
         this.answerRepo.create({
-          question: { id: a.questionId }, // safe DeepPartial relation
-          response: a.response,
+          question: { id: a.questionId },
+          response: Array.isArray(a.response) ? JSON.stringify(a.response) : a.response,
         }),
       ),
     });
 
     return this.submissionRepo.save(submission);
   }
-
   /**
    * Get all submissions for a test (for tutors/admins)
    */
@@ -132,33 +144,51 @@ async getAllTests(filter?: { tutorId?: number; institutionName?: string }) {
    * Grade a submission (basic auto grading for MCQs/short answers)
    */
 async autoGradeAllSubmissions(testId: number) {
-  const submissions = await this.submissionRepo.find({
-    where: { test: { id: testId } },
-    relations: ['answers', 'answers.question'],
-  });
-
-  if (!submissions.length) throw new NotFoundException('No submissions found for this test');
-
-  for (const submission of submissions) {
-    let score = 0;
-    let total = submission.answers.length;
-
-    submission.answers.forEach((a) => {
-      if (
-        a.question.correctAnswer &&
-        a.response.trim().toLowerCase() === a.question.correctAnswer.trim().toLowerCase()
-      ) {
-        score++;
-      }
+    const submissions = await this.submissionRepo.find({
+      where: { test: { id: testId } },
+      relations: ['answers', 'answers.question'],
     });
 
-    submission.score = score;
-    submission.totalScore = total;
-    await this.submissionRepo.save(submission);
-  }
+    if (!submissions.length) throw new NotFoundException('No submissions found for this test');
 
-  return { message: `${submissions.length} submissions graded successfully` };
-}
+    for (const submission of submissions) {
+      let total = 0;
+
+      submission.answers.forEach((a) => {
+        const q = a.question;
+
+        if (q.type === QuestionType.MCQ || q.type === QuestionType.TRUE_FALSE) {
+          if (q.correctAnswers) {
+            const correct = q.correctAnswers.map((c) => c.trim().toLowerCase());
+            const responseArr = Array.isArray(a.response)
+              ? a.response
+              : JSON.parse(a.response || '[]');
+
+            const cleanedResp = responseArr.map((r: string) => r.trim().toLowerCase());
+
+            const isCorrect =
+              correct.length === cleanedResp.length &&
+              correct.every((c) => cleanedResp.includes(c));
+
+            if (isCorrect) {
+              a.score = q.marks;
+              total += q.marks;
+            } else {
+              a.score = 0;
+            }
+          }
+        }
+      });
+
+      submission.score = total;
+      submission.totalScore = submission.answers.reduce((sum, ans) => sum + (ans.question.marks || 1), 0);
+
+      await this.answerRepo.save(submission.answers);
+      await this.submissionRepo.save(submission);
+    }
+
+    return { message: `${submissions.length} submissions graded successfully` };
+  }
 
   /**
    * Delete a test (only tutor/admin who created it can delete)
@@ -178,32 +208,29 @@ async autoGradeAllSubmissions(testId: number) {
     return { message: 'Test deleted successfully' };
   }
   async updateStudentMarks(
-  submissionId: number,
-  updatedScores: { answerId: number; score: number }[],
-) {
-  const submission = await this.submissionRepo.findOne({
-    where: { id: submissionId },
-    relations: ['answers', 'answers.question'],
-  });
+    submissionId: number,
+    updatedScores: { answerId: number; score: number }[],
+  ) {
+    const submission = await this.submissionRepo.findOne({
+      where: { id: submissionId },
+      relations: ['answers', 'answers.question'],
+    });
 
-  if (!submission) throw new NotFoundException('Submission not found');
+    if (!submission) throw new NotFoundException('Submission not found');
 
-  let total = 0;
+    let total = 0;
+    submission.answers.forEach((ans) => {
+      const update = updatedScores.find((u) => u.answerId === ans.id);
+      if (update) {
+        ans.score = update.score;
+        total += update.score;
+      }
+    });
 
-  // update each answer score
-  submission.answers.forEach((ans) => {
-    const update = updatedScores.find((u) => u.answerId === ans.id);
-    if (update) {
-      ans.score = update.score; // 👈 store teacher's marks per answer
-      total += update.score;
-    }
-  });
+    submission.score = total;
+    submission.totalScore = submission.answers.reduce((sum, ans) => sum + (ans.question.marks || 1), 0);
 
-  submission.score = total;
-  submission.totalScore = submission.answers.length;
-
-  // save updated answers + submission
-  await this.answerRepo.save(submission.answers);
-  return this.submissionRepo.save(submission);
-}
+    await this.answerRepo.save(submission.answers);
+    return this.submissionRepo.save(submission);
+  }
 }

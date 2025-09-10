@@ -8,25 +8,32 @@ export enum QuestionType {
   ESSAY = 'ESSAY',
 }
 
-@Entity()
+@Entity('questions')
+
 export class Question {
   @PrimaryGeneratedColumn()
-  id: number;
+  id?: number; // optional for creation
 
-  @ManyToOne(() => Test, (test) => test.questions)
-  test: Test;
+  @ManyToOne(() => Test, (test) => test.questions, { onDelete: 'CASCADE' })
+  test?: Test;
 
   @Column()
   questionText: string;
+
+  @Column({ nullable: true })
+  testPic?: string;
+
+  @Column({ nullable: true })
+  publicId?: string;
 
   @Column({ type: 'enum', enum: QuestionType })
   type: QuestionType;
 
   @Column({ type: 'json', nullable: true })
-  options: string[]; // for MCQ/TrueFalse
+  options?: string[];
 
-  @Column({ nullable: true })
-  correctAnswer?: string; // for MCQ/TrueFalse
+  @Column({ type: 'json', nullable: true })
+  correctAnswers?: string[];
 
   @Column({ type: 'int', default: 1 })
   marks: number;

@@ -36,4 +36,12 @@ export class UserService {
   async clearRefreshToken(userId: number): Promise<void> {
     await this.userRepository.update(userId, { refreshToken: '' });
   }
+async update(userId: string, data: Partial<User>): Promise<User> {
+  const user = await this.userRepository.findOne({ where: { id: userId } });
+  if (!user) throw new Error("User not found");
+
+  const updated = this.userRepository.merge(user, data);
+  return this.userRepository.save(updated);
+}
+
 }

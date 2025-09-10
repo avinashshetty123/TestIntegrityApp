@@ -13,35 +13,31 @@ import { User } from '../../user/entities/user.entity';
 
 @Entity('tests')
 export class Test {
-  @PrimaryGeneratedColumn()
-  id: number;
+ @PrimaryGeneratedColumn()
+  id?: number;
 
   @Column()
   title: string;
 
   @Column({ nullable: true })
-  description: string;
+  description?: string;
 
-  // 👨‍🏫 Teacher who created the test
   @ManyToOne(() => User, (user) => user.createdTests, { eager: true })
   creator: User;
 
-  // 🏫 Optional institution (useful if tests are institution-based)
   @Column({ nullable: true })
-  institutionName: string;
+  institutionName?: string;
 
-  // 📄 Questions inside test
-  @OneToMany(() => Question, (q) => q.test, { cascade: true })
-  questions: Question[];
+  @OneToMany(() => Question, (q) => q.test, { cascade: true, eager: true })
+  questions?: Question[];
 
-  // 📝 Student submissions
-  @OneToMany(() => Submission, (s) => s.test, { cascade: true })
-  submissions: Submission[];
-
-  // ⏰ Auto timestamps
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt?: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt?: Date;
+
+  @OneToMany(()=>Submission,(s)=>s.test,{cascade:true,eager:true})
+  submissions?:Submission[];
+
 }
