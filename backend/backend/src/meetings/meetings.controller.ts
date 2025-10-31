@@ -33,8 +33,9 @@ export class MeetingsController {
       isTeacher: true,
     });
     console.log(token);
-    
-    return { meeting, token, serverUrl: process.env.LIVEKIT_CLIENT_URL || 'ws://localhost:7880' };
+    const serverUrl = process.env.LIVEKIT_CLIENT_URL || 'ws://localhost:7880';
+    console.log(`[DEBUG] Returning serverUrl: ${serverUrl}`);
+    return { meeting, token, serverUrl };
   }
 
   @Post(':id/join')
@@ -50,8 +51,10 @@ export class MeetingsController {
       isTeacher: req.user?.role === UserRole.TUTOR,
     });
     console.log(`[LiveKit Token Sent] Token JWT: ${token}`);
-
-    return { meeting, token, serverUrl: process.env.LIVEKIT_CLIENT_URL || 'ws://localhost:7880' };
+    console.log(`[DEBUG] Room: ${meeting.roomName}, Identity: ${req.user?.userId || 'test-user'}`);
+    const serverUrl = process.env.LIVEKIT_CLIENT_URL || 'ws://localhost:7880';
+    console.log(`[DEBUG] Returning serverUrl: ${serverUrl}`);
+    return { meeting, token, serverUrl };
   }
 
   @Post(':id/end')

@@ -17,7 +17,7 @@ export class LivekitService{
             roomJoin:true,
             room:roomName,
             canSubscribe:true,
-            canPublish:isTeacher,
+            canPublish:true,  // Allow all participants to publish video
             canPublishData:true,
             roomAdmin:isTeacher,
 
