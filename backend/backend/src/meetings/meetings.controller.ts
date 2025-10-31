@@ -25,15 +25,16 @@ export class MeetingsController {
   @Post(':id/start')
   @Roles(UserRole.TUTOR)
   async start(@Param('id') id: string, @Req() req) {
-    const meeting = await this.meetings.start(id, req.user.userId);
+    const meeting = await this.meetings.start(id, req.user?.userId || 'test-user');
     const token = await this.livekit.createToken({
       roomName: meeting.roomName,
-      identity: req.user.userId,
-      displayName: req.user.email,
+      identity: req.user?.userId || 'test-user',
+      displayName: req.user?.email || 'Test User',
       isTeacher: true,
     });
     console.log(token);
-    return { meeting, token, serverUrl: process.env.LIVEKIT_SERVER_URL };
+    
+    return { meeting, token, serverUrl: process.env.LIVEKIT_CLIENT_URL || 'ws://localhost:7880' };
   }
 
   @Post(':id/join')
@@ -44,12 +45,13 @@ export class MeetingsController {
 
     const token = await this.livekit.createToken({
       roomName: meeting.roomName,
-      identity: req.user.userId,
-      displayName: dto.displayName || req.user.email,
-      isTeacher: req.user.role === UserRole.TUTOR,
+      identity: req.user?.userId || 'test-user',
+      displayName: dto.displayName || req.user?.email || 'Test User',
+      isTeacher: req.user?.role === UserRole.TUTOR,
     });
+    console.log(`[LiveKit Token Sent] Token JWT: ${token}`);
 
-    return { meeting, token, serverUrl: process.env.LIVEKIT_SERVER_URL };
+    return { meeting, token, serverUrl: process.env.LIVEKIT_CLIENT_URL || 'ws://localhost:7880' };
   }
 
   @Post(':id/end')
@@ -62,5 +64,11 @@ export class MeetingsController {
   @Roles(UserRole.STUDENT, UserRole.TUTOR)
   async visible() {
     return this.meetings.findVisible();
+  }
+
+  @Get(':id')
+  @Roles(UserRole.STUDENT, UserRole.TUTOR)
+  async findOne(@Param('id') id: string) {
+    return this.meetings.findById(id);
   }
 }

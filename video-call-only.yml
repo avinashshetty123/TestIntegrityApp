@@ -1,0 +1,65 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: test-integrity-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: TestIntegrityDb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  redis:
+    image: redis:6-alpine
+    container_name: livekit-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: livekit-server
+    restart: unless-stopped
+    command: --config /livekit.yaml
+    volumes:
+      - ./callserver_deepfakePy/livekit-services/livekit.yaml:/livekit.yaml
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "50000-60000:50000-60000/udp"
+    environment:
+      - LIVEKIT_EXTERNAL_IP=localhost
+    networks:
+      - app-network
+    depends_on:
+      - redis
+
+  backend:
+    build:
+      context: ./backend/backend
+      dockerfile: Dockerfile
+    container_name: test-integrity-backend
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    env_file:
+      - ./backend/backend/.env.docker
+    networks:
+      - app-network
+    depends_on:
+      - postgres
+      - livekit
+
+volumes:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge

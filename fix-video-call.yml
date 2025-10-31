@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: test-integrity-postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: TestIntegrityDb
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:6-alpine
+    container_name: livekit-redis
+    ports:
+      - "6379:6379"
+
+  coturn:
+    image: coturn/coturn:latest
+    container_name: coturn-server
+    ports:
+      - "3478:3478/udp"
+      - "5349:5349"
+    command: >
+      -n --log-file=stdout
+      --min-port=49152 --max-port=65535
+      --lt-cred-mech --fingerprint
+      --no-multicast-peers --no-cli
+      --no-tlsv1 --no-tlsv1_2
+      --realm=localhost --server-name=localhost
+      --static-auth-secret=mysecret
+      --user=test:test123
+
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: livekit-server
+    command: --config /livekit.yaml
+    volumes:
+      - ./livekit-fixed.yaml:/livekit.yaml
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "50000-50010:50000-50010/udp"
+    depends_on:
+      - redis
+      - coturn
+
+  backend:
+    build:
+      context: ./backend/backend
+      dockerfile: Dockerfile
+    container_name: test-integrity-backend
+    ports:
+      - "4000:4000"
+    env_file:
+      - ./backend/backend/.env.docker
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:

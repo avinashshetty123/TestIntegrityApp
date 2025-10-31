@@ -101,34 +101,30 @@ type JwtPayload = {
   exp: number;
 };
 
+
 const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
   e.preventDefault();
   const formData = new FormData(e.currentTarget);
   const data = Object.fromEntries(formData) as Record<string, string>;
 
-  // Remove role from data if it exists
   delete data.role;
-
-  // Add profile pic info only for student
   if (!isLogin && role === "student") {
     data.profilePic = profilePic;
     data.publicId = publicId;
   }
 
-  // Choose Zod schema
-  let schema;
-  if (isLogin) schema = loginSchema;
-  else if (role === "student") schema = studentSchema;
-  else schema = tutorSchema;
+  const schema = isLogin
+    ? loginSchema
+    : role === "student"
+    ? studentSchema
+    : tutorSchema;
 
   const result = schema.safeParse(data);
-
   if (!result.success) {
     const fieldErrors: Record<string, string> = {};
     result.error.issues.forEach(({ path, message }) => {
       fieldErrors[path[0] as string] = message;
     });
-    console.log(result);
     setErrors(fieldErrors);
     toast.error("Validation failed ❌", {
       description: "Please correct the highlighted fields.",
@@ -141,18 +137,18 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
   try {
     const endpoint = isLogin
       ? "http://localhost:4000/auth/login"
-      : `http://localhost:4000/auth/register/${role}`; // dynamic endpoint
+      : `http://localhost:4000/auth/register/${role}`;
 
     const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(result.data),
+      credentials: "include", // ✅ important: send/receive cookies
     });
 
     const responseData = await res.json();
 
     if (!res.ok) {
-      // Handle structured backend errors
       if (responseData.errors) {
         responseData.errors.forEach((err: { field?: string; message: string }) => {
           if (err.field) {
@@ -168,15 +164,14 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
       return;
     }
 
-    // Success: save tokens & redirect
-    const tokens = responseData; // backend returns { accessToken, refreshToken }
-    const decoded = jwtDecode<JwtPayload>(tokens.accessToken);
+    // ✅ Expect backend to set httpOnly cookies already
+    // But if backend still returns role, use it for redirect
+    const { role: userRole } = responseData;
 
-    localStorage.setItem("accessToken", tokens.accessToken);
-    localStorage.setItem("refreshToken", tokens.refreshToken);
-    localStorage.setItem("role", decoded.role);
+    // Optional: if backend didn't set role in response, decode from accessToken cookie
+    // const decoded = jwtDecode<JwtPayload>(responseData.accessToken);
 
-    router.push(decoded.role === "tutor" ? "/tutor" : "/student");
+    router.push(userRole === "tutor" ? "/tutor" : "/student");
   } catch (err) {
     console.error("Auth error", err);
     toast.error("Authentication failed ❌", {
@@ -184,6 +179,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     });
   }
 };
+
 
 
 

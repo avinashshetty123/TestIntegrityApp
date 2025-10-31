@@ -1,0 +1,23 @@
+port: 7880
+log_level: info
+
+keys:
+  avinashashokshettyandchatgptpartnership: avinashashokshettyandchatgptpartnership
+
+redis:
+  address: livekit-redis:6379
+
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 50010
+  use_external_ip: false
+  node_ip: 127.0.0.1
+
+turn:
+  enabled: false
+
+room:
+  auto_create: true
+  empty_timeout: 300
+  departure_timeout: 20

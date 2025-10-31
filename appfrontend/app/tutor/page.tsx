@@ -91,11 +91,12 @@ export default function TutorPage() {
   };
 
   // action handlers (replace with real logic)
-  const handleCreateTest = () => router.push("/tutor/create-test");
-  const handleStartMeeting = () => router.push("/meeting");
+  const handleCreateTest = () => router.push("/tutor/tests/create-test");
+  const handleStartMeeting = () => router.push("/tutor/meeting/create-meeting");
   const handleCheckPapers = () => router.push("/tutor/papers");
   const handleViewPerformance = () => router.push("/tutor/performance");
   const handleAttendance = () => router.push("/tutor/attendance");
+  const handleManageMeetings = () => router.push("/tutor/meeting");
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-black text-white px-6 md:px-12 py-10">
@@ -126,7 +127,10 @@ export default function TutorPage() {
                 <FileText className="w-4 h-4 mr-2" /> Create Test
               </Button>
               <Button size="lg" variant="secondary" onClick={handleStartMeeting}>
-                <Video className="w-4 h-4 mr-2" /> Start Meeting
+                <Video className="w-4 h-4 mr-2" /> Create Meeting
+              </Button>
+              <Button size="lg" variant="secondary" onClick={handleManageMeetings}>
+                <Video className="w-4 h-4 mr-2 text-black" /> Manage Meetings
               </Button>
             </div>
           </div>

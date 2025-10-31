@@ -10,4 +10,8 @@ export class CreateMeetingDto{
     @IsOptional()
     @IsDateString()
     scheduledAt?:string;
+    @IsOptional()
+    noOfStudent?:string;
 }
+
+

@@ -1,0 +1,109 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: test-integrity-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: TestIntegrityDb
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  # PgAdmin
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: test-integrity-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    networks:
+      - app-network
+    depends_on:
+      - postgres
+
+  # Redis for LiveKit
+  redis:
+    image: redis:6-alpine
+    container_name: livekit-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+
+  # LiveKit Server
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: livekit-server
+    restart: unless-stopped
+    command: --config /livekit.yaml
+    volumes:
+      - ./callserver_deepfakePy/livekit-services/livekit.yaml:/livekit.yaml
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "3478:3478/udp"
+      - "5349:5349"
+      - "50000-50005:50000-50005/udp"
+    environment:
+      - LIVEKIT_EXTERNAL_IP=localhost
+      - LIVEKIT_HOST=0.0.0.0
+      - LIVEKIT_PORT=7880
+    networks:
+      - app-network
+    depends_on:
+      - redis
+
+  # Backend API Service
+  backend:
+    build:
+      context: ./backend/backend
+      dockerfile: Dockerfile
+    container_name: test-integrity-backend
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - ./backend/backend/.env.docker
+    networks:
+      - app-network
+    depends_on:
+      - postgres
+      - livekit
+
+  # Python Deepfake Service
+  deepfake-service:
+    build:
+      context: ./callserver_deepfakePy/python_deepfake
+      dockerfile: Dockerfile
+    container_name: deepfake-service
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    networks:
+      - app-network
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  app-network:
+    driver: bridge

@@ -38,6 +38,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "cloudinary": "^1.41.3",
+    "cookie-parser": "^1.4.7",
     "form-data": "^4.0.4",
     "livekit-server-sdk": "^2.13.3",
     "multer": "^2.0.2",
