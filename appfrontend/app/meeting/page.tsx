@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import TutorMeetingDashboard from "@/components/TutorMeetingDashboard";
+import StudentMeetingDashboard from "@/components/StudentMeetingDashboard";
 import MeetingRoom from "@/components/MeetingRoom";
 
-export default function TutorMeetingPage() {
+export default function MeetingPage() {
   const [currentView, setCurrentView] = useState<'dashboard' | 'meeting'>('dashboard');
   const [meetingData, setMeetingData] = useState<{
     meetingId: string;
@@ -12,7 +12,7 @@ export default function TutorMeetingPage() {
     serverUrl: string;
   } | null>(null);
 
-  const handleStartMeeting = (meetingId: string, token: string, serverUrl: string) => {
+  const handleJoinMeeting = (meetingId: string, token: string, serverUrl: string) => {
     setMeetingData({ meetingId, token, serverUrl });
     setCurrentView('meeting');
   };
@@ -33,6 +33,6 @@ export default function TutorMeetingPage() {
   }
 
   return (
-    <TutorMeetingDashboard onStartMeeting={handleStartMeeting} />
+    <StudentMeetingDashboard onJoinMeeting={handleJoinMeeting} />
   );
 }

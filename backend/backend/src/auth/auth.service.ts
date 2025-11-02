@@ -18,7 +18,7 @@ export class AuthService {
   private async generateToken(user: any): Promise<{ accessToken: string; refreshToken: string }> {
     try {
       const payload = { sub: user.id, email: user.email, role: user.role };
-      const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
+      const accessToken = this.jwtService.sign(payload, { expiresIn: '24h' });
       const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
 
       // store hashed refresh token in DB

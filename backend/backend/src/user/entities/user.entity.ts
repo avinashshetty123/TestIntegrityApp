@@ -19,6 +19,12 @@ export class User {
   @Column({ nullable: true })
   password: string; // hashed password (nullable for Google login)
 
+  @Column({ nullable: true })
+  firstName: string;
+
+  @Column({ nullable: true })
+  lastName: string;
+
   @Column({ default: 'Unknown' })
   fullName: string;
 

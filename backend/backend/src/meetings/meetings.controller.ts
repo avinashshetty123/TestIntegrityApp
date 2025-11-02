@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards, Req, ForbiddenException } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Delete, UseGuards, Req, ForbiddenException } from '@nestjs/common';
 import { MeetingsService } from './meetings.service';
 import { LivekitService } from '../livekit/livekit.service';
 import { CreateMeetingDto } from './dto/create-meeting.dto';
@@ -39,21 +39,26 @@ export class MeetingsController {
   }
 
   @Post(':id/join')
-  @Roles(UserRole.STUDENT, UserRole.TUTOR)
   async join(@Param('id') id: string, @Body() dto: JoinMeetingDto, @Req() req) {
-    const meeting = await this.meetings.findById(id);
-    if (meeting.status !== 'LIVE') throw new ForbiddenException('Meeting not live yet');
+    let meeting = await this.meetings.findById(id);
+    
+    if (!meeting) {
+      throw new ForbiddenException('Meeting not found');
+    }
+    
+    // Auto-start meeting if it's scheduled
+    if (meeting.status === 'SCHEDULED') {
+      meeting = await this.meetings.start(id, meeting.teacherId);
+    }
 
     const token = await this.livekit.createToken({
       roomName: meeting.roomName,
-      identity: req.user?.userId || 'test-user',
-      displayName: dto.displayName || req.user?.email || 'Test User',
+      identity: req.user?.userId || `user-${Date.now()}`,
+      displayName: dto.displayName || req.user?.email || 'User',
       isTeacher: req.user?.role === UserRole.TUTOR,
     });
-    console.log(`[LiveKit Token Sent] Token JWT: ${token}`);
-    console.log(`[DEBUG] Room: ${meeting.roomName}, Identity: ${req.user?.userId || 'test-user'}`);
+    
     const serverUrl = process.env.LIVEKIT_CLIENT_URL || 'ws://localhost:7880';
-    console.log(`[DEBUG] Returning serverUrl: ${serverUrl}`);
     return { meeting, token, serverUrl };
   }
 
@@ -65,13 +70,63 @@ export class MeetingsController {
 
   @Get('/visible')
   @Roles(UserRole.STUDENT, UserRole.TUTOR)
-  async visible() {
-    return this.meetings.findVisible();
+  async visible(@Req() req) {
+    const userRole = req.user?.role;
+    if (userRole === UserRole.STUDENT) {
+      const user = await this.meetings.userservice.findById(req.user.userId);
+      return this.meetings.findVisibleForStudents(user?.institutionName);
+    } else {
+      return this.meetings.findByTutor(req.user.userId);
+    }
+  }
+
+  @Get('/search/:query')
+  @Roles(UserRole.STUDENT, UserRole.TUTOR)
+  async search(@Param('query') query: string, @Req() req) {
+    const userRole = req.user?.role;
+    return this.meetings.searchMeetings(query, userRole, req.user.userId);
+  }
+
+  @Get('/institution/:institution')
+  @Roles(UserRole.STUDENT)
+  async byInstitution(@Param('institution') institution: string) {
+    return this.meetings.findByInstitution(institution);
   }
 
   @Get(':id')
   @Roles(UserRole.STUDENT, UserRole.TUTOR)
   async findOne(@Param('id') id: string) {
     return this.meetings.findById(id);
+  }
+
+  @Post('join-by-code')
+  @Roles(UserRole.STUDENT)
+  async joinByCode(@Body() body: { joinCode: string, displayName?: string }, @Req() req) {
+    const meeting = await this.meetings.findByJoinCode(body.joinCode);
+    if (!meeting) {
+      throw new ForbiddenException('Invalid join code');
+    }
+    
+    // Auto-start meeting if it's scheduled
+    let activeMeeting = meeting;
+    if (meeting.status === 'SCHEDULED') {
+      activeMeeting = await this.meetings.start(meeting.id, meeting.teacherId);
+    }
+
+    const token = await this.livekit.createToken({
+      roomName: activeMeeting.roomName,
+      identity: req.user?.userId || `user-${Date.now()}`,
+      displayName: body.displayName || req.user?.email || 'Student',
+      isTeacher: false,
+    });
+    
+    const serverUrl = process.env.LIVEKIT_CLIENT_URL || 'ws://localhost:7880';
+    return { meeting: activeMeeting, token, serverUrl };
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.TUTOR)
+  async delete(@Param('id') id: string, @Req() req) {
+    return this.meetings.delete(id, req.user.userId);
   }
 }

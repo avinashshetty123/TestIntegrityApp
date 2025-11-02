@@ -163,15 +163,12 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
       }
       return;
     }
+    
+    toast.success(isLogin ? "Login successful! ✅" : "Registration successful! ✅", {
+      description: `Welcome, ${responseData.role}!`,
+    });
 
-    // ✅ Expect backend to set httpOnly cookies already
-    // But if backend still returns role, use it for redirect
-    const { role: userRole } = responseData;
-
-    // Optional: if backend didn't set role in response, decode from accessToken cookie
-    // const decoded = jwtDecode<JwtPayload>(responseData.accessToken);
-
-    router.push(userRole === "tutor" ? "/tutor" : "/student");
+    router.push(responseData.role === "tutor" ? "/tutor" : "/student");
   } catch (err) {
     console.error("Auth error", err);
     toast.error("Authentication failed ❌", {

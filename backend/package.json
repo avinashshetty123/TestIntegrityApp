@@ -1,6 +1,0 @@
-{
-  "devDependencies": {
-    "@types/node": "^24.3.0",
-    "@types/webpack": "^5.28.5"
-  }
-}

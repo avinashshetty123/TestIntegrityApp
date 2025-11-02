@@ -40,14 +40,22 @@ export class AuthController {
   async registerStudent(@Body() dto: StudentRegisterDto, @Res() res: Response) {
     const tokens = await this.authService.registerStudent(dto);
     this.setAuthCookies(res, tokens);
-    return res.json({ role: 'student' });
+    return res.json({ 
+      role: 'student',
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken
+    });
   }
 
   @Post('register/tutor')
   async registerTutor(@Body() dto: TutorRegisterDto, @Res() res: Response) {
     const tokens = await this.authService.registerTutor(dto);
     this.setAuthCookies(res, tokens);
-    return res.json({ role: 'tutor' });
+    return res.json({ 
+      role: 'tutor',
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken
+    });
   }
 
   @Post('login')
@@ -60,7 +68,11 @@ export class AuthController {
     );
 
     this.setAuthCookies(res, tokens);
-    return res.json({ role: payload.role });
+    return res.json({ 
+      role: payload.role, 
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken 
+    });
   }
 
   // Google OAuth redirect

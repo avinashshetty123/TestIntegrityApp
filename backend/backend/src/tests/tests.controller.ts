@@ -103,4 +103,18 @@ async createTest(
   async autoGradeAllSubmissions(@Param('testId', ParseIntPipe) testId: number) {
     return this.testService.autoGradeAllSubmissions(testId);
   }
+
+  @Roles(UserRole.STUDENT)
+  @Get('results')
+  async getStudentResults(@Req() req) {
+    const student = req.user as User;
+    return this.testService.getStudentResults(student.id);
+  }
+
+  @Roles(UserRole.TUTOR)
+  @Get('tutor')
+  async getTutorTests(@Req() req) {
+    const tutor = req.user as User;
+    return this.testService.getTutorTests(tutor.id);
+  }
 }

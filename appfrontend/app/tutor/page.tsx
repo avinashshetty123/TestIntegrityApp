@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
@@ -12,6 +13,9 @@ import {
   Users,
   CalendarCheck,
 } from "lucide-react";
+import TutorMeetingDashboard from "@/components/TutorMeetingDashboard";
+import CreateMeetingForm from "@/components/CreateMeetingForm";
+import GoogleMeetStyleCall from "@/components/GoogleMeetStyleCall";
 
 import {
   Chart as ChartJS,
@@ -41,62 +45,216 @@ ChartJS.register(
 
 export default function TutorPage() {
   const router = useRouter();
+  const [currentView, setCurrentView] = useState<"dashboard" | "meetings" | "create-meeting" | "video-call">("dashboard");
+  const [selectedMeeting, setSelectedMeeting] = useState<{id: string, token: string, serverUrl: string} | null>(null);
+  const [userData, setUserData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Mock stats
-  const stats = {
-    studentsJoined: 197,
-    testsConducted: 12,
-    papersChecked: 183,
-    avgAttendance: 89,
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const response = await fetch('http://localhost:4000/user/profile', {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setUserData(data);
+      } else {
+        router.push('/signIn');
+        return;
+      }
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      router.push('/signIn');
+      return;
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Mock chart data
-  const barData = {
-    labels: ["Test 1", "Test 2", "Test 3", "Test 4"],
+  const handleCreateMeeting = () => {
+    setCurrentView("create-meeting");
+  };
+
+  const handleMeetingCreated = (meetingData: any) => {
+    console.log("Meeting created:", meetingData);
+    setCurrentView("meetings");
+  };
+
+  const handleJoinMeeting = (meetingId: string, token: string, serverUrl: string) => {
+    setSelectedMeeting({ id: meetingId, token, serverUrl });
+    setCurrentView("video-call");
+  };
+
+  const handleBackToDashboard = () => {
+    setCurrentView("dashboard");
+    setSelectedMeeting(null);
+  };
+
+  const [stats, setStats] = useState({
+    studentsJoined: 0,
+    testsConducted: 0,
+    papersChecked: 0,
+    avgAttendance: 0,
+  });
+
+  const [barData, setBarData] = useState({
+    labels: [],
     datasets: [
       {
         label: "Joined",
-        data: [40, 55, 32, 70],
+        data: [],
         backgroundColor: "rgba(59,130,246,0.9)",
       },
       {
         label: "Attempted",
-        data: [38, 50, 30, 65],
+        data: [],
         backgroundColor: "rgba(16,185,129,0.9)",
       },
     ],
-  };
+  });
 
-  const lineData = {
-    labels: ["Week 1", "Week 2", "Week 3", "Week 4"],
+  const [lineData, setLineData] = useState({
+    labels: [],
     datasets: [
       {
         label: "Attendance %",
-        data: [92, 85, 88, 95],
+        data: [],
         borderColor: "rgba(139,92,246,1)",
         backgroundColor: "rgba(139,92,246,0.15)",
         tension: 0.3,
       },
     ],
-  };
+  });
 
-  const donutData = {
+  const [donutData, setDonutData] = useState({
     labels: ["Passed", "Failed", "Absent"],
     datasets: [
       {
-        data: [60, 25, 15],
+        data: [0, 0, 0],
         backgroundColor: ["#22c55e", "#ef4444", "#facc15"],
       },
     ],
+  });
+
+  const [recentActivity, setRecentActivity] = useState([]);
+
+  const fetchTutorData = async () => {
+    try {
+      // Fetch tests created by tutor
+      const testsResponse = await fetch('http://localhost:4000/tests/tutor', {
+        credentials: 'include'
+      });
+      if (testsResponse.ok) {
+        const tests = await testsResponse.json();
+        setStats(prev => ({ ...prev, testsConducted: tests.length }));
+        
+        // Update charts with real data
+        if (tests.length > 0) {
+          setBarData({
+            labels: tests.map((t: any, i: number) => `Test ${i + 1}`),
+            datasets: [
+              {
+                label: "Joined",
+                data: tests.map((t: any) => t.participantCount || 0),
+                backgroundColor: "rgba(59,130,246,0.9)",
+              },
+              {
+                label: "Attempted",
+                data: tests.map((t: any) => t.submissionCount || 0),
+                backgroundColor: "rgba(16,185,129,0.9)",
+              },
+            ],
+          });
+        }
+      }
+      
+      // Fetch meetings
+      const meetingsResponse = await fetch('http://localhost:4000/meetings/visible', {
+        credentials: 'include'
+      });
+      if (meetingsResponse.ok) {
+        const meetings = await meetingsResponse.json();
+        const liveMeetings = meetings.filter((m: any) => m.status === 'LIVE');
+        setStats(prev => ({ ...prev, studentsJoined: liveMeetings.reduce((sum: number, m: any) => sum + (m.participantCount || 0), 0) }));
+        
+        // Set recent activity
+        setRecentActivity(meetings.slice(0, 4).map((m: any) => `Meeting: ${m.title} - ${m.status}`));
+      }
+    } catch (error) {
+      console.error('Failed to fetch tutor data:', error);
+    }
   };
+
+  useEffect(() => {
+    if (userData) {
+      fetchTutorData();
+    }
+  }, [userData]);
 
   // action handlers (replace with real logic)
   const handleCreateTest = () => router.push("/tutor/tests/create-test");
-  const handleStartMeeting = () => router.push("/tutor/meeting/create-meeting");
+  const handleStartMeeting = () => setCurrentView("create-meeting");
   const handleCheckPapers = () => router.push("/tutor/papers");
   const handleViewPerformance = () => router.push("/tutor/performance");
   const handleAttendance = () => router.push("/tutor/attendance");
-  const handleManageMeetings = () => router.push("/tutor/meeting");
+  const handleManageMeetings = () => setCurrentView("meetings");
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Render different views based on current state
+  if (currentView === "meetings") {
+    return (
+      <div>
+        <div className="p-4 bg-black/50 border-b border-white/10">
+          <Button onClick={handleBackToDashboard} variant="outline" className="mb-4">
+            ← Back to Dashboard
+          </Button>
+        </div>
+        <TutorMeetingDashboard 
+          onCreateMeeting={handleCreateMeeting}
+          onStartMeeting={handleJoinMeeting}
+        />
+      </div>
+    );
+  }
+
+  if (currentView === "create-meeting") {
+    return (
+      <CreateMeetingForm
+        onBack={() => setCurrentView("meetings")}
+        onCreateMeeting={handleMeetingCreated}
+      />
+    );
+  }
+
+  if (currentView === "video-call" && selectedMeeting) {
+    return (
+      <GoogleMeetStyleCall
+        token={selectedMeeting.token}
+        serverUrl={selectedMeeting.serverUrl}
+        onDisconnect={handleBackToDashboard}
+        userInfo={{
+          name: userData?.firstName || 'Tutor',
+          profilePic: userData?.profilePic,
+          role: 'tutor'
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-black text-white px-6 md:px-12 py-10">
@@ -131,6 +289,9 @@ export default function TutorPage() {
               </Button>
               <Button size="lg" variant="secondary" onClick={handleManageMeetings}>
                 <Video className="w-4 h-4 mr-2 text-black" /> Manage Meetings
+              </Button>
+              <Button size="lg" variant="outline" onClick={() => router.push('/tutor/profile')}>
+                Edit Profile
               </Button>
             </div>
           </div>
@@ -236,12 +397,7 @@ export default function TutorPage() {
       <section className="max-w-6xl mx-auto mb-10">
         <h3 className="text-xl font-semibold mb-6">Recent Activity</h3>
         <div className="space-y-3">
-          {[
-            "Avinash created Test: Math Midterm",
-            "Vedant started Meeting: Physics Viva",
-            "10 students joined Test: Data Structures",
-            "Auto-grader finished: Chemistry Quiz",
-          ].map((text, i) => (
+          {recentActivity.length > 0 ? recentActivity.map((activity: string, i) => (
             <motion.div
               key={i}
               initial={{ opacity: 0, x: -20 }}
@@ -251,11 +407,13 @@ export default function TutorPage() {
               className="p-4 rounded-lg bg-white/4 border border-white/6"
             >
               <div className="flex items-center justify-between">
-                <div className="text-sm">{text}</div>
-                <div className="text-xs text-slate-400">2m ago</div>
+                <div className="text-sm">{activity}</div>
+                <div className="text-xs text-slate-400">Recent</div>
               </div>
             </motion.div>
-          ))}
+          )) : (
+            <div className="text-slate-400 text-sm">No recent activity</div>
+          )}
         </div>
       </section>
 

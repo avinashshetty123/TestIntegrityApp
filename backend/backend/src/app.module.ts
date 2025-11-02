@@ -17,6 +17,7 @@ import { Test } from './tests/entities/test.entity';
 import { Result } from './tests/entities/results.entity';
 import { Meeting } from './meetings/entity/meeting.entity';
 import { MeetingsModule } from './meetings/meetings.module';
+import { CloudianaryModule } from './cloudinary/cloudinary.module';
 @Module({
   imports: [
   TypeOrmModule.forRoot({
@@ -50,7 +51,8 @@ import { MeetingsModule } from './meetings/meetings.module';
     TestsModule,
     LivekitModule,
     DeepfakeModule,
-    MeetingsModule
+    MeetingsModule,
+    CloudianaryModule
     
   ],
 })

@@ -44,4 +44,19 @@ async update(userId: string, data: Partial<User>): Promise<User> {
   return this.userRepository.save(updated);
 }
 
+async updateProfile(userId: string, profileData: any): Promise<User> {
+  const user = await this.userRepository.findOne({ where: { id: userId } });
+  if (!user) throw new Error("User not found");
+
+  // Update fullName when firstName or lastName changes
+  if (profileData.firstName || profileData.lastName) {
+    const firstName = profileData.firstName || user.firstName || '';
+    const lastName = profileData.lastName || user.lastName || '';
+    profileData.fullName = `${firstName} ${lastName}`.trim();
+  }
+
+  const updated = this.userRepository.merge(user, profileData);
+  return this.userRepository.save(updated);
+}
+
 }

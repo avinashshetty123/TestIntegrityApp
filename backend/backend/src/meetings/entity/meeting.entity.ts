@@ -14,6 +14,12 @@ export class Meeting {
   @Column({ nullable: true })
   description?: string;
 
+  @Column({ nullable: true })
+  institution?: string;
+
+  @Column({ nullable: true })
+  subject?: string;
+
   @Column({ type: 'timestamptz', nullable: true })
   scheduledAt?: Date;
 

@@ -14,13 +14,16 @@ export class LivekitService{
             ttl,
         });
         token.addGrant({
-            roomJoin:true,
-            room:roomName,
-            canSubscribe:true,
-            canPublish:true,  // Allow all participants to publish video
-            canPublishData:true,
-            roomAdmin:isTeacher,
-
+            roomJoin: true,
+            room: roomName,
+            canSubscribe: true,
+            canPublish: true,
+            canPublishData: true,
+            canUpdateOwnMetadata: true,
+            roomAdmin: isTeacher,
+            roomCreate: true,
+            roomList: true,
+            roomRecord: true
         })
         return token.toJwt();
     }

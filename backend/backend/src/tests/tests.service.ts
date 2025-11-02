@@ -233,4 +233,20 @@ async autoGradeAllSubmissions(testId: number) {
     await this.answerRepo.save(submission.answers);
     return this.submissionRepo.save(submission);
   }
+
+  async getStudentResults(studentId: string) {
+    return this.submissionRepo.find({
+      where: { student: { id: studentId } },
+      relations: ['test', 'answers', 'answers.question'],
+      order: { id: 'DESC' }
+    });
+  }
+
+  async getTutorTests(tutorId: string) {
+    return this.testRepo.find({
+      where: { creator: { id: tutorId } },
+      relations: ['questions', 'submissions'],
+      order: { createdAt: 'DESC' }
+    });
+  }
 }
