@@ -14,9 +14,6 @@ rtc:
   use_external_ip: false
   node_ip: 127.0.0.1
 
-turn:
-  enabled: false
-
 room:
   auto_create: true
   empty_timeout: 300

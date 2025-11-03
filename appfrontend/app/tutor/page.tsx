@@ -197,7 +197,7 @@ export default function TutorPage() {
   }, [userData]);
 
   // action handlers (replace with real logic)
-  const handleCreateTest = () => router.push("/tutor/tests/create-test");
+  const handleCreateTest = () => router.push("/tutor/tests");
   const handleStartMeeting = () => setCurrentView("create-meeting");
   const handleCheckPapers = () => router.push("/tutor/papers");
   const handleViewPerformance = () => router.push("/tutor/performance");
@@ -290,7 +290,7 @@ export default function TutorPage() {
               <Button size="lg" variant="secondary" onClick={handleManageMeetings}>
                 <Video className="w-4 h-4 mr-2 text-black" /> Manage Meetings
               </Button>
-              <Button size="lg" variant="outline" onClick={() => router.push('/tutor/profile')}>
+              <Button size="lg" variant="secondary" onClick={() => router.push('/tutor/profile')}>
                 Edit Profile
               </Button>
             </div>

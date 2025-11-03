@@ -166,14 +166,31 @@ export default function CreateTest() {
     }
   };
 
-  const handleSaveLocal = () => {
+  const handleSaveTest = (publish: boolean = false) => {
     const payload = {
+      id: Date.now().toString(),
       name: testName,
       description,
       questions,
+      isPublished: publish,
+      createdAt: new Date().toISOString(),
+      stats: {
+        totalStudents: 0,
+        present: 0,
+        evaluated: 0
+      }
     };
-    localStorage.setItem("createdTest", JSON.stringify(payload));
-    toast.success("Test saved locally ✅");
+    
+    const existingTests = JSON.parse(localStorage.getItem("tutorTests") || "[]");
+    const updatedTests = [...existingTests, payload];
+    localStorage.setItem("tutorTests", JSON.stringify(updatedTests));
+    
+    toast.success(publish ? "Test published successfully ✅" : "Test saved as draft ✅");
+    
+    // Reset form
+    setTestName("");
+    setDescription("");
+    setQuestions([]);
   };
 
   return (
@@ -383,12 +400,20 @@ export default function CreateTest() {
             <PlusCircle className="w-4 h-4 mr-2" /> Add Question
           </Button>
 
-          <Button
-            onClick={handleSaveLocal}
-            className="w-full bg-emerald-600 hover:bg-emerald-700"
-          >
-            Save Test to LocalStorage
-          </Button>
+          <div className="flex gap-4">
+            <Button
+              onClick={() => handleSaveTest(false)}
+              className="flex-1 bg-gray-600 hover:bg-gray-700"
+            >
+              Save as Draft
+            </Button>
+            <Button
+              onClick={() => handleSaveTest(true)}
+              className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+            >
+              Save & Publish
+            </Button>
+          </div>
         </div>
       </motion.div>
     </div>

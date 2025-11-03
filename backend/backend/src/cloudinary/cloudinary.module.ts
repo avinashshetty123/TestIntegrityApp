@@ -7,4 +7,4 @@ import { CloudinaryController } from "./cloudinary.controller";
     controllers:[CloudinaryController],
     exports:[CloudinaryService],
 })
-export class CloudianaryModule{};
+export class CloudinaryModule {}

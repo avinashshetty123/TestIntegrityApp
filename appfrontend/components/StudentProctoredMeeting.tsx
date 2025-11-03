@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { initializeProctoring, ProctoringAlert } from "@/lib/yolo-proctoring";
+import { ProctoringService } from "@/lib/proctoring-service";
 
-interface ProctoringAlert {
+interface LocalProctoringAlert {
   id: string;
-  type: "eye_tracking" | "face_detection" | "multiple_faces" | "no_face" | "suspicious_movement";
+  type: "eye_tracking" | "face_detection" | "multiple_faces" | "no_face" | "suspicious_movement" | "face_mismatch";
   message: string;
   timestamp: Date;
   severity: "low" | "medium" | "high";
@@ -19,6 +20,8 @@ interface StudentProctoredMeetingProps {
   meetingId: string;
   meetingTitle: string;
   tutorName: string;
+  studentId: string;
+  cloudinaryImageUrl?: string;
   onLeave: () => void;
 }
 
@@ -26,12 +29,15 @@ export default function StudentProctoredMeeting({
   meetingId, 
   meetingTitle, 
   tutorName, 
+  studentId,
+  cloudinaryImageUrl,
   onLeave 
 }: StudentProctoredMeetingProps) {
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const [proctoringActive, setProctoringActive] = useState(true);
-  const [alerts, setAlerts] = useState<ProctoringAlert[]>([]);
+  const [alerts, setAlerts] = useState<LocalProctoringAlert[]>([]);
+  const [proctoringService] = useState(new ProctoringService());
   const [eyeTrackingData, setEyeTrackingData] = useState({
     lookingAtScreen: true,
     gazeDirection: "center",
@@ -57,6 +63,9 @@ export default function StudentProctoredMeeting({
       const proctoring = initializeProctoring(
         videoRef.current,
         canvasRef.current,
+        meetingId,
+        studentId,
+        cloudinaryImageUrl,
         handleProctoringAlert,
         handleEyeTrackingUpdate
       );
@@ -96,9 +105,9 @@ export default function StudentProctoredMeeting({
 
   // Handle YOLO proctoring alerts
   const handleProctoringAlert = (alert: ProctoringAlert) => {
-    const newAlert: ProctoringAlert = {
+    const newAlert: LocalProctoringAlert = {
       id: Date.now().toString(),
-      type: alert.type,
+      type: alert.type as any,
       message: alert.message,
       timestamp: alert.timestamp,
       severity: alert.severity
@@ -122,8 +131,8 @@ export default function StudentProctoredMeeting({
     }
   };
 
-  const addAlert = (type: ProctoringAlert["type"], message: string, severity: ProctoringAlert["severity"]) => {
-    const newAlert: ProctoringAlert = {
+  const addAlert = (type: LocalProctoringAlert["type"], message: string, severity: LocalProctoringAlert["severity"]) => {
+    const newAlert: LocalProctoringAlert = {
       id: Date.now().toString(),
       type,
       message,

@@ -1,7 +1,7 @@
 import { User } from "src/user/entities/user.entity";
-import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, ManyToOne, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from "typeorm";
 
-export type MeetingStatus = 'SCHEDULED' | 'LIVE' | 'ENDED';
+export type MeetingStatus = 'SCHEDULED' | 'LIVE' | 'ENDED' | 'LOCKED';
 
 @Entity('meetings')
 export class Meeting {
@@ -26,6 +26,9 @@ export class Meeting {
   @Column({ type: 'varchar', default: 'SCHEDULED' })
   status: MeetingStatus;
 
+  @Column({ default: false })
+  isPublished: boolean;
+
   @Column({ type: 'varchar', unique: true })
   roomName: string;
 
@@ -33,5 +36,23 @@ export class Meeting {
   teacher: User;
 
   @Column()
-  teacherId: string; // foreign key column
+  teacherId: string;
+
+  @Column({ default: false })
+  isLocked: boolean;
+
+  @Column({ default: false })
+  requireApproval: boolean;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  startedAt?: Date;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  endedAt?: Date;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

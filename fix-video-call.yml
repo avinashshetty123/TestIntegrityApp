@@ -10,12 +10,22 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   redis:
     image: redis:6-alpine
     container_name: livekit-redis
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   coturn:
     image: coturn/coturn:latest
@@ -44,8 +54,15 @@ services:
       - "7881:7881"
       - "50000-50010:50000-50010/udp"
     depends_on:
-      - redis
-      - coturn
+      redis:
+        condition: service_healthy
+      coturn:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7880"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   backend:
     build:
@@ -57,7 +74,28 @@ services:
     env_file:
       - ./backend/backend/.env.docker
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      livekit:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./appfrontend
+      dockerfile: Dockerfile
+    container_name: test-integrity-frontend
+    ports:
+      - "3001:3000"
+    depends_on:
+      - backend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:4000
+      - NEXT_PUBLIC_LIVEKIT_URL=ws://localhost:7880
 
 volumes:
   postgres_data:
