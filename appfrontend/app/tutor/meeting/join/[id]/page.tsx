@@ -1,36 +1,77 @@
 "use client";
 
-import { useSearchParams, useRouter } from "next/navigation";
-import VideoCall from "../../../../../components/VideoCall";
+import { useEffect, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/use-toast";
+import EnhancedTutorMeetingRoom from "@/components/EnhancedTutorMeetingRooom";
 
-export default function JoinMeeting() {
+export default function TutorMeetingJoinPage() {
+  const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const token = searchParams.get("token");
-  const serverUrl = searchParams.get("serverUrl");
+  const { toast } = useToast();
+  const [isConnecting, setIsConnecting] = useState(true);
+
+  const meetingId = params.id as string;
+  const token = searchParams.get('token');
+  const serverUrl = searchParams.get('serverUrl');
+
+  useEffect(() => {
+    if (!token || !serverUrl) {
+      toast({
+        title: "Error",
+        description: "Missing connection parameters",
+        variant: "destructive",
+      });
+      router.push('/tutor/meeting');
+    } else {
+      setIsConnecting(false);
+    }
+  }, [token, serverUrl, router, toast]);
+
+  const handleDisconnect = () => {
+    router.push('/tutor/meeting');
+  };
+
+  if (isConnecting) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-black text-white p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p>Connecting to meeting...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!token || !serverUrl) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-black text-white p-6 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Invalid Meeting Link</h1>
-          <p className="text-gray-400 mb-6">Missing token or server URL</p>
-          <button 
-            onClick={() => router.push('/tutor')}
-            className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded"
-          >
-            Back to Dashboard
-          </button>
+          <h2 className="text-xl font-semibold mb-4">Connection Error</h2>
+          <Button onClick={() => router.push('/tutor/meeting')}>
+            Return to Dashboard
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <VideoCall 
-      token={token} 
-      serverUrl={decodeURIComponent(serverUrl)}
-      onDisconnect={() => router.push('/tutor')}
-    />
+    <div className="h-screen bg-black">
+      <EnhancedTutorMeetingRoom
+        token={token}
+        serverUrl={serverUrl}
+        meetingId={meetingId}
+        onDisconnect={handleDisconnect}
+        userInfo={{
+          name: "Tutor",
+          role: "tutor"
+        }}
+      />
+    </div>
   );
 }

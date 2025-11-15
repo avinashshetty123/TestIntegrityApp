@@ -21,11 +21,14 @@ import { Meeting } from './meetings/entity/meeting.entity';
 import { MeetingsModule } from './meetings/meetings.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { ProctoringModule } from './proctoring/proctoring.module';
-import { ProctoringAlert } from './proctoring/entities/proctoring-alert.entity';
-import { FaceVerification } from './proctoring/entities/face-verification.entity';
+import { ProctoringAlert } from './meetings/entities/proctoring-alert.entity';
+// import { Test as MeetingTest } from './test/entities/test.entity';
+import { MeetingParticipant } from './meetings/entities/meeting-participant.entity';
 import { MeetingSession } from './meetings/entities/meeting-session.entity';
-import { MeetingLockRequest } from './meetings/entities/meeting-lock-request.entity';
 import { JoinRequest } from './meetings/entities/join-request.entity';
+import { QuizModule } from './quiz/quiz.module';
+import { LiveQuiz } from './quiz/entities/live-quiz.entity';
+import { QuizResponse } from './quiz/entities/quiz-response.entity';
 @Module({
   imports: [
   TypeOrmModule.forRoot({
@@ -34,8 +37,8 @@ import { JoinRequest } from './meetings/entities/join-request.entity';
     port: parseInt(process.env.DATABASE_PORT || '5432'),
     username: process.env.DATABASE_USERNAME || 'admin',
     password: process.env.DATABASE_PASSWORD || 'admin123',
-    database: process.env.DATABASE_NAME || 'TestIntegrityDb',
-    entities: [User,Submission,Question,Answer,Test,Result,Meeting,ProctoringAlert,FaceVerification,MeetingSession,MeetingLockRequest,JoinRequest
+    database: process.env.DATABASE_NAME || 'TestIntegrity',
+    entities: [User,Submission,Question,Answer,Test,Result,Meeting,ProctoringAlert,MeetingSession,JoinRequest,LiveQuiz,QuizResponse,MeetingParticipant
     ],
     synchronize:true,
   }),
@@ -61,7 +64,9 @@ import { JoinRequest } from './meetings/entities/join-request.entity';
     DeepfakeModule,
     MeetingsModule,
     CloudinaryModule,
-    ProctoringModule
+    ProctoringModule,
+    QuizModule,
+
     
   ],
   controllers: [AppController],

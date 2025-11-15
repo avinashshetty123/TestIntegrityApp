@@ -14,7 +14,7 @@ import { User } from '../../user/entities/user.entity';
 @Entity('tests')
 export class Test {
  @PrimaryGeneratedColumn()
-  id?: number;
+  id: number;
 
   @Column()
   title: string;
@@ -25,11 +25,20 @@ export class Test {
   @ManyToOne(() => User, (user) => user.createdTests, { eager: true })
   creator: User;
 
+  @Column({ type: 'int', nullable: true })
+  durationMinutes: number;
+  
+    @Column({ type: 'timestamp', nullable: true })
+  scheduledAt: Date;
+
+@Column({nullable:true})
+ispublished:Boolean;
+
   @Column({ nullable: true })
   institutionName?: string;
 
   @OneToMany(() => Question, (q) => q.test, { cascade: true, eager: true })
-  questions?: Question[];
+  questions: Question[];
 
   @CreateDateColumn()
   createdAt?: Date;
@@ -39,5 +48,8 @@ export class Test {
 
   @OneToMany(()=>Submission,(s)=>s.test,{cascade:true,eager:true})
   submissions?:Submission[];
+
+  @Column({nullable:true})
+  totalScore:number;
 
 }

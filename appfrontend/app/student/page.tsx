@@ -14,11 +14,10 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import { Button } from "@/components/ui/button";
-import { Search, FileCheck, Video, Building2, ListChecks, User } from "lucide-react";
-import StudentMeetingDashboard from "@/components/StudentMeetingDashboard";
-import GoogleMeetStyleCall from "@/components/GoogleMeetStyleCall";
-import JoinByCode from "@/components/JoinByCode";
+import { Button } from "../../components/ui/button";
+import { FileCheck, Video, ListChecks, User } from "lucide-react";
+
+import JoinByCode from "../../components/JoinByCode";
 
 ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, ArcElement, Tooltip, Legend);
 
@@ -86,6 +85,7 @@ export default function StudentPage() {
 
   const [recentTests, setRecentTests] = useState([]);
   const [upcomingMeetings, setUpcomingMeetings] = useState([]);
+  const [availableTests, setAvailableTests] = useState([]);
 
   const fetchStudentData = async () => {
     try {
@@ -128,6 +128,15 @@ export default function StudentPage() {
         const meetings = await meetingsResponse.json();
         setUpcomingMeetings(meetings.slice(0, 3));
       }
+      
+      // Fetch available tests
+      const availableTestsResponse = await fetch('http://localhost:4000/tests', {
+        credentials: 'include'
+      });
+      if (availableTestsResponse.ok) {
+        const tests = await availableTestsResponse.json();
+        setAvailableTests(tests.slice(0, 3));
+      }
     } catch (error) {
       console.error('Failed to fetch student data:', error);
     }
@@ -140,10 +149,10 @@ export default function StudentPage() {
   }, [userData]);
 
   const quickActions = [
-    { icon: <FileCheck className="w-5 h-5" />, label: "Take Test", onClick: () => router.push("/student/take-test") },
+    { icon: <FileCheck className="w-5 h-5" />, label: "Browse Tests", onClick: () => router.push("/student/tests") },
     { icon: <Video className="w-5 h-5" />, label: "Browse Meetings", onClick: () => setCurrentView("meetings") },
     { icon: <Video className="w-5 h-5" />, label: "Join by Code", onClick: () => setCurrentView("join-code") },
-    { icon: <ListChecks className="w-5 h-5" />, label: "All Submissions", onClick: () => router.push("/student/submissions") },
+    { icon: <ListChecks className="w-5 h-5" />, label: "View Results", onClick: () => router.push("/student/results") },
   ];
 
   if (loading) {
@@ -157,19 +166,6 @@ export default function StudentPage() {
     );
   }
 
-  // Render different views based on current state
-  if (currentView === "meetings") {
-    return (
-      <div>
-        <div className="p-4 bg-black/50 border-b border-white/10">
-          <Button onClick={() => setCurrentView("dashboard")} variant="outline" className="mb-4">
-            ← Back to Dashboard
-          </Button>
-        </div>
-        <StudentMeetingDashboard onJoinMeeting={handleJoinMeeting} />
-      </div>
-    );
-  }
 
   if (currentView === "join-code") {
     return (
@@ -180,20 +176,6 @@ export default function StudentPage() {
     );
   }
 
-  if (currentView === "proctored" && selectedMeeting) {
-    return (
-      <GoogleMeetStyleCall
-        token={selectedMeeting.token}
-        serverUrl={selectedMeeting.serverUrl}
-        onDisconnect={handleLeaveMeeting}
-        userInfo={{
-          name: userData?.firstName || 'Student',
-          profilePic: userData?.profilePic,
-          role: 'student'
-        }}
-      />
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-black text-white px-6 md:px-12 py-10">
@@ -212,7 +194,7 @@ export default function StudentPage() {
               <Button size="lg" className="bg-green-600" onClick={() => setCurrentView("join-code")}>
                 Join by Code
               </Button>
-              <Button size="lg" variant="secondary" onClick={() => setCurrentView("meetings")}>
+              <Button size="lg" variant="secondary" onClick={() => router.push("/student/meeting")}>
                 Browse Meetings
               </Button>
               <Button size="lg" variant="outline" onClick={() => router.push("/student/results")}>
@@ -242,7 +224,7 @@ export default function StudentPage() {
         </div>
       </section>
 
-      {/* Performance Overview (no cards) */}
+      {/* Performance Overview */}
       <section className="max-w-5xl mx-auto mb-12 grid md:grid-cols-2 gap-8 items-start">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="p-6 rounded-2xl bg-white/4 border border-white/8">
           <h3 className="text-lg font-semibold mb-4">Performance Trend</h3>
@@ -252,11 +234,11 @@ export default function StudentPage() {
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="p-6 rounded-2xl bg-white/4 border border-white/8 flex flex-col items-center">
           <h3 className="text-lg font-semibold mb-4">Attempts</h3>
           <Doughnut data={donutData} />
-          <div className="mt-4 text-slate-300 text-sm">Attempted 8 / 11</div>
+          <div className="mt-4 text-slate-300 text-sm">Attempted {recentTests.length} tests</div>
         </motion.div>
       </section>
 
-      {/* Quick Actions strip (prominent, not cards) */}
+      {/* Quick Actions */}
       <section className="max-w-5xl mx-auto mb-12">
         <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
         <div className="flex gap-4 overflow-x-auto pb-4">
@@ -277,7 +259,7 @@ export default function StudentPage() {
         </div>
       </section>
 
-      {/* Tests Timeline */}
+      {/* Recent Tests */}
       <section className="max-w-5xl mx-auto mb-12">
         <h3 className="text-lg font-semibold mb-4">Recent Tests & Submissions</h3>
         <div className="space-y-4 border-l border-slate-700 pl-6 ml-3">
@@ -296,7 +278,26 @@ export default function StudentPage() {
         </div>
       </section>
 
-      {/* Meetings / Institutions carousel */}
+      {/* Available Tests */}
+      <section className="max-w-5xl mx-auto mb-12">
+        <h3 className="text-lg font-semibold mb-4">Available Tests</h3>
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {availableTests.length > 0 ? availableTests.map((test: any, i) => (
+            <motion.div key={i} whileHover={{ scale: 1.03 }} className="min-w-[250px] p-4 rounded-2xl bg-gradient-to-br from-green-500/10 to-blue-500/10 border border-white/10">
+              <div className="text-sm text-slate-400">{test.creator?.institutionName || 'Institution'}</div>
+              <div className="mt-2 font-semibold">{test.title}</div>
+              <div className="text-xs text-slate-400 mt-1">{test.questions?.length || 0} questions</div>
+              <div className="mt-4">
+                <Button size="sm" onClick={() => router.push(`/student/test/${test.id}`)}>Take Test</Button>
+              </div>
+            </motion.div>
+          )) : (
+            <div className="text-slate-400 text-sm">No tests available</div>
+          )}
+        </div>
+      </section>
+
+      {/* Upcoming Meetings */}
       <section className="max-w-5xl mx-auto mb-6">
         <h3 className="text-lg font-semibold mb-4">Upcoming Meetings</h3>
         <div className="flex gap-4 overflow-x-auto pb-4">

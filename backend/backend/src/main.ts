@@ -2,6 +2,8 @@ import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { Logger,ValidationPipe } from "@nestjs/common";
 import cookieParser from 'cookie-parser';
+import {SwaggerModule,DocumentBuilder} from '@nestjs/swagger';
+
 async function bootstrap() {
   
   const logger=new Logger('Bootstrap');
@@ -18,10 +20,15 @@ async function bootstrap() {
       whitelist:true,
       forbidNonWhitelisted:true,
       transform:true,
-      disableErrorMessages:false
+      disableErrorMessages:false,
+      transformOptions: { enableImplicitConversion: true }
+
     }),
 
   )
+  const config=new DocumentBuilder().setTitle("TestIntegrityBackend").setDescription("Api DOcs").setVersion('1').addBearerAuth().addCookieAuth().build();
+  const document=SwaggerModule.createDocument(app,config);
+  SwaggerModule.setup("doc",app,document);
     await app.listen(4000);
 }
 bootstrap();

@@ -1,52 +1,143 @@
-import { Controller, Post, Get, Body, Param, UseInterceptors, UploadedFile, UseGuards } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { Controller, Post, Get, Body, Param, UseGuards, Query, Req } from '@nestjs/common';
 import { ProctoringService } from './proctoring.service';
-import { CreateAlertDto } from './dto/create-alert.dto';
-import { VerifyFaceDto } from './dto/verify-face.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Roles } from '../auth/decorator/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { UserRole } from '../user/entities/user.entity';
 
 @Controller('proctoring')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class ProctoringController {
-  constructor(private proctoringService: ProctoringService) {}
+  constructor(private readonly proctoringService: ProctoringService) {}
 
-  @Post('alert')
-  async createAlert(@Body() dto: CreateAlertDto) {
-    return this.proctoringService.createAlert(dto);
+  // ===== SESSION MANAGEMENT =====
+  @Post('session/start')
+  @Roles(UserRole.STUDENT, UserRole.TUTOR)
+  async startSession(@Body() data: { meetingId: string; userId: string; participantId: string }) {
+    return this.proctoringService.startProctoringSession(data.meetingId, data.userId, data.participantId);
   }
 
-  @Post('verify-face')
-  @UseInterceptors(FileInterceptor('image'))
-  async verifyFace(
-    @Body() dto: VerifyFaceDto,
-    @UploadedFile() image: Express.Multer.File,
-  ) {
-    return this.proctoringService.verifyFace(dto, image);
+  @Post('session/end')
+  @Roles(UserRole.STUDENT, UserRole.TUTOR)
+  async endSession(@Body() data: { meetingId: string; participantId: string }) {
+    return this.proctoringService.endProctoringSession(data.meetingId, data.participantId);
   }
 
-  @Post('yolo-detection')
-  async processYoloDetection(
-    @Body() body: { meetingId: string; studentId: string; detections: any[] },
-  ) {
-    return this.proctoringService.processYoloDetection(
-      body.meetingId,
-      body.studentId,
-      body.detections,
-    );
+  // ===== REAL-TIME ANALYSIS =====
+  @Post('analyze-frame')
+  @Roles(UserRole.STUDENT)
+  async analyzeFrame(@Body() frameData: { 
+    meetingId: string; 
+    userId: string; 
+    participantId: string; 
+    detections?: {
+      faceCount?: number;
+      phoneDetected?: boolean;
+      phoneConfidence?: number;
+      objects?: string[];
+    };
+    browserData?: any;
+  }) {
+    return this.proctoringService.analyzeFrame(frameData);
   }
 
+  @Post('browser-activity')
+  @Roles(UserRole.STUDENT)
+  async recordBrowserActivity(@Body() data: { 
+    meetingId: string; 
+    userId: string; 
+    participantId: string; 
+    activityType: any; 
+    metadata?: any 
+  },@Req() req) {
+    const userId=req.user.userId;
+
+    return this.proctoringService.recordBrowserActivity(data,userId);
+  }
+
+  // ===== ALERTS & MONITORING =====
   @Get('alerts/:meetingId')
-  async getAlertsForMeeting(@Param('meetingId') meetingId: string) {
-    return this.proctoringService.getAlertsForMeeting(meetingId);
+  @Roles(UserRole.TUTOR)
+  async getAlerts(@Param('meetingId') meetingId: string) {
+    return this.proctoringService.getSessionAlerts(meetingId);
   }
 
-  @Get('flagged-students/:meetingId')
-  async getFlaggedStudents(@Param('meetingId') meetingId: string) {
-    return this.proctoringService.getFlaggedStudents(meetingId);
+  @Get('alerts/:meetingId/:participantId')
+  @Roles(UserRole.TUTOR)
+  async getParticipantAlerts(
+    @Param('meetingId') meetingId: string,
+    @Param('participantId') participantId: string
+  ) {
+    return this.proctoringService.getSessionAlerts(meetingId, participantId);
   }
 
-  @Post('resolve-alert/:alertId')
-  async resolveAlert(@Param('alertId') alertId: string) {
-    return this.proctoringService.resolveAlert(alertId);
+  @Get('alerts-summary/:meetingId')
+  @Roles(UserRole.TUTOR)
+  async getAlertSummary(@Param('meetingId') meetingId: string) {
+    return this.proctoringService.getAlertSummary(meetingId);
+  }
+
+  // ===== FLAGS & RISK ASSESSMENT =====
+  @Get('flags/:meetingId')
+  @Roles(UserRole.TUTOR)
+  async getAllStudentFlags(@Param('meetingId') meetingId: string) {
+    return this.proctoringService.getMeetingFlags(meetingId);
+  }
+
+  @Get('flags/:meetingId/:userId')
+  @Roles(UserRole.TUTOR)
+  async getStudentFlags(
+    @Param('meetingId') meetingId: string,
+    @Param('userId') userId: string
+  ) {
+    return this.proctoringService.getStudentFlags(meetingId, userId);
+  }
+
+  // ===== COMPREHENSIVE REPORTS =====
+  @Get('report/:meetingId')
+  @Roles(UserRole.TUTOR)
+  async generateReport(@Param('meetingId') meetingId: string) {
+    return this.proctoringService.generateProctoringReport(meetingId);
+  }
+
+  @Get('detailed-report/:meetingId')
+  @Roles(UserRole.TUTOR)
+  async generateDetailedReport(@Param('meetingId') meetingId: string) {
+    return this.proctoringService.generateDetailedProctoringReport(meetingId);
+  }
+
+  @Get('participant-report/:meetingId/:userId')
+  @Roles(UserRole.TUTOR)
+  async getParticipantReport(
+    @Param('meetingId') meetingId: string,
+    @Param('userId') userId: string
+  ) {
+    return this.proctoringService.generateParticipantReport(meetingId, userId);
+  }
+
+  // ===== STATISTICS & ANALYTICS =====
+  @Get('statistics/:meetingId')
+  @Roles(UserRole.TUTOR)
+  async getMeetingStatistics(@Param('meetingId') meetingId: string) {
+    return this.proctoringService.getMeetingStatistics(meetingId);
+  }
+
+  @Get('risk-analysis/:meetingId')
+  @Roles(UserRole.TUTOR)
+  async getRiskAnalysis(@Param('meetingId') meetingId: string) {
+    return this.proctoringService.getRiskAnalysis(meetingId);
+  }
+
+  // ===== REAL-TIME DASHBOARD DATA =====
+  @Get('dashboard/:meetingId')
+  @Roles(UserRole.TUTOR)
+  async getDashboardData(@Param('meetingId') meetingId: string) {
+    return this.proctoringService.getDashboardData(meetingId);
+  }
+
+  @Get('live-alerts/:meetingId')
+  @Roles(UserRole.TUTOR)
+  async getLiveAlerts(@Param('meetingId') meetingId: string) {
+    return this.proctoringService.getLiveAlerts(meetingId);
   }
 }

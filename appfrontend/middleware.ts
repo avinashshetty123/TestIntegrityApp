@@ -27,5 +27,20 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/tutor/:path*", "/student/:path*"], // apply middleware
+  matcher: [
+    {
+      source: '/tutor/:path*', // Match /tutor/ and everything after it
+      missing: [
+        { type: 'header', key: 'next-router-prefetch' },
+        { type: 'header', key: 'purpose', value: 'prefetch' },
+      ],
+    },
+    {
+      source: '/student/:path*', // Match /student/ and everything after it
+      missing: [
+        { type: 'header', key: 'next-router-prefetch' },
+        { type: 'header', key: 'purpose', value: 'prefetch' },
+      ],
+    },
+  ],
 };

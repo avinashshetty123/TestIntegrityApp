@@ -1,7 +1,9 @@
-"use client";
+'use client';
 
-import { motion } from "framer-motion";
-import Link from "next/link";
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
+import Link from 'next/link';
 import {
   ShieldCheck,
   Video,
@@ -12,12 +14,29 @@ import {
   PenTool,
   FileCheck,
   Mail,
-} from "lucide-react";
+} from 'lucide-react';
 
-import { Button } from "@/components/ui/button";
-import Image from "next/image";
+import { Button } from '@/components/ui/button';
+import Image from 'next/image';
 
 export default function LandingPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    // Check if user is logged in and redirect to appropriate dashboard
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+    
+    if (token && user) {
+      const userData = JSON.parse(user);
+      if (userData.role === 'tutor') {
+        router.push('/tutor/dashboard');
+      } else if (userData.role === 'student') {
+        router.push('/student/dashboard');
+      }
+    }
+  }, [router]);
+
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 text-white font-[Inter] overflow-hidden">
       {/* floating background orbs */}
@@ -42,9 +61,7 @@ export default function LandingPage() {
             transition={{ duration: 0.8 }}
             className="text-5xl md:text-7xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-500 bg-clip-text text-transparent drop-shadow-lg"
           >
-            Next-Gen Proctoring
-
-
+            TestIntegrity
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 30 }}
@@ -94,7 +111,6 @@ export default function LandingPage() {
           className="flex justify-center"
         >
           <div className="w-[400px] h-[400px] bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center">
-            
             <span className="text-slate-400"><Image src="/dashboard-design.svg" alt="Dashboard" width={400} height={400} /></span>
           </div>
         </motion.div>
@@ -113,7 +129,7 @@ export default function LandingPage() {
             {
               icon: <Eye className="w-10 h-10 text-purple-400" />,
               title: "Eye Tracking",
-              desc: "Monitors student’s focus and alerts if attention drifts away from the screen.",
+              desc: "Monitors student's focus and alerts if attention drifts away from the screen.",
             },
             {
               icon: <Bot className="w-10 h-10 text-green-400" />,
@@ -147,7 +163,6 @@ export default function LandingPage() {
               <div className="mb-4">{feature.icon}</div>
               <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
               <p className="text-slate-300 text-sm">{feature.desc}</p>
-         
             </motion.div>
           ))}
         </div>

@@ -18,6 +18,8 @@ export class CreateMeetingDto{
     subject?:string;
     @IsOptional()
     noOfStudent?:string;
+
+    
 }
 
 

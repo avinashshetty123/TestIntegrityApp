@@ -2,13 +2,14 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import ClientWrapper from "@/components/ClientWrapper";
+import Navigation from "@/components/Navigation";
 import { Toaster } from "@/components/ui/toaster";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "MeetApp Proctoring",
-  description: "Secure meeting & proctoring system",
+  title: "TestIntegrity - AI-Powered Online Proctoring",
+  description: "Secure online examination proctoring system with AI-powered monitoring",
 };
 
 export default function RootLayout({
@@ -19,7 +20,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <ClientWrapper>{children}</ClientWrapper>
+        <ClientWrapper>
+          <Navigation />
+          {children}
+        </ClientWrapper>
         <Toaster />
       </body>
     </html>

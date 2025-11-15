@@ -1,0 +1,5 @@
+numpy<2
+opencv-python
+ultralytics
+requests
+Pillow

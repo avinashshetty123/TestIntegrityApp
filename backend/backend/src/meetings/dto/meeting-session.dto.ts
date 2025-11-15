@@ -44,26 +44,3 @@ export class UpdateMeetingSessionDto {
   @IsBoolean()
   flagged?: boolean;
 }
-
-export class CreateLockRequestDto {
-  @IsString()
-  meetingId: string;
-
-  @IsString()
-  studentId: string;
-
-  @IsString()
-  studentName: string;
-
-  @IsString()
-  reason: string;
-}
-
-export class RespondToLockRequestDto {
-  @IsString()
-  status: 'APPROVED' | 'REJECTED';
-
-  @IsOptional()
-  @IsString()
-  tutorResponse?: string;
-}

@@ -1,6 +1,8 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne } from 'typeorm';
 import { Meeting } from '../entity/meeting.entity';
-
+import { User } from '../../user/entities/user.entity';
+import { Test } from 'src/tests/entities/test.entity';
+import { IsOptional } from 'class-validator';
 @Entity('meeting_sessions')
 export class MeetingSession {
   @PrimaryGeneratedColumn('uuid')
@@ -12,20 +14,37 @@ export class MeetingSession {
   @ManyToOne(() => Meeting)
   meeting: Meeting;
 
+//     @Column()
+//     @IsOptional()
+//   testId?: number;
+
+
+// @IsOptional()
+//   @ManyToOne(() =>Test )
+//   test?: Test;
+
   @Column()
   participantId: string;
 
   @Column()
-  participantName: string;
+  participantName?: string;
+
+  @Column({ nullable: true })
+  userId?: string;
+
+  @ManyToOne(() => User, { eager: true, nullable: true })
+  user?: User;
 
   @Column()
   participantType: string; // 'tutor' | 'student'
 
   @CreateDateColumn()
   joinedAt: Date;
+  @CreateDateColumn()
+  endedAt: Date;
 
   @Column({ type: 'timestamptz', nullable: true })
-  leftAt?: Date;
+  leftAt?: Date|null;
 
   @Column({ default: 0 })
   totalAlerts: number;
@@ -48,8 +67,35 @@ export class MeetingSession {
     suspiciousActivities: string[];
   };
 
+  @Column({ type: 'varchar', default: 'ACTIVE' })
+  status: 'ACTIVE' | 'COMPLETED' | 'TERMINATED';
+
+  @Column({ type: 'int', default: 0 })
+  flagCount: number;
+
+  @Column({ type: 'int', default: 0 })
+  criticalFlags: number;
+
+  @Column({ type: 'int', default: 0 })
+  highFlags: number;
+
+  @Column({ type: 'int', default: 0 })
+  mediumFlags: number;
+
+  @Column({ type: 'json', nullable: true })
+  alertBreakdown?: Record<string, number>;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  lastFlagAt?: Date;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  lastActivity?: Date;
+
   @Column({ default: false })
   flagged: boolean;
+
+  @Column({ default: false })
+  kicked?: boolean;
 
   @UpdateDateColumn()
   updatedAt: Date;

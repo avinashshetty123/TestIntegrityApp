@@ -1,421 +1,421 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, Trash2, Check, X, Upload, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { toast } from "sonner"; // 👈 or your toast lib
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/select';
+import { Plus, Trash2 } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 
-type QuestionType = "short" | "mcq" | "truefalse";
+export default function CreateTestPage() {
+  const router = useRouter();
 
-interface Question {
-  id: number;
-  text: string;
-  type: QuestionType;
-  options?: string[];
-  correctAnswerIndexes?: number[];
-  correctAnswerText?: string;
-  mcqMode?: "single" | "multiple";
-  marks: number;
-  imageUrl?: string; // 👈 Cloudinary URL
-  publicId?: string;
-  uploading?: boolean;
-}
-
-export default function CreateTest() {
-  const [testName, setTestName] = useState("");
-  const [description, setDescription] = useState("");
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [durationMinutes, setDurationMinutes] = useState(120); // Default 2 hours
+  const [scheduledAt, setScheduledAt] = useState('');
+  const [questions, setQuestions] = useState<any[]>([]);
 
   const addQuestion = () => {
-    setQuestions((prev) => [
-      ...prev,
+    setQuestions([
+      ...questions,
       {
-        id: Date.now(),
-        text: "",
-        type: "short",
-        options: [],
-        correctAnswerIndexes: [],
-        mcqMode: "single",
+        questionText: '',
+        type: 'MCQ',      // MCQ | TRUE_FALSE | SHORT | LONG
+        options: [''],
+        correctAnswers: [],
+        mcqMode: 'single',
         marks: 1,
       },
     ]);
   };
 
-  const removeQuestion = (id: number) => {
-    setQuestions((prev) => prev.filter((q) => q.id !== id));
+  const updateQuestion = (index: number, key: string, value: any) => {
+    const updated = [...questions];
+    updated[index][key] = value;
+    setQuestions(updated);
   };
 
-  const updateQuestionField = (id: number, patch: Partial<Question>) => {
-    setQuestions((prev) =>
-      prev.map((q) => (q.id === id ? { ...q, ...patch } : q))
-    );
+  const addOption = (qIndex: number) => {
+    const updated = [...questions];
+    updated[qIndex].options.push('');
+    setQuestions(updated);
   };
 
-  const addOption = (id: number) => {
-    setQuestions((prev) =>
-      prev.map((q) =>
-        q.id === id
-          ? {
-              ...q,
-              options: [...(q.options || []), ""],
-              correctAnswerIndexes: q.correctAnswerIndexes ?? [],
-            }
-          : q
-      )
-    );
+  const updateOption = (qIndex: number, optIndex: number, value: string) => {
+    const updated = [...questions];
+    updated[qIndex].options[optIndex] = value;
+    setQuestions(updated);
   };
 
-  const updateOption = (id: number, index: number, value: string) => {
-    setQuestions((prev) =>
-      prev.map((q) =>
-        q.id === id
-          ? {
-              ...q,
-              options: q.options?.map((opt, i) => (i === index ? value : opt)),
-            }
-          : q
-      )
-    );
-  };
-
-  const removeOption = (id: number, indexToRemove: number) => {
-    setQuestions((prev) =>
-      prev.map((q) => {
-        if (q.id !== id) return q;
-        const newOptions = (q.options || []).filter(
-          (_, i) => i !== indexToRemove
-        );
-        const newCorrect = (q.correctAnswerIndexes || [])
-          .filter((idx) => idx !== indexToRemove)
-          .map((idx) => (idx > indexToRemove ? idx - 1 : idx));
-        return { ...q, options: newOptions, correctAnswerIndexes: newCorrect };
-      })
-    );
-  };
-
-  const toggleCorrectByIndex = (id: number, index: number) => {
-    setQuestions((prev) =>
-      prev.map((q) => {
-        if (q.id !== id) return q;
-        const mode = q.mcqMode ?? "single";
-        const current = new Set(q.correctAnswerIndexes ?? []);
-        if (mode === "single") {
-          return { ...q, correctAnswerIndexes: [index] };
-        } else {
-          if (current.has(index)) current.delete(index);
-          else current.add(index);
-          return {
-            ...q,
-            correctAnswerIndexes: Array.from(current).sort((a, b) => a - b),
-          };
-        }
-      })
-    );
-  };
-
-  // Cloudinary upload per question
-  const handleUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>,
-    qId: number
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    updateQuestionField(qId, { uploading: true });
-
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", "TestIntegrityApp"); // 👈 replace with your Cloudinary preset
-    formData.append("folder", "test_question_pics");
-
-    try {
-      const res = await fetch(
-        "https://api.cloudinary.com/v1_1/dizvgbpai/image/upload",
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
-
-      const data = await res.json();
-
-      if (data.secure_url && data.public_id) {
-        updateQuestionField(qId, {
-          imageUrl: data.secure_url,
-          publicId: data.public_id,
-        });
-
-        toast.success("Upload successful ✅", {
-          description: "Question image uploaded.",
-        });
+  const toggleCorrectAnswer = (qIndex: number, answer: string) => {
+    const updated = [...questions];
+    
+    if (updated[qIndex].mcqMode === 'single') {
+      updated[qIndex].correctAnswers = [answer];
+    } else {
+      if (updated[qIndex].correctAnswers.includes(answer)) {
+        updated[qIndex].correctAnswers = updated[qIndex].correctAnswers.filter((a: string) => a !== answer);
       } else {
-        throw new Error("Upload failed");
+        updated[qIndex].correctAnswers.push(answer);
       }
-    } catch (err) {
-      console.error("Upload failed", err);
-      toast.error("Upload failed ❌", {
-        description: "Please try again later.",
+    }
+
+    setQuestions(updated);
+  };
+
+  const removeQuestion = (index: number) => {
+    setQuestions(questions.filter((_, i) => i !== index));
+  };
+
+  // Set default scheduled time to 1 hour from now
+  const getDefaultScheduledTime = () => {
+    const now = new Date();
+    now.setHours(now.getHours() + 1);
+    return now.toISOString().slice(0, 16);
+  };
+
+  // Initialize scheduled time when component mounts
+  useState(() => {
+    setScheduledAt(getDefaultScheduledTime());
+  });
+
+  const submitTest = async () => {
+    try {
+      const payload = {
+        title,
+        description,
+        durationMinutes: parseInt(durationMinutes as any),
+        scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : new Date().toISOString(),
+        questions,
+      };
+
+      console.log("Sending payload:", payload);
+
+      const res = await fetch('http://localhost:4000/tests/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: "include",
+        body: JSON.stringify(payload),
       });
-    } finally {
-      updateQuestionField(qId, { uploading: false });
+
+      if (!res.ok) throw new Error("Failed to create test");
+
+      router.push('/tutor/tests');
+    } catch (error) {
+      console.error(error);
+      alert('Failed to create test. Please try again.');
     }
   };
 
-  const handleSaveTest = (publish: boolean = false) => {
-    const payload = {
-      id: Date.now().toString(),
-      name: testName,
-      description,
-      questions,
-      isPublished: publish,
-      createdAt: new Date().toISOString(),
-      stats: {
-        totalStudents: 0,
-        present: 0,
-        evaluated: 0
-      }
-    };
-    
-    const existingTests = JSON.parse(localStorage.getItem("tutorTests") || "[]");
-    const updatedTests = [...existingTests, payload];
-    localStorage.setItem("tutorTests", JSON.stringify(updatedTests));
-    
-    toast.success(publish ? "Test published successfully ✅" : "Test saved as draft ✅");
-    
-    // Reset form
-    setTestName("");
-    setDescription("");
-    setQuestions([]);
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-violet-50 p-6 flex justify-center">
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-4xl space-y-6"
-      >
-        <Card className="rounded-2xl shadow-2xl border-0 bg-white/80 backdrop-blur-md">
-          <CardHeader>
-            <CardTitle className="text-3xl font-extrabold text-indigo-700">
-              Create New Test
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Input
-              placeholder="Test title"
-              value={testName}
-              onChange={(e) => setTestName(e.target.value)}
-            />
-            <Textarea
-              placeholder="Short description (optional)"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </CardContent>
-        </Card>
+    <div className="max-w-4xl mx-auto p-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Create a New Test</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            {/* Test Basic Information */}
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="title">Test Title</Label>
+                <Input 
+                  id="title"
+                  placeholder="Enter test title" 
+                  value={title} 
+                  onChange={(e) => setTitle(e.target.value)} 
+                />
+              </div>
 
-        <div className="space-y-4">
-          <AnimatePresence>
-            {questions.map((q, idx) => (
-              <motion.div
-                key={q.id}
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.96 }}
-              >
-                <Card className="rounded-2xl shadow-md border-0 bg-white">
-                  <CardHeader className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">
-                      Question {idx + 1}
-                    </h3>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeQuestion(q.id)}
-                    >
-                      <Trash2 className="w-5 h-5 text-red-500" />
-                    </Button>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <label className="text-sm">Marks:</label>
-                      <Input
-                        type="number"
-                        value={q.marks}
-                        min={1}
-                        className="w-20"
-                        onChange={(e) =>
-                          updateQuestionField(q.id, {
-                            marks: Number(e.target.value),
-                          })
-                        }
-                      />
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea 
+                  id="description"
+                  placeholder="Enter test description" 
+                  value={description} 
+                  onChange={(e) => setDescription(e.target.value)} 
+                />
+              </div>
+
+              {/* Duration and Schedule Settings */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="duration">Test Duration (minutes)</Label>
+                  <Input
+                    id="duration"
+                    type="number"
+                    value={durationMinutes}
+                    onChange={(e) => setDurationMinutes(Number(e.target.value))}
+                    placeholder="Duration in minutes"
+                    min="1"
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    How long students have to complete the test
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="scheduledAt">Scheduled Start Time</Label>
+                  <Input
+                    id="scheduledAt"
+                    type="datetime-local"
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    When the test will become available
+                  </p>
+                </div>
+              </div>
+
+              {/* Test Summary */}
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-blue-900 mb-2">Test Summary</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm text-blue-800">
+                  <div>Duration: <strong>{durationMinutes} minutes</strong></div>
+                  <div>Questions: <strong>{questions.length}</strong></div>
+                  <div>Total Marks: <strong>{questions.reduce((acc, q) => acc + (q.marks || 1), 0)}</strong></div>
+                  <div>
+                    Starts: <strong>
+                      {scheduledAt ? new Date(scheduledAt).toLocaleString() : 'Not set'}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Questions Section */}
+            <div className="border-t pt-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-semibold">Questions</h3>
+                <Button onClick={addQuestion}>
+                  <Plus className="w-4 h-4 mr-2" /> Add Question
+                </Button>
+              </div>
+
+              {questions.length === 0 ? (
+                <div className="text-center py-8 border-2 border-dashed rounded-lg">
+                  <p className="text-gray-500">No questions added yet.</p>
+                  <Button onClick={addQuestion} className="mt-2">
+                    <Plus className="w-4 h-4 mr-2" /> Add First Question
+                  </Button>
+                </div>
+              ) : (
+                questions.map((q, index) => (
+                  <Card key={index} className="p-4 border mb-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="font-semibold">Question {index + 1}</h4>
+                      <Button variant="destructive" size="sm" onClick={() => removeQuestion(index)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
 
-                    <Input
-                      placeholder="Write the question..."
-                      value={q.text}
-                      onChange={(e) =>
-                        updateQuestionField(q.id, { text: e.target.value })
-                      }
-                    />
-
-                    {/* Cloudinary Upload */}
-                    <div className="flex flex-col gap-2">
-                      <label className="w-full flex flex-col items-center justify-center border-2 border-dashed border-gray-500/50 rounded-xl p-6 text-gray-400 cursor-pointer hover:border-purple-400 hover:text-purple-400 transition">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => handleUpload(e, q.id)}
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor={`question-${index}`}>Question Text</Label>
+                        <Textarea
+                          id={`question-${index}`}
+                          placeholder="Enter question text"
+                          value={q.questionText}
+                          onChange={(e) => updateQuestion(index, 'questionText', e.target.value)}
+                          className="mt-1"
                         />
-                        {q.uploading ? (
-                          <Loader2 className="w-10 h-10 animate-spin text-purple-400" />
-                        ) : q.imageUrl ? (
-                          <img
-                            src={q.imageUrl}
-                            alt="Question"
-                            className="w-32 h-32 rounded-md object-cover border-2 border-purple-400"
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor={`type-${index}`}>Question Type</Label>
+                          <Select
+                            value={q.type}
+                            onValueChange={(v) => updateQuestion(index, 'type', v)}
+                          >
+                            <SelectTrigger className="mt-1" id={`type-${index}`}>
+                              <span>{q.type}</span>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="MCQ">Multiple Choice</SelectItem>
+                              <SelectItem value="TRUE_FALSE">True / False</SelectItem>
+                              <SelectItem value="SHORT">Short Answer</SelectItem>
+                              <SelectItem value="ESSAY">Essay</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label htmlFor={`marks-${index}`}>Marks</Label>
+                          <Input
+                            id={`marks-${index}`}
+                            type="number"
+                            value={q.marks}
+                            onChange={(e) =>
+                              updateQuestion(index, 'marks', parseInt(e.target.value) || 1)
+                            }
+                            min="1"
+                            className="mt-1"
                           />
-                        ) : (
-                          <>
-                            <Upload className="w-10 h-10 mb-2 text-purple-400" />
-                            <span className="text-sm">
-                              Click to upload question image
-                            </span>
-                          </>
-                        )}
-                      </label>
+                        </div>
+                      </div>
 
-                      {q.publicId && (
-                        <p className="text-xs text-gray-500 text-center">
-                          Uploaded ✔
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Type selector */}
-                    <select
-                      value={q.type}
-                      onChange={(e) =>
-                        updateQuestionField(q.id, {
-                          type: e.target.value as QuestionType,
-                        })
-                      }
-                      className="p-2 rounded-lg border"
-                    >
-                      <option value="short">Short Answer</option>
-                      <option value="mcq">Multiple Choice (MCQ)</option>
-                      <option value="truefalse">True / False</option>
-                    </select>
-
-                    {/* MCQ / TF / Short conditional rendering same as before */}
-                    {q.type === "mcq" && (
-                      <div className="space-y-3">
-                        {(q.options || []).map((opt, i) => (
-                          <div key={i} className="flex items-center gap-3">
-                            <Input
-                              placeholder={`Option ${i + 1}`}
-                              value={opt}
-                              onChange={(e) =>
-                                updateOption(q.id, i, e.target.value)
-                              }
-                            />
-                            <Button
-                              type="button"
-                              onClick={() => toggleCorrectByIndex(q.id, i)}
-                              className={cn(
-                                q.correctAnswerIndexes?.includes(i)
-                                  ? "bg-green-500 text-white"
-                                  : "bg-gray-200"
-                              )}
+                      {/* MCQ OPTIONS */}
+                      {q.type === 'MCQ' && (
+                        <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
+                          <div>
+                            <Label>MCQ Mode</Label>
+                            <Select
+                              value={q.mcqMode}
+                              onValueChange={(v) => updateQuestion(index, 'mcqMode', v)}
                             >
-                              {q.correctAnswerIndexes?.includes(i)
-                                ? "Correct"
-                                : "Set"}
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              onClick={() => removeOption(q.id, i)}
+                              <SelectTrigger className="mt-1">
+                                <span>{q.mcqMode === 'single' ? 'Single Correct' : 'Multiple Correct'}</span>
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="single">Single Correct</SelectItem>
+                                <SelectItem value="multiple">Multiple Correct</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <Label>Options</Label>
+                            <div className="space-y-2 mt-2">
+                              {q.options.map((opt: string, optIndex: number) => (
+                                <div key={optIndex} className="flex items-center gap-2">
+                                  <Input
+                                    value={opt}
+                                    placeholder={`Option ${optIndex + 1}`}
+                                    onChange={(e) =>
+                                      updateOption(index, optIndex, e.target.value)
+                                    }
+                                    className="flex-1"
+                                  />
+
+                                  <Button
+                                    size="sm"
+                                    type="button"
+                                    variant={
+                                      q.correctAnswers.includes(opt) ? "default" : "secondary"
+                                    }
+                                    onClick={() => toggleCorrectAnswer(index, opt)}
+                                  >
+                                    {q.correctAnswers.includes(opt)
+                                      ? "Correct"
+                                      : "Mark"}
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => addOption(index)}
+                              className="mt-2"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              Add Option
                             </Button>
                           </div>
-                        ))}
-                        <Button
-                          variant="outline"
-                          onClick={() => addOption(q.id)}
-                        >
-                          <PlusCircle className="w-4 h-4 mr-2" /> Add option
-                        </Button>
-                      </div>
-                    )}
+                        </div>
+                      )}
 
-                    {q.type === "truefalse" && (
-                      <div className="flex gap-3">
-                        {["True", "False"].map((label, i) => (
-                          <Button
-                            key={label}
-                            onClick={() => toggleCorrectByIndex(q.id, i)}
-                            className={cn(
-                              q.correctAnswerIndexes?.includes(i)
-                                ? "bg-green-600 text-white"
-                                : "bg-gray-200"
-                            )}
+                      {/* TRUE / FALSE */}
+                      {q.type === 'TRUE_FALSE' && (
+                        <div className="p-4 bg-gray-50 rounded-lg">
+                          <Label>Correct Answer</Label>
+                          <Select
+                            value={q.correctAnswers[0] || ''}
+                            onValueChange={(v) => updateQuestion(index, 'correctAnswers', [v])}
                           >
-                            {label}
-                          </Button>
-                        ))}
-                      </div>
-                    )}
+                            <SelectTrigger className="mt-1">
+                              <span>{q.correctAnswers[0] || 'Choose correct answer'}</span>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="true">True</SelectItem>
+                              <SelectItem value="false">False</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
 
-                    {q.type === "short" && (
-                      <Input
-                        placeholder="(Optional) correct answer text"
-                        value={q.correctAnswerText || ""}
-                        onChange={(e) =>
-                          updateQuestionField(q.id, {
-                            correctAnswerText: e.target.value,
-                          })
-                        }
-                      />
-                    )}
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </AnimatePresence>
+                      {/* SHORT ANSWER */}
+                      {q.type === 'SHORT' && (
+                        <div className="p-4 bg-gray-50 rounded-lg">
+                          <Label>Expected Answers</Label>
+                          <div className="space-y-2 mt-2">
+                            {(q.correctAnswers || []).map((answer: string, ansIndex: number) => (
+                              <div key={ansIndex} className="flex gap-2">
+                                <Input
+                                  value={answer}
+                                  placeholder={`Expected answer ${ansIndex + 1}`}
+                                  onChange={(e) => {
+                                    const updated = [...questions];
+                                    const newAnswers = [...(updated[index].correctAnswers || [])];
+                                    newAnswers[ansIndex] = e.target.value;
+                                    updated[index].correctAnswers = newAnswers;
+                                    setQuestions(updated);
+                                  }}
+                                />
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    const updated = [...questions];
+                                    updated[index].correctAnswers = 
+                                      (updated[index].correctAnswers || []).filter((_:number, i:number) => i !== ansIndex);
+                                    setQuestions(updated);
+                                  }}
+                                >
+                                  Remove
+                                </Button>
+                              </div>
+                            ))}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const updated = [...questions];
+                                updated[index].correctAnswers = [
+                                  ...(updated[index].correctAnswers || []),
+                                  ''
+                                ];
+                                setQuestions(updated);
+                              }}
+                            >
+                              Add Expected Answer
+                            </Button>
+                          </div>
+                        </div>
+                      )}
 
-          <Button
-            onClick={addQuestion}
-            className="w-full bg-indigo-600 hover:bg-indigo-700"
-          >
-            <PlusCircle className="w-4 h-4 mr-2" /> Add Question
-          </Button>
+                      {/* ESSAY - No correct answers needed */}
+                      {q.type === 'ESSAY' && (
+                        <div className="p-4 bg-yellow-50 rounded-lg">
+                          <p className="text-sm text-yellow-700">
+                            Essay questions are manually graded. No correct answers needed.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                ))
+              )}
+            </div>
 
-          <div className="flex gap-4">
-            <Button
-              onClick={() => handleSaveTest(false)}
-              className="flex-1 bg-gray-600 hover:bg-gray-700"
-            >
-              Save as Draft
-            </Button>
-            <Button
-              onClick={() => handleSaveTest(true)}
-              className="flex-1 bg-emerald-600 hover:bg-emerald-700"
-            >
-              Save & Publish
-            </Button>
+            {/* Submit Button */}
+            <div className="flex gap-4 pt-6 border-t">
+              <Button variant="outline" onClick={() => router.back()}>
+                Cancel
+              </Button>
+              <Button onClick={submitTest} className="flex-1">
+                Create Test
+              </Button>
+            </div>
           </div>
-        </div>
-      </motion.div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

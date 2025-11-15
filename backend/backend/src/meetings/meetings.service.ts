@@ -3,170 +3,78 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { Meeting } from './entity/meeting.entity';
 import { MeetingSession } from './entities/meeting-session.entity';
-import { MeetingLockRequest } from './entities/meeting-lock-request.entity';
 import { JoinRequest } from './entities/join-request.entity';
+
 import { CreateMeetingDto } from './dto/create-meeting.dto';
-import { CreateMeetingSessionDto, UpdateMeetingSessionDto, CreateLockRequestDto, RespondToLockRequestDto } from './dto/meeting-session.dto';
+import {
+  CreateMeetingSessionDto,
+  UpdateMeetingSessionDto,
+} from './dto/meeting-session.dto';
 import { UserService } from 'src/user/user.service';
+import { KickParticipantDto } from './dto/kick-participant.dto';
 
 @Injectable()
 export class MeetingsService {
   constructor(
     @InjectRepository(Meeting) private readonly meetingRepo: Repository<Meeting>,
     @InjectRepository(MeetingSession) private readonly sessionRepo: Repository<MeetingSession>,
-    @InjectRepository(MeetingLockRequest) private readonly lockRequestRepo: Repository<MeetingLockRequest>,
     @InjectRepository(JoinRequest) private readonly joinRequestRepo: Repository<JoinRequest>,
-    public userservice: UserService
+    // @InjectRepository(Test) private readonly testRepo: Repository<Test>,
+    public userservice: UserService,
   ) {}
 
-async create(dto: CreateMeetingDto, teacherId: string) {
-  const teacher = await this.userservice.findById(teacherId);
-  if (!teacher) throw new NotFoundException('User not found');
-
-  if (teacher.role !== 'tutor') {
-    throw new ForbiddenException('Only teachers can create meetings');
-  }
-
-  const meeting = this.meetingRepo.create({
-    title: dto.title,
-    description: dto.description,
-    institution: dto.institution || teacher.institutionName,
-    subject: dto.subject,
-    scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : undefined,
-    status: 'SCHEDULED',
-    roomName: `room_${Date.now()}`,
-    teacher,
-    teacherId,
-    isPublished: false,
-    requireApproval: true
-  });
-
-  return this.meetingRepo.save(meeting);
-}
-
-async start(id: string, teacherId: string) {
-  const meeting = await this.meetingRepo.findOne({ where: { id } });
-  if (!meeting) throw new NotFoundException('Meeting not found');
-  
-  if (meeting.teacherId !== teacherId) {
+  async create(dto: CreateMeetingDto, teacherId: string) {
     const teacher = await this.userservice.findById(teacherId);
-    if (teacher && teacher.role === 'tutor' && meeting.teacherId === teacherId) {
-      // Tutor starting their own meeting
-    } else {
-      // Auto-start for students joining
+    if (!teacher) throw new NotFoundException('User not found');
+
+    if (teacher.role !== 'tutor') {
+      throw new ForbiddenException('Only teachers can create meetings');
     }
+
+    const meeting = this.meetingRepo.create({
+      title: dto.title,
+      description: dto.description,
+      institution: dto.institution || teacher.institutionName,
+      subject: dto.subject,
+      scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : undefined,
+      status: 'SCHEDULED',
+      roomName: `room_${Date.now()}`,
+      teacher,
+      teacherId,
+    });
+
+    return this.meetingRepo.save(meeting);
   }
 
-  meeting.status = 'LIVE';
-  meeting.startedAt = new Date();
-  return this.meetingRepo.save(meeting);
-}
-
-async end(id: string, teacherId: string) {
-  const meeting = await this.meetingRepo.findOne({ where: { id } });
-  if (!meeting) throw new NotFoundException('Meeting not found');
-  if (meeting.teacherId !== teacherId) throw new ForbiddenException('Not your meeting');
-
-  const teacher = await this.userservice.findById(teacherId);
-  if (!teacher || teacher.role !== 'tutor') {
-    throw new ForbiddenException('Only teachers can end meetings');
-  }
-
-  meeting.status = 'ENDED';
-  meeting.endedAt = new Date();
-  
-  await this.sessionRepo.update(
-    { meetingId: id, leftAt: IsNull() },
-    { leftAt: new Date() }
-  );
-  
-  return this.meetingRepo.save(meeting);
-}
-
-  async createSession(dto: CreateMeetingSessionDto): Promise<MeetingSession> {
-    const session = this.sessionRepo.create(dto);
-    return this.sessionRepo.save(session);
-  }
-
-  async endSession(sessionId: string): Promise<MeetingSession> {
-    const session = await this.sessionRepo.findOne({ where: { id: sessionId } });
-    if (!session) throw new NotFoundException('Session not found');
-    session.leftAt = new Date();
-    return this.sessionRepo.save(session);
-  }
-
-  async updateSession(sessionId: string, dto: UpdateMeetingSessionDto): Promise<MeetingSession | null> {
-    await this.sessionRepo.update(sessionId, dto);
-    return this.sessionRepo.findOne({ where: { id: sessionId } });
-  }
-
-  async getMeetingResults(meetingId: string) {
-    const meeting = await this.meetingRepo.findOne({ where: { id: meetingId }, relations: ['teacher'] });
+  async start(id: string, teacherId: string) {
+    const meeting = await this.meetingRepo.findOne({ where: { id } });
     if (!meeting) throw new NotFoundException('Meeting not found');
-    
-    const sessions = await this.sessionRepo.find({
-      where: { meetingId },
-      order: { joinedAt: 'ASC' }
-    });
 
-    return {
-      meeting,
-      sessions,
-      summary: {
-        totalParticipants: sessions.length,
-        totalAlerts: sessions.reduce((sum, s) => sum + s.totalAlerts, 0),
-        flaggedParticipants: sessions.filter(s => s.flagged).length,
-        duration: meeting.endedAt && meeting.startedAt 
-          ? Math.round((meeting.endedAt.getTime() - meeting.startedAt.getTime()) / 60000)
-          : null
-      }
-    };
-  }
-
-  async createLockRequest(dto: CreateLockRequestDto): Promise<MeetingLockRequest> {
-    const request = this.lockRequestRepo.create(dto);
-    return this.lockRequestRepo.save(request);
-  }
-
-  async respondToLockRequest(requestId: string, dto: RespondToLockRequestDto): Promise<MeetingLockRequest> {
-    const request = await this.lockRequestRepo.findOne({ where: { id: requestId } });
-    if (!request) throw new NotFoundException('Lock request not found');
-    
-    request.status = dto.status;
-    request.tutorResponse = dto.tutorResponse;
-    request.respondedAt = new Date();
-    
-    if (dto.status === 'APPROVED') {
-      await this.lockMeeting(request.meetingId);
+    if(meeting.teacherId != teacherId) {
+      throw new ForbiddenException('Not your meeting');
     }
-    
-    return this.lockRequestRepo.save(request);
-  }
-
-  async lockMeeting(meetingId: string): Promise<Meeting> {
-    const meeting = await this.findById(meetingId);
-    meeting.isLocked = true;
+    meeting.status = 'LIVE';
+    meeting.startedAt = new Date();
     return this.meetingRepo.save(meeting);
   }
 
-  async unlockMeeting(meetingId: string): Promise<Meeting> {
-    const meeting = await this.findById(meetingId);
-    meeting.isLocked = false;
+  async end(id: string, teacherId: string) {
+    const meeting = await this.meetingRepo.findOne({ where: { id } });
+    if (!meeting) throw new NotFoundException('Meeting not found');
+    if (meeting.teacherId !== teacherId) throw new ForbiddenException('Not your meeting');
+
+    const teacher = await this.userservice.findById(teacherId);
+    if (!teacher || teacher.role !== 'tutor') {
+      throw new ForbiddenException('Only teachers can end meetings');
+    }
+
+    meeting.status = 'ENDED';
+    meeting.endedAt = new Date();
+
+    // End all active sessions (leftAt IS NULL)
+    await this.sessionRepo.update({ meetingId: id, leftAt: IsNull() }, { leftAt: new Date() });
+
     return this.meetingRepo.save(meeting);
-  }
-
-  async getPendingLockRequests(meetingId: string): Promise<MeetingLockRequest[]> {
-    return this.lockRequestRepo.find({
-      where: { meetingId, status: 'PENDING' },
-      order: { requestedAt: 'DESC' }
-    });
-  }
-
-  async getActiveSessions(meetingId: string): Promise<MeetingSession[]> {
-    return this.sessionRepo.find({
-      where: { meetingId, leftAt: IsNull() },
-      order: { joinedAt: 'ASC' }
-    });
   }
 
   async findVisible() {
@@ -176,37 +84,37 @@ async end(id: string, teacherId: string) {
   }
 
   async findVisibleForStudents(studentInstitution?: string) {
-    const queryBuilder = this.meetingRepo.createQueryBuilder('meeting')
+    const queryBuilder = this.meetingRepo
+      .createQueryBuilder('meeting')
       .leftJoinAndSelect('meeting.teacher', 'teacher')
-      .where('meeting.status IN (:...statuses)', { statuses: ['SCHEDULED', 'LIVE'] })
-      .andWhere('meeting.isPublished = :published', { published: true });
-    
+      .where('meeting.status IN (:...statuses)', { statuses: ['SCHEDULED', 'LIVE'] });
+
     if (studentInstitution) {
-      queryBuilder.orderBy(
-        `CASE WHEN meeting.institution = :institution THEN 0 ELSE 1 END`,
-        'ASC'
-      ).setParameter('institution', studentInstitution);
+      queryBuilder
+        .orderBy(`CASE WHEN meeting.institution = :institution THEN 0 ELSE 1 END`, 'ASC')
+        .setParameter('institution', studentInstitution);
     }
-    
+
     queryBuilder.addOrderBy('meeting.scheduledAt', 'ASC');
-    
+
     return queryBuilder.getMany();
   }
 
   async findByTutor(tutorId: string) {
     return this.meetingRepo.find({
       where: { teacherId: tutorId },
-      relations: ['teacher']
+      relations: ['teacher'],
     });
   }
 
   async searchMeetings(query: string, userRole: string, userId: string) {
-    const queryBuilder = this.meetingRepo.createQueryBuilder('meeting')
+    const queryBuilder = this.meetingRepo
+      .createQueryBuilder('meeting')
       .leftJoinAndSelect('meeting.teacher', 'teacher')
       .where('meeting.status IN (:...statuses)', { statuses: ['SCHEDULED', 'LIVE'] })
       .andWhere(
         '(meeting.title ILIKE :query OR meeting.description ILIKE :query OR teacher.firstName ILIKE :query OR teacher.lastName ILIKE :query)',
-        { query: `%${query}%` }
+        { query: `%${query}%` },
       );
 
     if (userRole === 'tutor') {
@@ -217,7 +125,8 @@ async end(id: string, teacherId: string) {
   }
 
   async findByInstitution(institution: string) {
-    return this.meetingRepo.createQueryBuilder('meeting')
+    return this.meetingRepo
+      .createQueryBuilder('meeting')
       .leftJoinAndSelect('meeting.teacher', 'teacher')
       .where('meeting.status IN (:...statuses)', { statuses: ['SCHEDULED', 'LIVE'] })
       .andWhere('meeting.description ILIKE :institution', { institution: `%${institution}%` })
@@ -234,43 +143,90 @@ async end(id: string, teacherId: string) {
     const meetings = await this.meetingRepo.find({
       where: [{ status: 'SCHEDULED' }, { status: 'LIVE' }],
     });
-    
-    return meetings.find(meeting => {
-      const code = meeting.roomName?.replace('room_', '').substring(0, 6).toUpperCase() || 
-                   meeting.id.substring(0, 6).toUpperCase();
+
+    return meetings.find((meeting) => {
+      const code =
+        meeting.roomName?.replace('room_', '').substring(0, 6).toUpperCase() ||
+        meeting.id.substring(0, 6).toUpperCase();
       return code === joinCode.toUpperCase();
     });
   }
 
-  async publishMeeting(meetingId: string, teacherId: string) {
+  // Session management
+  async createSession(dto: CreateMeetingSessionDto): Promise<MeetingSession> {
+    const session = this.sessionRepo.create(dto);
+    return this.sessionRepo.save(session);
+  }
+
+  async endSession(sessionId: string): Promise<MeetingSession> {
+    const session = await this.sessionRepo.findOne({ where: { id: sessionId } });
+    if (!session) throw new NotFoundException('Session not found');
+
+    if (!session.leftAt) {
+      session.leftAt = new Date();
+    }
+
+    return this.sessionRepo.save(session);
+  }
+
+  async updateSession(sessionId: string, dto: UpdateMeetingSessionDto): Promise<MeetingSession> {
+    const session = await this.sessionRepo.findOne({ where: { id: sessionId } });
+    if (!session) throw new NotFoundException('Session not found');
+
+    Object.assign(session, dto);
+    return this.sessionRepo.save(session);
+  }
+
+  async getMeetingResults(meetingId: string) {
+    const meeting = await this.meetingRepo.findOne({ where: { id: meetingId }, relations: ['teacher'] });
+    if (!meeting) throw new NotFoundException('Meeting not found');
+
+    const sessions = await this.sessionRepo.find({
+      where: { meetingId },
+      order: { joinedAt: 'ASC' },
+    });
+
+    return {
+      meeting,
+      sessions,
+      summary: {
+        totalParticipants: sessions.length,
+        totalAlerts: sessions.reduce((sum, s) => sum + (s.totalAlerts || 0), 0),
+        flaggedParticipants: sessions.filter((s) => !!s.flagged).length,
+        duration:
+          meeting.endedAt && meeting.startedAt
+            ? Math.round((meeting.endedAt.getTime() - meeting.startedAt.getTime()) / 60000)
+            : null,
+      },
+    };
+  }
+
+
+
+  async lockMeeting(meetingId: string): Promise<Meeting> {
     const meeting = await this.findById(meetingId);
-    if (meeting.teacherId !== teacherId) throw new ForbiddenException('Not your meeting');
-    meeting.isPublished = true;
+    if(!meeting){
+      throw new ForbiddenException('No meeting');
+    }
+    meeting.isLocked = true;
+    meeting.requireApproval=true;
     return this.meetingRepo.save(meeting);
   }
 
-  async createJoinRequest(meetingId: string, studentId: string, studentName: string) {
-    const request = this.joinRequestRepo.create({
-      meetingId,
-      studentId,
-      studentName
-    });
-    return this.joinRequestRepo.save(request);
+  async unlockMeeting(meetingId: string): Promise<Meeting> {
+    const meeting = await this.findById(meetingId);
+    meeting.isLocked = false;
+      meeting.requireApproval=false;
+    return this.meetingRepo.save(meeting);
   }
 
-  async respondToJoinRequest(requestId: string, status: 'APPROVED' | 'REJECTED') {
-    const request = await this.joinRequestRepo.findOne({ where: { id: requestId } });
-    if (!request) throw new NotFoundException('Join request not found');
-    
-    request.status = status;
-    request.respondedAt = new Date();
-    return this.joinRequestRepo.save(request);
-  }
 
-  async getPendingJoinRequests(meetingId: string) {
-    return this.joinRequestRepo.find({
-      where: { meetingId, status: 'PENDING' },
-      order: { requestedAt: 'DESC' }
+
+  // Active sessions (leftAt IS NULL)
+  async getActiveSessions(meetingId: string): Promise<MeetingSession[]> {
+    return this.sessionRepo.find({
+      where: { meetingId, leftAt: IsNull() },
+      order: { joinedAt: 'ASC' },
     });
   }
 
@@ -279,12 +235,104 @@ async end(id: string, teacherId: string) {
     if (!meeting) throw new NotFoundException('Meeting not found');
     if (meeting.teacherId !== teacherId) throw new ForbiddenException('Not your meeting');
 
-    // Use raw SQL to bypass TypeORM foreign key issues
-    await this.meetingRepo.query('DELETE FROM meeting_sessions WHERE "meetingId" = $1', [id]);
-    await this.meetingRepo.query('DELETE FROM meeting_lock_requests WHERE "meetingId" = $1', [id]);
-    await this.meetingRepo.query('DELETE FROM join_requests WHERE "meetingId" = $1', [id]);
-    await this.meetingRepo.query('DELETE FROM meetings WHERE id = $1', [id]);
-    
+    await this.meetingRepo.remove(meeting);
     return { message: 'Meeting deleted successfully' };
   }
+
+  // Join Request Management
+  async createJoinRequest(meetingId: string, studentId: string, studentName: string) {
+    const existing = await this.joinRequestRepo.findOne({
+      where: { meetingId, studentId, status: 'PENDING' },
+    });
+
+    if (existing) {
+      throw new ForbiddenException('Join request already pending');
+    }
+
+    const request = this.joinRequestRepo.create({
+      meetingId,
+      studentId,
+      studentName,
+      status: 'PENDING',
+    });
+
+    return this.joinRequestRepo.save(request);
+  }
+
+  async getPendingJoinRequests(meetingId: string) {
+    return this.joinRequestRepo.find({
+      where: { meetingId, status: 'PENDING' },
+      order: { requestedAt: 'DESC' },
+    });
+  }
+
+  async respondToJoinRequest(requestId: string, status: 'APPROVED' | 'REJECTED') {
+    const request = await this.joinRequestRepo.findOne({ where: { id: requestId } });
+    if (!request) throw new NotFoundException('Join request not found');
+
+    request.status = status;
+    request.respondedAt = new Date();
+  const saved = await this.joinRequestRepo.save(request);
+
+  return {
+    ...saved,
+    studentId: request.studentId,
+    meetingId: request.meetingId,
+  };
+  }
+
+  async canStudentJoin(meetingId: string, studentId: string): Promise<boolean> {
+    const meeting = await this.findById(meetingId);
+
+    if (!meeting.requireApproval) return true;
+
+    const approvedRequest = await this.joinRequestRepo.findOne({
+      where: { meetingId, studentId, status: 'APPROVED' },
+    });
+
+    return !!approvedRequest;
+  }
+
+
+
+
+  async kickParticipant(dto: KickParticipantDto) {
+    const meeting = await this.meetingRepo.findOne({
+      where: { id: dto.meetingId }
+    });
+
+    if (!meeting) {
+      throw new NotFoundException('Meeting not found');
+    }
+
+    if (meeting.teacherId !== dto.tutorId) {
+      throw new ForbiddenException('Only the meeting organizer can kick participants');
+    }
+
+    const session = await this.sessionRepo.findOne({
+      where: {
+        meetingId: dto.meetingId,
+        participantId: dto.studentId,
+        leftAt: IsNull()
+      },
+    });
+
+    if (!session) {
+      throw new NotFoundException('Participant not found in active session');
+    }
+
+    session.leftAt = new Date();
+    session.kicked = true;
+    await this.sessionRepo.save(session);
+
+    return { 
+      message: 'Participant has been kicked from the meeting', 
+      participantId: dto.studentId,
+      participantName: session.participantName,
+      kickedAt: session.leftAt
+    };
+  }
+
+
+
 }

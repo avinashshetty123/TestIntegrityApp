@@ -27,22 +27,22 @@ ChartJS.register(
 );
 
 interface Question {
-  id: number;
-  text: string;
-  type: string;
+  questionId: number;
+  questionText: string;
+  attempts: number;
   marks: number;
 }
 
 interface Test {
-  id: string;
-  name: string;
+  testId: string;
+  title: string;
   description: string;
-  questions: Question[];
-  stats?: {
+  perQuestionStats: Question[];
+ 
     totalStudents: number;
     present: number;
     evaluated: number;
-  };
+
 }
 
 export default function TestStatsPage() {
@@ -51,44 +51,34 @@ export default function TestStatsPage() {
   const [test, setTest] = useState<Test | null>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem("tutorTests");
-    if (saved) {
-      const all = JSON.parse(saved) as Test[];
-      const found = all.find((t) => t.id === id);
-      setTest(found || null);
+    async function fetchStats() {
+      const res = await fetch(`http://localhost:4000/tests/${id}/stats`, {
+        credentials: "include",
+      });
+      const data = await res.json();
+      setTest(data);
     }
+    fetchStats();
   }, [id]);
 
   if (!test) {
     return (
       <div className="min-h-screen flex items-center justify-center text-lg text-slate-600">
-        Test not found
+        Loading...
       </div>
     );
   }
+  console.log(test);
 
-  const attendanceData = {
-    labels: ["Present", "Absent"],
-    datasets: [
-      {
-        label: "Attendance",
-        data: [
-          test.stats?.present ?? 0,
-          (test.stats?.totalStudents ?? 0) - (test.stats?.present ?? 0),
-        ],
-        backgroundColor: ["#34d399", "#f87171"],
-      },
-    ],
-  };
+
 
   const evaluationData = {
     labels: ["Evaluated", "Not Evaluated"],
     datasets: [
       {
-        label: "Evaluation",
         data: [
-          test.stats?.evaluated ?? 0,
-          (test.stats?.totalStudents ?? 0) - (test.stats?.evaluated ?? 0),
+          test.evaluated,
+          (test.totalStudents ?? 0) - (test.evaluated ?? 0),
         ],
         backgroundColor: ["#6366f1", "#e5e7eb"],
       },
@@ -96,29 +86,60 @@ export default function TestStatsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white to-slate-100 p-8">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-extrabold text-indigo-700">
-          {test.name} – Stats
+    <div className="min-h-screen bg-gray-50 p-8 space-y-8">
+        <Button variant="outline" onClick={() => router.back()}>
+                Back
+              </Button>
+      <div className="flex justify-between">
+        <h1 className="text-3xl font-bold text-indigo-700">
+          {test.title} – Analytics
         </h1>
-        <Button onClick={() => router.push("/tutor/tests")} variant="outline">
-          Back
+        <Button
+          variant="outline"
+          onClick={() => router.push(`/tutor/tests/${id}/submission`)}
+        >
+          View Submissions
         </Button>
       </div>
+      
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card className="rounded-xl shadow-lg border-0">
-          <CardHeader>
-            <CardTitle>Attendance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Pie data={attendanceData} />
+      {/* Overview Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-gray-500 text-sm">Total Students</p>
+            <p className="text-2xl font-bold text-black">{test.totalStudents}</p>
+          </CardContent>
+        </Card>
+          
+
+
+
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-gray-500 text-sm">Evaluated</p>
+            <p className="text-2xl font-bold text-indigo-600">
+              {test.evaluated}
+            </p>
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl shadow-lg border-0">
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-gray-500 text-sm">Questions</p>
+     <p className="text-2xl font-bold">{test.perQuestionStats?.length ?? 0}</p>
+
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts */}
+      <div className="grid md:grid-cols-2 gap-8">
+
+
+        <Card className="shadow-md border">
           <CardHeader>
-            <CardTitle>Evaluation</CardTitle>
+            <CardTitle>Evaluation Progress</CardTitle>
           </CardHeader>
           <CardContent>
             <Pie data={evaluationData} />
@@ -126,33 +147,27 @@ export default function TestStatsPage() {
         </Card>
       </div>
 
-      <div className="mt-8">
-        <Card className="rounded-xl shadow-lg border-0">
-          <CardHeader>
-            <CardTitle>Questions Overview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Bar
-              data={{
-                labels: test.questions.map((q) => q.text.slice(0, 20) + "..."),
-                datasets: [
-                  {
-                    label: "Marks",
-                    data: test.questions.map((q) => q.marks),
-                    backgroundColor: "#8b5cf6",
-                  },
-                ],
-              }}
-              options={{
-                responsive: true,
-                plugins: {
-                  legend: { display: false },
+      {/* Questions Overview */}
+      <Card className="shadow-md border mt-6">
+        <CardHeader>
+          <CardTitle>Questions Overview</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Bar
+            data={{
+              labels:
+                test.perQuestionStats?.map((q) => q.questionText.slice(0, 30) + "...") ?? [],
+              datasets: [
+                {
+                  label: "Marks",
+                  data: test.perQuestionStats?.map((q) => q.marks) ?? [],
+                  backgroundColor: "#8b5cf6",
                 },
-              }}
-            />
-          </CardContent>
-        </Card>
-      </div>
+              ],
+            }}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

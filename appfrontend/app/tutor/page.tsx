@@ -45,10 +45,10 @@ ChartJS.register(
 
 export default function TutorPage() {
   const router = useRouter();
-  const [currentView, setCurrentView] = useState<"dashboard" | "meetings" | "create-meeting" | "video-call">("dashboard");
-  const [selectedMeeting, setSelectedMeeting] = useState<{id: string, token: string, serverUrl: string} | null>(null);
+  const [currentView, setCurrentView] = useState<"dashboard">("dashboard");
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const[meetingcnt,setmeetingcnt]=useState(0);
 
   useEffect(() => {
     checkAuth();
@@ -76,24 +76,7 @@ export default function TutorPage() {
     }
   };
 
-  const handleCreateMeeting = () => {
-    setCurrentView("create-meeting");
-  };
 
-  const handleMeetingCreated = (meetingData: any) => {
-    console.log("Meeting created:", meetingData);
-    setCurrentView("meetings");
-  };
-
-  const handleJoinMeeting = (meetingId: string, token: string, serverUrl: string) => {
-    setSelectedMeeting({ id: meetingId, token, serverUrl });
-    setCurrentView("video-call");
-  };
-
-  const handleBackToDashboard = () => {
-    setCurrentView("dashboard");
-    setSelectedMeeting(null);
-  };
 
   const [stats, setStats] = useState({
     studentsJoined: 0,
@@ -184,6 +167,7 @@ export default function TutorPage() {
         
         // Set recent activity
         setRecentActivity(meetings.slice(0, 4).map((m: any) => `Meeting: ${m.title} - ${m.status}`));
+        setmeetingcnt(meetings.length);
       }
     } catch (error) {
       console.error('Failed to fetch tutor data:', error);
@@ -196,13 +180,13 @@ export default function TutorPage() {
     }
   }, [userData]);
 
-  // action handlers (replace with real logic)
+  // action handlers
   const handleCreateTest = () => router.push("/tutor/tests");
-  const handleStartMeeting = () => setCurrentView("create-meeting");
-  const handleCheckPapers = () => router.push("/tutor/papers");
-  const handleViewPerformance = () => router.push("/tutor/performance");
+  const handleStartMeeting = () => router.push("tutor/meeting/create-meeting");
+  const handleCheckPapers = () => router.push("/tutor/tests");
+  const handleViewPerformance = () => router.push("/tutor/analytics");
   const handleAttendance = () => router.push("/tutor/attendance");
-  const handleManageMeetings = () => setCurrentView("meetings");
+  const handleManageMeetings = () => router.push("/tutor/meeting");
 
   if (loading) {
     return (
@@ -216,45 +200,45 @@ export default function TutorPage() {
   }
 
   // Render different views based on current state
-  if (currentView === "meetings") {
-    return (
-      <div>
-        <div className="p-4 bg-black/50 border-b border-white/10">
-          <Button onClick={handleBackToDashboard} variant="outline" className="mb-4">
-            ← Back to Dashboard
-          </Button>
-        </div>
-        <TutorMeetingDashboard 
-          onCreateMeeting={handleCreateMeeting}
-          onStartMeeting={handleJoinMeeting}
-        />
-      </div>
-    );
-  }
+  // if (currentView === "meetings") {
+  //   return (
+  //     <div>
+  //       <div className="p-4 bg-black/50 border-b border-white/10">
+  //         <Button onClick={handleBackToDashbord          } variant="outline" className="mb-4">
+  //           ← Back to Dashboard
+  //         </Button>
+  //       </div>
+  //       <TutorMeetingDashboard 
+  //         onCreateMeeting={handleCreateMeeting}
+  //         onStartMeeting={handleJoinMeeting}
+  //       />
+  //     </div>
+  //   );
+  // }
 
-  if (currentView === "create-meeting") {
-    return (
-      <CreateMeetingForm
-        onBack={() => setCurrentView("meetings")}
-        onCreateMeeting={handleMeetingCreated}
-      />
-    );
-  }
+  // if (currentView === "create-meeting") {
+  //   return (
+  //     <CreateMeetingForm
+  //       onBack={() => setCurrentView("meetings")}
+  //       onCreateMeeting={handleMeetingCreated}
+  //     />
+  //   );
+  // }
 
-  if (currentView === "video-call" && selectedMeeting) {
-    return (
-      <GoogleMeetStyleCall
-        token={selectedMeeting.token}
-        serverUrl={selectedMeeting.serverUrl}
-        onDisconnect={handleBackToDashboard}
-        userInfo={{
-          name: userData?.firstName || 'Tutor',
-          profilePic: userData?.profilePic,
-          role: 'tutor'
-        }}
-      />
-    );
-  }
+  // if (currentView === "video-call" && selectedMeeting) {
+  //   return (
+  //     <GoogleMeetStyleCall
+  //       token={selectedMeeting.token}
+  //       serverUrl={selectedMeeting.serverUrl}
+  //       onDisconnect={handleBackToDashboard}
+  //       userInfo={{
+  //         name: userData?.firstName || 'Tutor',
+  //         profilePic: userData?.profilePic,
+  //         role: 'tutor'
+  //       }}
+  //     />
+  //   );
+  // }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-black text-white px-6 md:px-12 py-10">
@@ -306,12 +290,12 @@ export default function TutorPage() {
                 <div className="flex items-center gap-3">
                   <Users className="w-6 h-6 text-blue-400" />
                   <div>
-                    <div className="text-sm text-slate-300">Students Joined</div>
-                    <div className="text-xl font-bold">{stats.studentsJoined}</div>
+                    <div className="text-sm text-slate-300">Meetings Created</div>
+                    <div className="text-xl font-bold">{meetingcnt}</div>
                   </div>
                 </div>
                 <button
-                  onClick={() => router.push("/tutor/participants")}
+                  onClick={() => router.push("/tutor/meeting")}
                   className="text-xs text-slate-300 hover:underline"
                 >
                   View

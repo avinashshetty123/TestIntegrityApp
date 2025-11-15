@@ -26,8 +26,7 @@ export class Meeting {
   @Column({ type: 'varchar', default: 'SCHEDULED' })
   status: MeetingStatus;
 
-  @Column({ default: false })
-  isPublished: boolean;
+
 
   @Column({ type: 'varchar', unique: true })
   roomName: string;
@@ -49,6 +48,9 @@ export class Meeting {
 
   @Column({ type: 'timestamptz', nullable: true })
   endedAt?: Date;
+
+  @Column({ nullable: true })
+  assignedTestId?: number;
 
   @CreateDateColumn()
   createdAt: Date;
