@@ -1,7 +1,13 @@
+version: '3.8'
+
 services:
+  # -------------------------------
+  # PostgreSQL (Main Database)
+  # -------------------------------
   postgres:
     image: postgres:15
     container_name: test-integrity-postgres
+    restart: always
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin123
@@ -10,26 +16,57 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin"]
       interval: 30s
       timeout: 10s
       retries: 3
 
+  # -------------------------------
+  # PgAdmin UI for PostgreSQL
+  # -------------------------------
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin-ui
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - backend
+
+  # -------------------------------
+  # Redis for LiveKit (Signaling / PubSub)
+  # -------------------------------
   redis:
     image: redis:6-alpine
     container_name: livekit-redis
+    restart: always
     ports:
       - "6379:6379"
+    networks:
+      - backend
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
       timeout: 10s
       retries: 3
 
+  # -------------------------------
+  # Coturn STUN/TURN Server
+  # -------------------------------
   coturn:
     image: coturn/coturn:latest
     container_name: coturn-server
+    restart: always
+    networks:
+      - backend
     ports:
       - "3478:3478/udp"
       - "5349:5349"
@@ -43,9 +80,13 @@ services:
       --static-auth-secret=mysecret
       --user=test:test123
 
+  # -------------------------------
+  # LiveKit Server
+  # -------------------------------
   livekit:
     image: livekit/livekit-server:latest
     container_name: livekit-server
+    restart: always
     command: --config /livekit.yaml
     volumes:
       - ./livekit-fixed.yaml:/livekit.yaml
@@ -58,44 +99,19 @@ services:
         condition: service_healthy
       coturn:
         condition: service_started
+    networks:
+      - backend
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:7880"]
       interval: 30s
       timeout: 10s
       retries: 3
 
+# -------------------------------
+# Networks & Volumes
+# -------------------------------
+networks:
   backend:
-    build:
-      context: ./backend/backend
-      dockerfile: Dockerfile
-    container_name: test-integrity-backend
-    ports:
-      - "4000:4000"
-    env_file:
-      - ./backend/backend/.env.docker
-    depends_on:
-      postgres:
-        condition: service_healthy
-      livekit:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  frontend:
-    build:
-      context: ./appfrontend
-      dockerfile: Dockerfile
-    container_name: test-integrity-frontend
-    ports:
-      - "3001:3000"
-    depends_on:
-      - backend
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:4000
-      - NEXT_PUBLIC_LIVEKIT_URL=ws://localhost:7880
 
 volumes:
   postgres_data:

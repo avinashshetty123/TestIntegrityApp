@@ -34,10 +34,10 @@ import { QuizResponse } from './quiz/entities/quiz-response.entity';
   TypeOrmModule.forRoot({
     type:'postgres',
     host: process.env.DATABASE_HOST || 'localhost',
-    port: parseInt(process.env.DATABASE_PORT || '5432'),
+    port: parseInt(process.env.DATABASE_PORT || '5433'),
     username: process.env.DATABASE_USERNAME || 'admin',
     password: process.env.DATABASE_PASSWORD || 'admin123',
-    database: process.env.DATABASE_NAME || 'TestIntegrity',
+    database: process.env.DATABASE_NAME || 'TestIntegrityDb',
     entities: [User,Submission,Question,Answer,Test,Result,Meeting,ProctoringAlert,MeetingSession,JoinRequest,LiveQuiz,QuizResponse,MeetingParticipant
     ],
     synchronize:true,
