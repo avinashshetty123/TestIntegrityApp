@@ -48,7 +48,7 @@ interface VideoCallProps {
   serverUrl: string;
   onDisconnect?: () => void;
   userInfo?: {
-    name?: string;
+    fullname?: string;
     profilePic?: string;
     role?: 'tutor' | 'student';
     id?: string;
@@ -482,8 +482,7 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
           
           await room.localParticipant.publishData(
             data,
-            DataPacket_Kind.RELIABLE,
-            [participantId]
+         
           );
         }
 
@@ -780,11 +779,11 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
               />
               <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full flex items-center gap-2">
                 <img 
-                  src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${userInfo?.name || 'You'}`}
+                  src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${userInfo?.fullname || 'You'}`}
                   alt="Profile"
                   className="w-5 h-5 rounded-full"
                 />
-                <span className="text-sm font-medium">{userInfo?.name || 'You'} (You)</span>
+                <span className="text-sm font-medium">{userInfo?.fullname || 'You'} (You)</span>
               </div>
             </div>
 

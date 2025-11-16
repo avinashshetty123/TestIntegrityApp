@@ -12,7 +12,7 @@ import {
 } from './dto/meeting-session.dto';
 import { UserService } from 'src/user/user.service';
 import { KickParticipantDto } from './dto/kick-participant.dto';
-
+import {MeetingGateway} from './meeting.gateway'
 @Injectable()
 export class MeetingsService {
   constructor(
@@ -21,6 +21,7 @@ export class MeetingsService {
     @InjectRepository(JoinRequest) private readonly joinRequestRepo: Repository<JoinRequest>,
     // @InjectRepository(Test) private readonly testRepo: Repository<Test>,
     public userservice: UserService,
+    public meetinggateway:MeetingGateway,
   ) {}
 
   async create(dto: CreateMeetingDto, teacherId: string) {
@@ -245,9 +246,10 @@ export class MeetingsService {
       where: { meetingId, studentId, status: 'PENDING' },
     });
 
-    if (existing) {
-      throw new ForbiddenException('Join request already pending');
+    if (existing&&existing.status=='PENDING') {
+      return existing;
     }
+
 
     const request = this.joinRequestRepo.create({
       meetingId,
@@ -260,10 +262,13 @@ export class MeetingsService {
   }
 
   async getPendingJoinRequests(meetingId: string) {
-    return this.joinRequestRepo.find({
+    const result= await this.joinRequestRepo.find({
       where: { meetingId, status: 'PENDING' },
       order: { requestedAt: 'DESC' },
     });
+    console.log(result);
+    return result;
+
   }
 
   async respondToJoinRequest(requestId: string, status: 'APPROVED' | 'REJECTED') {
@@ -273,6 +278,12 @@ export class MeetingsService {
     request.status = status;
     request.respondedAt = new Date();
   const saved = await this.joinRequestRepo.save(request);
+
+ this.meetinggateway.handleApproveJoinRequest({
+  requestId: request.id,
+  studentId: request.studentId,
+  meetingId: request.meetingId
+});
 
   return {
     ...saved,

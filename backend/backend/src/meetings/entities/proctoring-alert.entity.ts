@@ -13,7 +13,7 @@ export class ProctoringAlert {
   @ManyToOne(() => Meeting)
   meeting: Meeting;
 
-  @Column()
+  @Column({nullable:true})
   userId: string;
 
   @ManyToOne(() => User, { eager: true })

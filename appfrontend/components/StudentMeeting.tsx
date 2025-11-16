@@ -31,7 +31,7 @@ interface StudentVideoCallProps {
   serverUrl: string;
   onDisconnect?: () => void;
   userInfo?: {
-    name?: string;
+    fullname?: string;
     profilePic?: string;
     role?: 'tutor' | 'student';
     id?: string;
@@ -127,6 +127,7 @@ export default function EnhancedStudentMeetingRoom({
       };
     }
   }, [isElectron, isConnected]);
+  console.log((userInfo?.id));
 
   const captureAndSendFrame = async () => {
     if (!localVideoRef.current || !videoFrameCanvasRef.current) return;
@@ -219,7 +220,7 @@ const loadReferenceFace = async () => {
       if (profile.profilePic) {
         // Load reference face for identity verification
         if (window.electronAPI) {
-          await window.electronAPI.loadReferenceFace(profile.profilePic, userInfo?.id);
+          await window.electronAPI.loadReferenceFace(profile.profilePic, profile?.id);
           toast({
             title: "Face Recognition Enabled",
             description: "Your face is being used for identity verification",
@@ -251,7 +252,7 @@ const handleProctoringAnalysis = (analysis: any) => {
         detectedAt: new Date().toISOString(),
         participantId: userInfo?.id || '',
         severity: alert.severity || 'MEDIUM',
-        studentName: userInfo?.name,
+        studentName: userInfo?.fullname,
         timestamp: new Date().toISOString()
       };
 
@@ -359,6 +360,7 @@ const handleProctoringAnalysis = (analysis: any) => {
       document.removeEventListener('contextmenu', preventContextMenu);
     };
   };
+  console.log(userInfo);
 
   const reportBrowserActivity = async (activityType: string, metadata?: any) => {
     try {
@@ -603,39 +605,6 @@ const handleProctoringAnalysis = (analysis: any) => {
     }
   };
 
-  // const submitQuizResponse = async (quizData: any) => {
-  //   if (!room) return;
-
-  //   try {
-  //     const quizResponse = {
-  //       type: 'QUIZ_RESPONSE',
-  //       studentId: userInfo?.id,
-  //       studentName: userInfo?.name,
-  //       meetingId,
-  //       responses: quizData,
-  //       submittedAt: new Date().toISOString()
-  //     };
-
-  //     const encoder = new TextEncoder();
-  //     const data = encoder.encode(JSON.stringify(quizResponse));
-      
-  //     await room.localParticipant.publishData(
-  //       data,
-  //       DataPacket_Kind.RELIABLE
-  //     );
-
-  //     toast({
-  //       title: "Quiz Submitted",
-  //       description: "Your quiz responses have been submitted",
-  //     });
-  //   } catch (error) {
-  //     console.error('Failed to submit quiz:', error);
-  //     toast({
-  //       title: "Submission Failed",
-  //       description: "Failed to submit quiz responses",
-  //       variant: "destructive",
-  //     });
-  //   }
   
 
   const getAlertTypeColor = (alertType: string) => {
@@ -786,11 +755,11 @@ const handleProctoringAnalysis = (analysis: any) => {
               
               <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full flex items-center gap-2">
                 <img 
-                  src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${userInfo?.name || 'You'}`}
+                  src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${userInfo?.fullname || 'You'}`}
                   alt="Profile"
                   className="w-6 h-6 rounded-full"
                 />
-                <span className="text-sm font-medium">{userInfo?.name || 'You'} (You)</span>
+                <span className="text-sm font-medium">{userInfo?.fullname || 'You'} (You)</span>
                 {!isVideoEnabled && <VideoOff className="w-4 h-4 text-red-400" />}
               </div>
 

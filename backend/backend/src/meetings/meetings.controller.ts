@@ -42,6 +42,19 @@ export class MeetingsController {
     this.logger.log(`Meeting created with ID: ${meeting.id}`);
     return meeting;
   }
+// In your controller methods where you want fresh data
+@Get(':id/join-requests')
+@Roles(UserRole.TUTOR)
+async getJoinRequests(@Param('id') id: string, @Req() req) {
+  // Disable caching for real-time data
+
+  
+  const meeting = await this.meetings.findById(id);
+  if (meeting.teacherId !== req.user.userId) {
+    throw new ForbiddenException('Not your meeting');
+  }
+  return this.meetings.getPendingJoinRequests(id);
+}
 
   @Post(':id/start')
   @Roles(UserRole.TUTOR)
@@ -220,21 +233,6 @@ export class MeetingsController {
     return request;
   }
 
-// In your controller methods where you want fresh data
-@Get(':id/join-requests')
-@Roles(UserRole.TUTOR)
-async getJoinRequests(@Param('id') id: string, @Req() req,@Res() res) {
-  // Disable caching for real-time data
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
-  
-  const meeting = await this.meetings.findById(id);
-  if (meeting.teacherId !== req.user.userId) {
-    throw new ForbiddenException('Not your meeting');
-  }
-  return this.meetings.getPendingJoinRequests(id);
-}
 
  @Put('join-request/:requestId')
 @Roles(UserRole.TUTOR)
@@ -310,26 +308,6 @@ async respondToJoinRequest(@Param('requestId') requestId: string, @Body() body: 
   async updateSession(@Param('sessionId') sessionId: string, @Body() dto: UpdateMeetingSessionDto) {
     return this.meetings.updateSession(sessionId, dto);
   }
-
-
-
-
-
-  // @Get(':id/tests')
-  // @Roles(UserRole.TUTOR)
-  // async getTestsForMeeting(@Param('id') id: string, @Req() req) {
-  //   const meeting = await this.meetings.findById(id);
-  //   if (meeting.teacherId !== req.user.userId) {
-  //     throw new ForbiddenException('Not your meeting');
-  //   }
-  //   return this.meetings.getTestsByTutor(req.user.userId);
-  // }
-
-  // @Get('test/:testId')
-  // @Roles(UserRole.TUTOR)
-  // async getTestQuestions(@Param('testId') testId: string, @Req() req) {
-  //   return this.meetings.getTestById(parseInt(testId), req.user.userId);
-  // }
 
   @Get(':id/complete-report')
   @Roles(UserRole.TUTOR)

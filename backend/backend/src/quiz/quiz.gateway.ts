@@ -15,10 +15,12 @@ import { SendQuestionDto, SubmitAnswerDto } from './dto/quiz.dto';
 @WebSocketGateway({
   cors: { 
     origin: '*',
-    methods: ['GET', 'POST'],
+     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true 
   },
-  namespace: '/quiz'
+  namespace: '/quiz',
+  transports: ['websocket', 'polling']
 })
 export class QuizGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;

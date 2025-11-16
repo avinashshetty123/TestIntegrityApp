@@ -50,9 +50,9 @@ export class ProctoringController {
     activityType: any; 
     metadata?: any 
   },@Req() req) {
-    const userId=req.user.userId;
 
-    return this.proctoringService.recordBrowserActivity(data,userId);
+
+    return this.proctoringService.recordBrowserActivity(data);
   }
 
   // ===== ALERTS & MONITORING =====

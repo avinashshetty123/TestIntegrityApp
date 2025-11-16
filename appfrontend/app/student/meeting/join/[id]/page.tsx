@@ -1,24 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
-import EnhancedTutorMeetingRoom from "@/components/EnhancedTutorMeetingRooom";
 import EnhancedStudentMeetingRoom from "@/components/StudentMeeting";
+
 export default function StudentMeetingJoinPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
   const { toast } = useToast();
+
   const [isConnecting, setIsConnecting] = useState(true);
+  const [userIn, setUserIn] = useState({});
 
   const meetingId = params.id as string;
-  const token = searchParams.get('token');
-  const serverUrl = searchParams.get('serverUrl');
+  const token = searchParams.get("token");
+  const serverUrl = searchParams.get("serverUrl");
 
+  // Validate URL params
   useEffect(() => {
     if (!token || !serverUrl) {
       toast({
@@ -26,33 +27,47 @@ export default function StudentMeetingJoinPage() {
         description: "Missing connection parameters",
         variant: "destructive",
       });
-      router.push('/tutor/meeting');
+      router.push("/student/meeting");
     } else {
       setIsConnecting(false);
     }
   }, [token, serverUrl, router, toast]);
 
-  const handleDisconnect = () => {
-    router.push('/student/meeting');
-  };
+  // Fetch user info
+  async function getUserInfo() {
+    try {
+      const response = await fetch("http://localhost:4000/user/profile", {
+        credentials: "include",
+      });
 
+      if (response.ok) {
+        const userInfo = await response.json();
+        setUserIn(userInfo);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  useEffect(() => {
+    getUserInfo();
+  }, []);
+
+  // UI states
   if (isConnecting) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-black text-white p-6 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p>Connecting to meeting...</p>
-        </div>
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <p>Connecting to meeting...</p>
       </div>
     );
   }
 
   if (!token || !serverUrl) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-black text-white p-6 flex items-center justify-center">
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl font-semibold mb-4">Connection Error</h2>
-          <Button onClick={() => router.push('/tutor/meeting')}>
+          <Button onClick={() => router.push("/tutor/meeting")}>
             Return to Dashboard
           </Button>
         </div>
@@ -62,15 +77,13 @@ export default function StudentMeetingJoinPage() {
 
   return (
     <div className="h-screen bg-black">
-     <EnhancedStudentMeetingRoom
-             token={token}
+      <EnhancedStudentMeetingRoom
+        token={token}
         serverUrl={serverUrl}
         meetingId={meetingId}
-        onDisconnect={handleDisconnect}
-        userInfo={{
-          
-          role: "student"
-        }}/>
+        onDisconnect={() => router.push("/student/meeting")}
+        userInfo={userIn}
+      />
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { AppModule } from "./app.module";
 import { Logger,ValidationPipe } from "@nestjs/common";
 import cookieParser from 'cookie-parser';
 import {SwaggerModule,DocumentBuilder} from '@nestjs/swagger';
-
+import { SocketAdapter } from "./socket.adapter";
 async function bootstrap() {
   
   const logger=new Logger('Bootstrap');
@@ -26,6 +26,7 @@ async function bootstrap() {
     }),
 
   )
+  app.useWebSocketAdapter(new SocketAdapter(app));
   const config=new DocumentBuilder().setTitle("TestIntegrityBackend").setDescription("Api DOcs").setVersion('1').addBearerAuth().addCookieAuth().build();
   const document=SwaggerModule.createDocument(app,config);
   SwaggerModule.setup("doc",app,document);

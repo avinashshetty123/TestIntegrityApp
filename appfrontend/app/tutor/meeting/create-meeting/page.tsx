@@ -8,13 +8,15 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
+import { useRouter } from "next/navigation";
 
 interface CreateMeetingFormProps {
   onBack: () => void;
-  onCreateMeeting: (meetingData: any) => void;
+  
 }
 
-export default function CreateMeetingForm({ onBack, onCreateMeeting }: CreateMeetingFormProps) {
+export default function CreateMeetingForm({ onBack }: CreateMeetingFormProps) {
+  const router=useRouter();
   const { toast } = useToast();
   const [formData, setFormData] = useState({
     title: "",
@@ -67,7 +69,8 @@ export default function CreateMeetingForm({ onBack, onCreateMeeting }: CreateMee
           title: "Success",
           description: "Meeting created successfully!",
         });
-        onCreateMeeting(formData);
+        router.push('/tutor/meeting')
+  
       } else {
         toast({
           title: "Error",

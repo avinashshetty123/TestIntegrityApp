@@ -3,6 +3,7 @@ import { Meeting } from '../entity/meeting.entity';
 import { User } from '../../user/entities/user.entity';
 import { Test } from 'src/tests/entities/test.entity';
 import { IsOptional } from 'class-validator';
+import { truncate } from 'fs/promises';
 @Entity('meeting_sessions')
 export class MeetingSession {
   @PrimaryGeneratedColumn('uuid')
@@ -11,7 +12,7 @@ export class MeetingSession {
   @Column()
   meetingId: string;
 
-  @ManyToOne(() => Meeting)
+  @ManyToOne(() => Meeting,{eager:true})
   meeting: Meeting;
 
 //     @Column()
@@ -29,11 +30,11 @@ export class MeetingSession {
   @Column()
   participantName?: string;
 
-  @Column({ nullable: true })
-  userId?: string;
+  @Column({nullable:true})
+  userId: string;
 
-  @ManyToOne(() => User, { eager: true, nullable: true })
-  user?: User;
+  @ManyToOne(() => User, { eager: true, })
+  user: User;
 
   @Column()
   participantType: string; // 'tutor' | 'student'

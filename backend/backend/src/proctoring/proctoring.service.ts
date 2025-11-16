@@ -268,7 +268,7 @@ async recordBrowserActivity(data: {
   participantId: string;
   activityType: 'TAB_SWITCH' | 'COPY_PASTE' | 'WINDOW_SWITCH' | 'BLUR' | 'FOCUS';
   metadata?: any;
-},userId:string) {
+}) {
   // Add validation
   if (!data.participantId) {
     this.logger.warn(`Missing participantId for browser activity in meeting ${data.meetingId}`);
@@ -282,7 +282,7 @@ async recordBrowserActivity(data: {
       data.participantId = session.participantId;
     } else {
       // Option B: Generate a fallback or throw error
-     data.participantId=userId;
+     throw new BadRequestException("user id missing")
     }
   }
 

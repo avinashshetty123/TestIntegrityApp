@@ -14,10 +14,28 @@ export default function TutorMeetingJoinPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isConnecting, setIsConnecting] = useState(true);
+  const [userIn, setUserIn] = useState({});
 
   const meetingId = params.id as string;
   const token = searchParams.get('token');
   const serverUrl = searchParams.get('serverUrl');
+    async function getUserInfo() {
+    try {
+      const response = await fetch("http://localhost:4000/user/profile", {
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        const userInfo = await response.json();
+        setUserIn(userInfo);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
+    useEffect(() => {
+    getUserInfo();
+  }, []);
 
   useEffect(() => {
     if (!token || !serverUrl) {
@@ -67,10 +85,7 @@ export default function TutorMeetingJoinPage() {
         serverUrl={serverUrl}
         meetingId={meetingId}
         onDisconnect={handleDisconnect}
-        userInfo={{
-          name: "Tutor",
-          role: "tutor"
-        }}
+        userInfo={userIn}
       />
     </div>
   );

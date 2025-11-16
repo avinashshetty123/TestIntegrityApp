@@ -44,7 +44,7 @@ export class MeetingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   }
 
   @SubscribeMessage('approve-join-request')
-  handleApproveJoinRequest(client: any, data: { requestId: string, studentId: string, meetingId: string }) {
+  handleApproveJoinRequest( data: { requestId: string, studentId: string, meetingId: string }) {
     // Handle join request approval
     this.server.to(data.meetingId).emit('join-request-approved', data);
   }
