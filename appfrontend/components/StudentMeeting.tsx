@@ -156,8 +156,8 @@ export default function EnhancedStudentMeetingRoom({
     // Draw current video frame to canvas
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Convert canvas to base64
-    const base64Image = canvas.toDataURL('image/jpeg', 0.8);
+    // Convert canvas to base64 with lower quality to reduce size
+    const base64Image = canvas.toDataURL('image/jpeg', 0.3);
 
     const frameData = {
       imageData: base64Image,
@@ -279,7 +279,7 @@ export default function EnhancedStudentMeetingRoom({
         } catch (error) {
           console.error('Deepfake check failed:', error);
         }
-      }, 'image/jpeg', 0.9);
+      }, 'image/jpeg', 0.4);
     } catch (error) {
       console.error('Failed to perform deepfake check:', error);
     }
@@ -493,19 +493,28 @@ const handleProctoringAnalysis = (analysis: any) => {
   console.log(userInfo);
 
   const reportBrowserActivity = async (activityType: string, metadata?: any) => {
+    if (!userInfo?.id || !meetingId) {
+      console.warn('Missing user info or meeting ID for browser activity');
+      return;
+    }
+    
     try {
-      await fetch('http://localhost:4000/proctoring/browser-activity', {
+      const response = await fetch('http://localhost:4000/proctoring/browser-activity', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
           meetingId,
-          userId: userInfo?.id,
-          participantId: userInfo?.id,
+          userId: userInfo.id,
+          participantId: userInfo.id,
           activityType,
           metadata
         })
       });
+      
+      if (!response.ok) {
+        console.warn(`Browser activity report failed: ${response.status}`);
+      }
     } catch (error) {
       console.error('Failed to report browser activity:', error);
     }

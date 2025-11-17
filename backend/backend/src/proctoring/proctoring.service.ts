@@ -272,26 +272,34 @@ async recordBrowserActivity(data: {
   // Use userId as participantId for consistency
   const participantId = data.participantId || data.userId;
   
-  if (!participantId) {
-    throw new BadRequestException("Participant ID missing");
+  if (!participantId || !data.meetingId || !data.userId) {
+    this.logger.warn('Missing required fields for browser activity', data);
+    return { success: false, message: 'Missing required fields' };
   }
 
-  if (['TAB_SWITCH', 'COPY_PASTE', 'WINDOW_SWITCH'].includes(data.activityType)) {
-    const alert = {
-      alertType: data.activityType as AlertType,
-      description: `Browser activity: ${data.activityType}`,
-      confidence: 0.9,
-      metadata: data.metadata,
-    };
+  try {
+    if (['TAB_SWITCH', 'COPY_PASTE', 'WINDOW_SWITCH'].includes(data.activityType)) {
+      const alert = {
+        alertType: data.activityType as AlertType,
+        description: `Browser activity: ${data.activityType}`,
+        confidence: 0.9,
+        metadata: data.metadata,
+      };
+      
+      await this.saveAlert({
+        meetingId: data.meetingId,
+        userId: data.userId,
+        participantId: participantId,
+      }, alert);
+      
+      await this.updateSessionFlags(data.meetingId, participantId, alert);
+      await this.sendRealTimeAlert(data.meetingId, participantId, alert);
+    }
     
-    await this.saveAlert({
-      meetingId: data.meetingId,
-      userId: data.userId,
-      participantId: participantId,
-    }, alert);
-    
-    await this.updateSessionFlags(data.meetingId, participantId, alert);
-    await this.sendRealTimeAlert(data.meetingId, participantId, alert);
+    return { success: true };
+  } catch (error) {
+    this.logger.error('Failed to record browser activity:', error);
+    return { success: false, message: error.message };
   }
 }
 

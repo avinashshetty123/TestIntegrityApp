@@ -4,6 +4,8 @@ import { Logger,ValidationPipe } from "@nestjs/common";
 import cookieParser from 'cookie-parser';
 import {SwaggerModule,DocumentBuilder} from '@nestjs/swagger';
 import { SocketAdapter } from "./socket.adapter";
+import * as bodyParser from 'body-parser';
+
 async function bootstrap() {
   
   const logger=new Logger('Bootstrap');
@@ -14,7 +16,11 @@ async function bootstrap() {
     origin: 'http://localhost:3000',
     credentials: true,
   });
-   app.use(cookieParser()); 
+  
+  // Increase payload size limits
+  app.use(bodyParser.json({ limit: '10mb' }));
+  app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
+  app.use(cookieParser()); 
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist:true,
