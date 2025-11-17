@@ -388,6 +388,86 @@ async respondToJoinRequest(@Param('requestId') requestId: string, @Body() body: 
     return this.participantService.getMeetingParticipants(meetingId);
   }
 
+  @Get(':id/alerts-detailed')
+  @Roles(UserRole.TUTOR)
+  async getMeetingAlertsDetailed(@Param('id') meetingId: string, @Req() req) {
+    const meeting = await this.meetings.findById(meetingId);
+    if (meeting.teacherId !== req.user.userId) {
+      throw new ForbiddenException('Not your meeting');
+    }
+    return this.proctoringService.getAlertsWithParticipantDetails(meetingId);
+  }
+
+  @Get(':id/monitoring-dashboard')
+  @Roles(UserRole.TUTOR)
+  async getMonitoringDashboard(@Param('id') meetingId: string, @Req() req) {
+    const meeting = await this.meetings.findById(meetingId);
+    if (meeting.teacherId !== req.user.userId) {
+      throw new ForbiddenException('Not your meeting');
+    }
+
+    const [participants, alerts, alertSummary, liveAlerts] = await Promise.all([
+      this.participantService.getMeetingParticipants(meetingId),
+      this.proctoringService.getAlertsWithParticipantDetails(meetingId),
+      this.proctoringService.getAlertSummary(meetingId),
+      this.proctoringService.getLiveAlerts(meetingId)
+    ]);
+
+    // Calculate participant risk scores
+    const participantRisks = participants.map(participant => {
+      const participantAlerts = alerts.filter(alert => alert.participant.id === participant.userId);
+      const riskScore = this.calculateParticipantRiskScore(participantAlerts);
+      
+      return {
+        userId: participant.userId,
+        name: participant.user.fullName,
+        email: participant.user.email,
+        status: participant.status,
+        joinedAt: participant.joinedAt,
+        alertCount: participantAlerts.length,
+        riskScore,
+        riskLevel: this.calculateRiskLevel(participantAlerts.length),
+        lastAlert: participantAlerts[0]?.detectedAt || null,
+        recentAlerts: participantAlerts.slice(0, 5) // Last 5 alerts
+      };
+    });
+
+    return {
+      meeting: {
+        id: meeting.id,
+        title: meeting.title,
+        status: meeting.status,
+        startedAt: meeting.startedAt
+      },
+      participants: participantRisks,
+      alerts: {
+        total: alerts.length,
+        recent: liveAlerts,
+        summary: alertSummary,
+        detailed: alerts.slice(0, 20) // Last 20 alerts
+      },
+      statistics: {
+        totalParticipants: participants.length,
+        activeParticipants: participants.filter(p => p.status === 'JOINED').length,
+        highRiskParticipants: participantRisks.filter(p => p.riskLevel === 'HIGH').length,
+        totalAlerts: alerts.length,
+        recentAlerts: liveAlerts.length
+      },
+      lastUpdated: new Date()
+    };
+  }
+
+  private calculateParticipantRiskScore(alerts: any[]): number {
+    if (alerts.length === 0) return 0;
+    
+    const severityWeights = { 'LOW': 0.1, 'MEDIUM': 0.3, 'HIGH': 0.7, 'CRITICAL': 1.0 };
+    const totalWeight = alerts.reduce((sum, alert) => {
+      return sum + (severityWeights[alert.severity] || 0.3) * alert.confidence;
+    }, 0);
+    
+    return Math.min(totalWeight / alerts.length, 1.0);
+  }
+
   @Post(':id/participant-leave')
   async leaveParticipant(@Param('id') meetingId: string, @Body() data: { userId: string }) {
     return this.participantService.leaveMeeting(meetingId, data.userId);

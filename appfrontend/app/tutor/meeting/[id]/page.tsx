@@ -70,7 +70,14 @@ interface ProctoringAlert {
   confidence: number;
   detectedAt: string;
   severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-  participantId: string;
+  participantId?: string;
+  participant?: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    status: string;
+  };
   user?: {
     fullName: string;
     email: string;
@@ -232,14 +239,14 @@ export default function MeetingDetailPage() {
   const fetchLiveAlerts = async () => {
     try {
       const response = await fetch(
-        `http://localhost:4000/proctoring/live-alerts/${meetingId}`,
+        `http://localhost:4000/meetings/${meetingId}/alerts-detailed`,
         {
           credentials: "include",
         }
       );
       if (response.ok) {
         const alerts = await response.json();
-        setLiveAlerts(alerts);
+        setLiveAlerts(alerts.slice(0, 10)); // Get latest 10 alerts
       }
     } catch (error) {
       console.error("Error fetching live alerts:", error);
@@ -462,6 +469,34 @@ export default function MeetingDetailPage() {
             >
               <Download className="w-4 h-4 mr-2" />
               Export
+            </Button>
+            <Button
+              onClick={async () => {
+                try {
+                  const response = await fetch(`http://localhost:4000/proctoring/test-alert`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                      meetingId,
+                      userId: 'test-user-123',
+                      alertType: 'PHONE_DETECTED',
+                      description: 'Test alert for debugging'
+                    })
+                  });
+                  if (response.ok) {
+                    toast({ title: "Test Alert Created", description: "Check the alerts tab" });
+                    await fetchLiveAlerts();
+                  }
+                } catch (error) {
+                  toast({ title: "Error", description: "Failed to create test alert", variant: "destructive" });
+                }
+              }}
+              variant="outline"
+              className="border-yellow-500 text-yellow-400"
+            >
+              <AlertTriangle className="w-4 h-4 mr-2" />
+              Test Alert
             </Button>
           </div>
         </div>
@@ -816,7 +851,7 @@ export default function MeetingDetailPage() {
                   </Badge>
                 </div>
                 <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {allAlerts.map((alert, index) => (
+                  {liveAlerts.map((alert, index) => (
                     <div
                       key={index}
                       className="flex items-center justify-between p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
@@ -824,12 +859,14 @@ export default function MeetingDetailPage() {
                       <div className="flex items-center gap-4 flex-1">
                         <div
                           className={`w-3 h-3 rounded-full ${getAlertTypeColor(
-                            alert.type
+                            alert.alertType
                           )}`}
                         ></div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <p className="font-medium">{alert.studentName}</p>
+                            <p className="font-medium">
+                              {alert.participant?.name || alert.user?.fullName || 'Unknown Participant'}
+                            </p>
                             <Badge
                               className={`${getSeverityColor(
                                 alert.severity
@@ -842,7 +879,10 @@ export default function MeetingDetailPage() {
                             {alert.description}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {formatTime(alert.time)}
+                            {alert.participant?.email || alert.user?.email || 'No email'}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {formatTime(alert.detectedAt)}
                           </p>
                         </div>
                       </div>
@@ -859,7 +899,7 @@ export default function MeetingDetailPage() {
                       </Badge>
                     </div>
                   ))}
-                  {allAlerts.length === 0 && (
+                  {liveAlerts.length === 0 && (
                     <div className="text-center py-8 text-gray-400">
                       <CheckCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
                       <p>No alerts detected in this meeting</p>

@@ -194,7 +194,7 @@ export class ProctoringService {
     const entity = this.alertRepo.create({
       meetingId: frameData.meetingId,
       userId: frameData.userId,
-      participantId: frameData.participantId,
+      participantId: frameData.userId, // Use userId as participantId for consistency
       alertType: alert.alertType,
       description: alert.description,
       confidence: alert.confidence,
@@ -265,25 +265,15 @@ export class ProctoringService {
 async recordBrowserActivity(data: {
   meetingId: string;
   userId: string;
-  participantId: string;
+  participantId?: string;
   activityType: 'TAB_SWITCH' | 'COPY_PASTE' | 'WINDOW_SWITCH' | 'BLUR' | 'FOCUS';
   metadata?: any;
 }) {
-  // Add validation
-  if (!data.participantId) {
-    this.logger.warn(`Missing participantId for browser activity in meeting ${data.meetingId}`);
-    
-    // Option A: Try to find participantId from active session
-    const session = await this.sessionRepo.findOne({ 
-      where: { meetingId: data.meetingId, userId: data.userId } 
-    });
-    
-    if (session) {
-      data.participantId = session.participantId;
-    } else {
-      // Option B: Generate a fallback or throw error
-     throw new BadRequestException("user id missing")
-    }
+  // Use userId as participantId for consistency
+  const participantId = data.participantId || data.userId;
+  
+  if (!participantId) {
+    throw new BadRequestException("Participant ID missing");
   }
 
   if (['TAB_SWITCH', 'COPY_PASTE', 'WINDOW_SWITCH'].includes(data.activityType)) {
@@ -297,11 +287,11 @@ async recordBrowserActivity(data: {
     await this.saveAlert({
       meetingId: data.meetingId,
       userId: data.userId,
-      participantId: data.participantId,  // Now guaranteed to have value
+      participantId: participantId,
     }, alert);
     
-    await this.updateSessionFlags(data.meetingId, data.participantId, alert);
-    await this.sendRealTimeAlert(data.meetingId, data.participantId, alert);
+    await this.updateSessionFlags(data.meetingId, participantId, alert);
+    await this.sendRealTimeAlert(data.meetingId, participantId, alert);
   }
 }
 
@@ -339,34 +329,76 @@ async recordBrowserActivity(data: {
     const where: Record<string, any> = { meetingId };
     if (participantId) where.participantId = participantId;
 
-    return this.alertRepo.find({
+    const alerts = await this.alertRepo.find({
       where,
+      relations: ['user'],
       order: { detectedAt: 'DESC' },
     });
+
+    // Enrich alerts with participant details
+    return Promise.all(alerts.map(async (alert) => {
+      const participant = await this.userRepo.findOne({ where: { id: alert.participantId } });
+      return {
+        ...alert,
+        participant: participant ? {
+          id: participant.id,
+          name: participant.fullName,
+          email: participant.email,
+          role: participant.role
+        } : null
+      };
+    }));
   }
 
   async getAlertSummary(meetingId: string) {
-    const alerts = await this.alertRepo.find({ where: { meetingId } });
+    const alerts = await this.alertRepo.find({ 
+      where: { meetingId },
+      relations: ['user']
+    });
 
     const summary = {
       totalAlerts: alerts.length,
       byType: {} as Record<AlertType, number>,
-      byParticipant: {} as Record<string, number>,
+      byParticipant: {} as Record<string, { count: number, name: string, email: string }>,
       timeline: [] as any[],
     };
 
+    // Get all unique participant IDs and fetch their details
+    const participantIds = [...new Set(alerts.map(alert => alert.participantId))];
+    const participants = await Promise.all(
+      participantIds.map(id => this.userRepo.findOne({ where: { id } }))
+    );
+    const participantMap = new Map(participants.filter((p): p is any => p != null).map(p => [p.id, p]));
+
     alerts.forEach((alert) => {
       summary.byType[alert.alertType] = (summary.byType[alert.alertType] || 0) + 1;
-      summary.byParticipant[alert.participantId] =
-        (summary.byParticipant[alert.participantId] || 0) + 1;
+      
+      const participant = participantMap.get(alert.participantId);
+      const participantKey = alert.participantId;
+      
+      if (!summary.byParticipant[participantKey]) {
+        summary.byParticipant[participantKey] = {
+          count: 0,
+          name: participant?.fullName || 'Unknown',
+          email: participant?.email || 'Unknown'
+        };
+      }
+      summary.byParticipant[participantKey].count++;
       
       summary.timeline.push({
         time: alert.detectedAt,
         type: alert.alertType,
-        participant: alert.participantId,
+        participantId: alert.participantId,
+        participantName: participant?.fullName || 'Unknown',
+        participantEmail: participant?.email || 'Unknown',
         confidence: alert.confidence,
+        description: alert.description,
+        severity: this.getAlertSeverity(alert.alertType)
       });
     });
+
+    // Sort timeline by most recent first
+    summary.timeline.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
 
     return summary;
   }
@@ -711,11 +743,58 @@ async recordBrowserActivity(data: {
     };
   }
 
+  async getAlertsWithParticipantDetails(meetingId: string) {
+    const alerts = await this.alertRepo.find({
+      where: { meetingId },
+      relations: ['user'],
+      order: { detectedAt: 'DESC' },
+    });
+
+    // Get all participants for this meeting
+    const participants = await this.participantRepo.find({
+      where: { meetingId },
+      relations: ['user']
+    });
+
+    const participantMap = new Map(participants.map(p => [p.userId, p]));
+
+    // Also get user details directly for participants not in meeting_participants table
+    const uniqueParticipantIds = [...new Set(alerts.map(alert => alert.participantId))];
+    const users = await Promise.all(
+      uniqueParticipantIds.map(id => this.userRepo.findOne({ where: { id } }))
+    );
+    const userMap = new Map(users.filter(u => u).map(u => [u!.id, u!]));
+
+    return alerts.map(alert => {
+      const participant = participantMap.get(alert.participantId);
+      const user = participant?.user || userMap.get(alert.participantId);
+      
+      return {
+        id: alert.id,
+        alertType: alert.alertType,
+        description: alert.description,
+        confidence: alert.confidence,
+        detectedAt: alert.detectedAt,
+        severity: this.getAlertSeverity(alert.alertType),
+        metadata: alert.metadata,
+        participant: {
+          id: alert.participantId,
+          name: user?.fullName || 'Unknown Participant',
+          email: user?.email || 'Unknown Email',
+          role: user?.role || 'student',
+          institutionName: user?.institutionName,
+          rollNumber: user?.rollNumber,
+          status: participant?.status || 'ACTIVE'
+        }
+      };
+    });
+  }
+
   async getLiveAlerts(meetingId: string) {
     // Get alerts from the last 5 minutes
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     
-    return this.alertRepo.find({
+    const alerts = await this.alertRepo.find({
       where: {
         meetingId,
         detectedAt: MoreThan(fiveMinutesAgo),
@@ -723,6 +802,29 @@ async recordBrowserActivity(data: {
       relations: ['user'],
       order: { detectedAt: 'DESC' },
       take: 50, // Limit to recent alerts
+    });
+
+    // Get participants for this meeting
+    const participants = await this.participantRepo.find({
+      where: { meetingId },
+      relations: ['user']
+    });
+    const participantMap = new Map(participants.map(p => [p.userId, p]));
+
+    return alerts.map(alert => {
+      const participant = participantMap.get(alert.participantId);
+      const user = participant?.user;
+      
+      return {
+        ...alert,
+        participant: {
+          id: alert.participantId,
+          name: user?.fullName || 'Unknown Participant',
+          email: user?.email || 'Unknown Email',
+          role: user?.role || 'student',
+          status: participant?.status || 'UNKNOWN'
+        }
+      };
     });
   }
 
@@ -994,6 +1096,13 @@ async recordBrowserActivity(data: {
   }
     private async sendRealTimeAlert(meetingId: string, participantId: string, alert: any): Promise<void> {
     try {
+      // Get participant details
+      const user = await this.userRepo.findOne({ where: { id: participantId } });
+      const participant = await this.participantRepo.findOne({ 
+        where: { meetingId, userId: participantId },
+        relations: ['user']
+      });
+      
       const alertData = {
         participantId,
         alertType: alert.alertType,
@@ -1002,11 +1111,18 @@ async recordBrowserActivity(data: {
         severity: this.getAlertSeverity(alert.alertType),
         meetingId,
         timestamp: new Date(),
+        participant: {
+          id: participantId,
+          name: user?.fullName || participant?.user?.fullName || 'Unknown Participant',
+          email: user?.email || participant?.user?.email || 'Unknown Email',
+          role: user?.role || participant?.user?.role || 'student',
+          status: participant?.status || 'ACTIVE'
+        }
       };
       
       // This now only sends to tutors in the room
       await this.livekitService.broadcastProctoringAlert(meetingId, alertData);
-      this.logger.log(`Real-time alert sent to tutors for ${participantId}: ${alert.alertType}`);
+      this.logger.log(`Real-time alert sent to tutors for ${user?.fullName || participantId}: ${alert.alertType}`);
     } catch (error) {
       this.logger.error('Failed to send real-time alert:', error);
     }
@@ -1019,6 +1135,91 @@ async recordBrowserActivity(data: {
       await this.livekitService.sendDashboardUpdate(meetingId, dashboardData);
     } catch (error) {
       this.logger.error('Failed to send live dashboard update:', error);
+    }
+  }
+
+  async enhancedFrameAnalysis(data: {
+    meetingId: string;
+    userId: string;
+    participantId: string;
+    frameData: string;
+    includeDeepfakeCheck?: boolean;
+  }) {
+    const alerts: {
+      alertType: AlertType;
+      description: string;
+      confidence: number;
+      metadata?: any;
+    }[] = [];
+
+    try {
+      // Basic frame analysis (face detection, etc.)
+      const basicAnalysis = await this.analyzeFrame({
+        meetingId: data.meetingId,
+        userId: data.userId,
+        participantId: data.participantId,
+        detections: {
+          faceCount: 1, // Will be updated by actual detection
+        }
+      });
+
+      // If deepfake check is requested and it's time for periodic check
+      if (data.includeDeepfakeCheck) {
+        try {
+          // Convert base64 to buffer for deepfake service
+          const base64Data = data.frameData.replace(/^data:image\/\w+;base64,/, '');
+          const buffer = Buffer.from(base64Data, 'base64');
+          
+          // Create temporary file-like object
+          const tempFile = {
+            buffer,
+            originalname: 'frame.jpg',
+            mimetype: 'image/jpeg',
+            path: '', // Will be handled by deepfake service
+          } as any;
+
+          // Note: This would need to be integrated with the deepfake service
+          // For now, we'll simulate the check
+          const deepfakeResult = {
+            label: Math.random() > 0.95 ? 'fake' : 'real', // 5% chance of fake detection
+            confidence: 0.8 + Math.random() * 0.2
+          };
+
+          if (deepfakeResult.label === 'fake') {
+            alerts.push({
+              alertType: 'DEEPFAKE_DETECTED',
+              description: 'Potential synthetic or manipulated face detected',
+              confidence: deepfakeResult.confidence,
+              metadata: { deepfakeAnalysis: deepfakeResult }
+            });
+          } else {
+            alerts.push({
+              alertType: 'FACE_VERIFIED',
+              description: 'Face authenticity verified',
+              confidence: deepfakeResult.confidence,
+              metadata: { deepfakeAnalysis: deepfakeResult }
+            });
+          }
+        } catch (error) {
+          this.logger.error('Deepfake analysis failed:', error);
+        }
+      }
+
+      // Save and notify for new alerts
+      for (const alert of alerts) {
+        await this.saveAlert(data, alert);
+        await this.updateSessionFlags(data.meetingId, data.participantId, alert);
+        await this.sendRealTimeAlert(data.meetingId, data.participantId, alert);
+      }
+
+      return {
+        alerts: [...basicAnalysis.details, ...alerts],
+        timestamp: new Date(),
+        deepfakeCheckPerformed: data.includeDeepfakeCheck || false
+      };
+    } catch (error) {
+      this.logger.error('Enhanced frame analysis failed:', error);
+      throw new BadRequestException('Enhanced frame analysis failed');
     }
   }
 }

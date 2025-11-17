@@ -37,8 +37,15 @@ interface ProctoringAlert {
   description: string;
   confidence: number;
   detectedAt: string;
-  participantId: string;
+  participantId?: string;
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  participant?: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    status: string;
+  };
   studentName?: string;
   timestamp: string;
 }
@@ -136,6 +143,13 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
       detectedAt: new Date().toISOString(),
       participantId: data.participantId,
       severity: data.severity || 'MEDIUM',
+      participant: data.participant || {
+        id: data.participantId,
+        name: data.studentName || participant?.name || data.participantId,
+        email: data.studentEmail || 'Unknown',
+        role: 'student',
+        status: 'ACTIVE'
+      },
       studentName: data.studentName || participant?.name || data.participantId,
       timestamp: new Date().toISOString()
     };
@@ -147,9 +161,10 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
 
     // Show immediate toast for high severity alerts
     if (alert.severity === 'HIGH' || alert.severity === 'CRITICAL') {
+      const participantName = alert.participant?.name || alert.studentName || 'Unknown Participant';
       toast({
         title: `🚨 Real-time ${alert.severity} Alert`,
-        description: `${alert.studentName}: ${alert.description}`,
+        description: `${participantName}: ${alert.description}`,
         variant: "destructive",
         duration: 5000,
       });
@@ -1079,8 +1094,13 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
                           </Badge>
                         </div>
                         <p className="text-sm font-medium text-white mb-1">
-                          {alert.studentName || alert.participantId}
+                          {alert.participant?.name || alert.studentName || alert.participantId || 'Unknown Participant'}
                         </p>
+                        {alert.participant?.email && (
+                          <p className="text-xs text-gray-400 mb-1">
+                            {alert.participant.email}
+                          </p>
+                        )}
                         <p className="text-xs text-gray-300 mb-2">{alert.description}</p>
                         <div className="flex items-center justify-between text-xs text-gray-400">
                           <span>{Math.round(alert.confidence * 100)}% confidence</span>

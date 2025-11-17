@@ -72,11 +72,14 @@ export default function EnhancedStudentMeetingRoom({
   const [faceDetectionStatus, setFaceDetectionStatus] = useState<string>('Initializing...');
   const [quizInProgress, setQuizInProgress] = useState(false);
   const [isElectron, setIsElectron] = useState(false);
+  const [deepfakeCheckCount, setDeepfakeCheckCount] = useState(0);
+  const [lastDeepfakeCheck, setLastDeepfakeCheck] = useState<Date | null>(null);
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const tutorVideoRef = useRef<HTMLVideoElement>(null);
   const videoFrameCanvasRef = useRef<HTMLCanvasElement>(null);
   const proctoringIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const deepfakeIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -84,17 +87,25 @@ export default function EnhancedStudentMeetingRoom({
 
   // Check if running in Electron
   useEffect(() => {
-    setIsElectron(!!window.electronAPI);
+    const electronAvailable = !!window.electronAPI;
+    setIsElectron(electronAvailable);
+    console.log('Electron API available:', electronAvailable);
+    if (electronAvailable) {
+      console.log('Electron API methods:', Object.keys(window.electronAPI));
+    }
   }, []);
 
   // Setup Electron event listeners
   useEffect(() => {
     if (window.electronAPI) {
+      console.log('Setting up Electron proctoring listeners');
       window.electronAPI.onProctoringAnalysis((analysis) => {
+        console.log('Received proctoring analysis from Electron:', analysis);
         handleProctoringAnalysis(analysis);
       });
 
       return () => {
+        console.log('Cleaning up Electron listeners');
         window.electronAPI?.removeAllListeners('proctoring-analysis');
       };
     }
@@ -158,12 +169,119 @@ export default function EnhancedStudentMeetingRoom({
 
     // Send frame to analysis
     if (isElectron && window.electronAPI) {
-      await window.electronAPI.sendVideoFrame(frameData);
+      try {
+        console.log('Sending frame to Electron API');
+        const result = await window.electronAPI.sendVideoFrame(frameData);
+        console.log('Electron frame analysis result:', result);
+      } catch (error) {
+        console.error('Failed to send frame to Electron:', error);
+      }
     } else if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      console.log('Sending frame via WebSocket');
       wsRef.current.send(JSON.stringify({
         type: 'VIDEO_FRAME',
         data: frameData
       }));
+    } else {
+      console.log('No proctoring connection available (Electron or WebSocket)');
+    }
+
+    // Send to proctoring service for basic analysis
+    await sendFrameForAnalysis(frameData);
+  };
+
+  const sendFrameForAnalysis = async (frameData: any) => {
+    try {
+      // Use enhanced analysis every 5th frame (includes deepfake check)
+      const shouldIncludeDeepfake = deepfakeCheckCount % 5 === 0;
+      
+      const response = await fetch('http://localhost:4000/proctoring/enhanced-frame-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          meetingId,
+          userId: userInfo?.id,
+          participantId: userInfo?.id,
+          frameData: frameData.imageData,
+          includeDeepfakeCheck: shouldIncludeDeepfake
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.alerts && result.alerts.length > 0) {
+          result.alerts.forEach((alert: any) => {
+            handleProctoringAnalysis({ alerts: [alert] });
+          });
+        }
+        
+        if (result.deepfakeCheckPerformed) {
+          setDeepfakeCheckCount(prev => prev + 1);
+          setLastDeepfakeCheck(new Date());
+        }
+      }
+    } catch (error) {
+      console.error('Failed to send frame for analysis:', error);
+    }
+  };
+
+  const performDeepfakeCheck = async () => {
+    if (!localVideoRef.current || !videoFrameCanvasRef.current) return;
+
+    const video = localVideoRef.current;
+    const canvas = videoFrameCanvasRef.current;
+    const ctx = canvas.getContext('2d');
+
+    if (!ctx || video.videoWidth === 0 || video.videoHeight === 0) return;
+
+    try {
+      // Capture frame
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      // Convert to blob
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        
+        const formData = new FormData();
+        formData.append('file', blob, 'frame.jpg');
+        formData.append('userId', userInfo?.id || '');
+        formData.append('meetingId', meetingId);
+        formData.append('participantId', userInfo?.id || '');
+
+        try {
+          const response = await fetch('http://localhost:4000/deepfake/check', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            setDeepfakeCheckCount(prev => prev + 1);
+            setLastDeepfakeCheck(new Date());
+            
+            // Update status based on result
+            if (result.result?.label === 'fake') {
+              setFaceDetectionStatus(`⚠️ Deepfake detected (${Math.round(result.result.confidence * 100)}%)`);
+              toast({
+                title: "⚠️ Identity Verification Alert",
+                description: "Potential synthetic face detected",
+                variant: "destructive",
+                duration: 5000,
+              });
+            } else {
+              setFaceDetectionStatus(`✅ Face verified (${Math.round(result.result.confidence * 100)}%)`);
+            }
+          }
+        } catch (error) {
+          console.error('Deepfake check failed:', error);
+        }
+      }, 'image/jpeg', 0.9);
+    } catch (error) {
+      console.error('Failed to perform deepfake check:', error);
     }
   };
 
@@ -177,12 +295,19 @@ export default function EnhancedStudentMeetingRoom({
 
       setIsProctoringActive(true);
       
-      // Start periodic frame analysis
-      proctoringIntervalRef.current = setInterval(captureAndSendFrame, 2000);
+      // Start periodic frame analysis (every 5 seconds for regular checks)
+      proctoringIntervalRef.current = setInterval(captureAndSendFrame, 5000);
+      
+      // Start deepfake detection (every 45 seconds via direct API)
+      deepfakeIntervalRef.current = setInterval(performDeepfakeCheck, 45000);
+      
+      // Perform initial checks
+      setTimeout(captureAndSendFrame, 2000);
+      setTimeout(performDeepfakeCheck, 5000);
 
       toast({
         title: "Proctoring Started",
-        description: "AI proctoring is now monitoring your session",
+        description: "AI proctoring with deepfake detection is now active",
       });
     } catch (error) {
       console.error('Failed to start proctoring:', error);
@@ -193,6 +318,11 @@ export default function EnhancedStudentMeetingRoom({
     if (proctoringIntervalRef.current) {
       clearInterval(proctoringIntervalRef.current);
       proctoringIntervalRef.current = null;
+    }
+    
+    if (deepfakeIntervalRef.current) {
+      clearInterval(deepfakeIntervalRef.current);
+      deepfakeIntervalRef.current = null;
     }
 
     try {
@@ -402,6 +532,26 @@ const handleProctoringAnalysis = (analysis: any) => {
         setIsConnected(true);
         setIsConnecting(false);
         
+        // Check for existing remote participants
+        const remoteParticipants = Array.from(newRoom.remoteParticipants.values());
+        console.log("Existing remote participants:", remoteParticipants.length);
+        
+        if (remoteParticipants.length > 0) {
+          const firstParticipant = remoteParticipants[0];
+          setTutorParticipant(firstParticipant);
+          console.log("Set existing participant as tutor:", firstParticipant.identity);
+          
+          // Try to attach existing video tracks
+          setTimeout(() => {
+            firstParticipant.videoTrackPublications.forEach((publication) => {
+              if (publication.track && tutorVideoRef.current) {
+                console.log("Attaching existing video track");
+                publication.track.attach(tutorVideoRef.current);
+              }
+            });
+          }, 1000);
+        }
+        
         // Enable camera and microphone
         try {
           if (isVideoEnabled) {
@@ -435,11 +585,10 @@ const handleProctoringAnalysis = (analysis: any) => {
       });
 
       newRoom.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
-        console.log("Participant connected:", participant.identity);
-        // Identify tutor (assuming tutor is the first non-student participant)
-        if (participant.name?.includes('tutor') || participant.metadata?.includes('tutor')) {
-          setTutorParticipant(participant);
-        }
+        console.log("Participant connected:", participant.identity, participant.name);
+        // Set any remote participant as tutor (since student should only see tutor)
+        setTutorParticipant(participant);
+        console.log("Tutor participant set:", participant.identity);
       });
 
       newRoom.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
@@ -450,14 +599,21 @@ const handleProctoringAnalysis = (analysis: any) => {
       });
 
       newRoom.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
-        if (track.kind === "video" && tutorParticipant?.identity === participant.identity) {
-          console.log("Tutor video track subscribed");
+        console.log("Track subscribed:", track.kind, "from:", participant.identity);
+        if (track.kind === "video") {
+          // Attach any remote video track to tutor video element
           setTimeout(() => {
             const videoElement = tutorVideoRef.current;
             if (videoElement && track.attach) {
+              console.log("Attaching video track to tutor video element");
               track.attach(videoElement);
             }
           }, 500);
+          
+          // Update tutor participant if not set
+          if (!tutorParticipant) {
+            setTutorParticipant(participant);
+          }
         }
       });
 
@@ -512,31 +668,72 @@ const handleProctoringAnalysis = (analysis: any) => {
       // Fix server URL connection
       let actualServerUrl = serverUrl;
       
-      if (!serverUrl.startsWith('ws://') && !serverUrl.startsWith('wss://')) {
-        actualServerUrl = `ws://${serverUrl}`;
+      // Handle different server URL formats
+      if (actualServerUrl.startsWith('http://')) {
+        actualServerUrl = actualServerUrl.replace('http://', 'ws://');
+      } else if (actualServerUrl.startsWith('https://')) {
+        actualServerUrl = actualServerUrl.replace('https://', 'wss://');
+      } else if (!actualServerUrl.startsWith('ws://') && !actualServerUrl.startsWith('wss://')) {
+        actualServerUrl = `ws://${actualServerUrl}`;
       }
       
-      if (actualServerUrl.includes('localhost') && !actualServerUrl.includes('7880')) {
+      // Default to localhost if needed
+      if (actualServerUrl.includes('localhost') && !actualServerUrl.includes(':')) {
         actualServerUrl = 'ws://localhost:7880';
       }
-
-      console.log('🔄 Student connecting to LiveKit server:', actualServerUrl);
       
-      await newRoom.connect(actualServerUrl, token, {
-        autoSubscribe: true,
-        maxRetries: 5,
-        peerConnectionTimeout: 15000,
-      });
+      // Fallback URLs to try
+      const urlsToTry = [
+        actualServerUrl,
+        'ws://localhost:7880',
+        'ws://127.0.0.1:7880',
+        'wss://localhost:7880'
+      ];
+
+      console.log('🔄 Student connecting to LiveKit server. URLs to try:', urlsToTry);
+      
+      let connected = false;
+      let lastError = null;
+      
+      for (const url of urlsToTry) {
+        try {
+          console.log(`Trying to connect to: ${url}`);
+          await newRoom.connect(url, token, {
+            autoSubscribe: true,
+            maxRetries: 2,
+            peerConnectionTimeout: 10000,
+          });
+          connected = true;
+          console.log(`✅ Successfully connected to: ${url}`);
+          break;
+        } catch (error) {
+          console.log(`❌ Failed to connect to ${url}:`, error.message);
+          lastError = error;
+          continue;
+        }
+      }
+      
+      if (!connected) {
+        throw lastError || new Error('Failed to connect to any LiveKit server');
+      }
     } catch (error: any) {
       console.error("❌ Failed to connect to LiveKit:", error);
       setIsConnecting(false);
-      setConnectionError(
-        error.message || 'Failed to connect to meeting. Please check your connection and try again.'
-      );
+      
+      let errorMessage = 'Failed to connect to meeting.';
+      if (error.message?.includes('WebSocket')) {
+        errorMessage = 'WebSocket connection failed. Check if LiveKit server is running on port 7880.';
+      } else if (error.message?.includes('timeout')) {
+        errorMessage = 'Connection timeout. Please check your network connection.';
+      } else if (error.message?.includes('token')) {
+        errorMessage = 'Invalid token. Please refresh and try again.';
+      }
+      
+      setConnectionError(errorMessage);
       
       toast({
         title: "Connection Failed",
-        description: "Could not connect to the meeting room. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -668,6 +865,12 @@ const handleProctoringAnalysis = (analysis: any) => {
             <>
               <h1 className="text-xl font-bold mb-4 text-red-400">Connection Failed</h1>
               <p className="text-gray-300 mb-4">{connectionError}</p>
+              <div className="space-y-2 mb-4 text-sm text-gray-400">
+                <p>Debug Info:</p>
+                <p>Server URL: {serverUrl}</p>
+                <p>Token: {token ? 'Present' : 'Missing'}</p>
+                <p>Electron: {isElectron ? 'Yes' : 'No'}</p>
+              </div>
               <Button onClick={() => connectToRoom()} className="bg-blue-500 hover:bg-blue-600 text-white">
                 Retry Connection
               </Button>
@@ -711,6 +914,16 @@ const handleProctoringAnalysis = (analysis: any) => {
               <Eye className="w-3 h-3" />
               {faceDetectionStatus}
             </Badge>
+            {isElectron && (
+              <Badge variant="outline" className="flex items-center gap-1">
+                💻 Electron Mode
+              </Badge>
+            )}
+            {tutorParticipant && (
+              <Badge variant="secondary" className="flex items-center gap-1 bg-green-600">
+                👥 Tutor Connected
+              </Badge>
+            )}
           </div>
         </div>
 
@@ -774,6 +987,16 @@ const handleProctoringAnalysis = (analysis: any) => {
                 <Badge className="bg-blue-500 text-white text-xs">
                   {faceDetectionStatus}
                 </Badge>
+                {deepfakeCheckCount > 0 && (
+                  <Badge className="bg-purple-500 text-white text-xs">
+                    Deepfake checks: {deepfakeCheckCount}
+                  </Badge>
+                )}
+                {lastDeepfakeCheck && (
+                  <Badge className="bg-gray-600 text-white text-xs">
+                    Last check: {lastDeepfakeCheck.toLocaleTimeString()}
+                  </Badge>
+                )}
               </div>
             </div>
           </div>

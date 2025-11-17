@@ -140,4 +140,44 @@ export class ProctoringController {
   async getLiveAlerts(@Param('meetingId') meetingId: string) {
     return this.proctoringService.getLiveAlerts(meetingId);
   }
+
+  @Get('alerts-with-participants/:meetingId')
+  @Roles(UserRole.TUTOR)
+  async getAlertsWithParticipants(@Param('meetingId') meetingId: string) {
+    return this.proctoringService.getAlertsWithParticipantDetails(meetingId);
+  }
+
+  @Post('test-alert')
+  @Roles(UserRole.TUTOR, UserRole.STUDENT)
+  async createTestAlert(@Body() data: {
+    meetingId: string;
+    userId: string;
+    alertType: string;
+    description?: string;
+  }) {
+    // Create a test alert for debugging
+    return this.proctoringService.analyzeFrame({
+      meetingId: data.meetingId,
+      userId: data.userId,
+      participantId: data.userId,
+      detections: {
+        faceCount: data.alertType === 'FACE_NOT_DETECTED' ? 0 : 
+                  data.alertType === 'MULTIPLE_FACES' ? 3 : 1,
+        phoneDetected: data.alertType === 'PHONE_DETECTED',
+        phoneConfidence: 0.9
+      }
+    });
+  }
+
+  @Post('enhanced-frame-analysis')
+  @Roles(UserRole.STUDENT)
+  async enhancedFrameAnalysis(@Body() data: {
+    meetingId: string;
+    userId: string;
+    participantId: string;
+    frameData: string; // base64 image
+    includeDeepfakeCheck?: boolean;
+  }) {
+    return this.proctoringService.enhancedFrameAnalysis(data);
+  }
 }
