@@ -16,7 +16,8 @@ import {
   User,
   Eye,
   Search,
-  Filter
+  Filter,
+  ArrowLeft
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -139,22 +140,22 @@ export default function StudentResultsPage() {
 
   const getStatusBadge = (submission: Submission) => {
     if (!submission.evaluated) {
-      return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-200">
-        <Clock className="w-3 h-3 mr-1" />
+      return <span className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white px-3 py-1 rounded-xl text-sm font-medium shadow-[0_4px_15px_rgba(251,191,36,0.3)] flex items-center gap-1">
+        <Clock className="w-3 h-3" />
         Pending
-      </Badge>;
+      </span>;
     }
     
     if (submission.result?.passed) {
-      return <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
-        <CheckCircle className="w-3 h-3 mr-1" />
+      return <span className="bg-gradient-to-r from-green-500 to-green-600 text-white px-3 py-1 rounded-xl text-sm font-medium shadow-[0_4px_15px_rgba(34,197,94,0.3)] flex items-center gap-1">
+        <CheckCircle className="w-3 h-3" />
         Passed
-      </Badge>;
+      </span>;
     } else {
-      return <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-200">
-        <XCircle className="w-3 h-3 mr-1" />
+      return <span className="bg-gradient-to-r from-red-500 to-red-600 text-white px-3 py-1 rounded-xl text-sm font-medium shadow-[0_4px_15px_rgba(239,68,68,0.3)] flex items-center gap-1">
+        <XCircle className="w-3 h-3" />
         Failed
-      </Badge>;
+      </span>;
     }
   };
 
@@ -170,302 +171,281 @@ export default function StudentResultsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-blue-600 font-medium">Loading your results...</p>
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white font-['Inter'] flex items-center justify-center">
+        <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 text-center">
+          <div className="w-16 h-16 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-orange-800 font-medium">Loading your results...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white font-['Inter'] p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
-        >
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="bg-blue-100 p-3 rounded-full">
-              <Award className="h-8 w-8 text-blue-600" />
+        <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 mb-8 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
+          <div className="flex items-center justify-between mb-6">
+            <button 
+              onClick={() => router.push('/student')}
+              className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:shadow-[0_12px_40px_rgba(251,146,60,0.3)] hover:scale-105 transition-all duration-300 flex items-center gap-2 text-orange-700 hover:text-orange-800"
+            >
+              <ArrowLeft className="h-5 w-5" />
+              <span className="font-medium">Back</span>
+            </button>
+          </div>
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-600 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(251,146,60,0.4)]">
+              <Award className="h-8 w-8 text-white" />
             </div>
             <div>
-              <h1 className="text-4xl font-bold text-gray-800">My Test Results</h1>
-              <p className="text-gray-600 text-lg mt-2">
+              <h1 className="text-4xl font-bold text-orange-800 drop-shadow-sm">My Test Results</h1>
+              <p className="text-orange-600 text-lg mt-2">
                 Track your progress and review teacher feedback
               </p>
             </div>
           </div>
-        </motion.div>
+        </div>
 
         {/* Statistics */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8"
-        >
-          <Card className="bg-white/80 backdrop-blur-sm border-blue-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Total Tests</p>
-                  <p className="text-2xl font-bold text-gray-800">{submissions.length}</p>
-                </div>
-                <FileText className="h-8 w-8 text-blue-500" />
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+          <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:shadow-[0_25px_60px_rgba(251,146,60,0.4)] hover:scale-105 transition-all duration-300">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(59,130,246,0.4)]">
+                <FileText className="h-6 h-6 text-white" />
               </div>
-            </CardContent>
-          </Card>
+              <div>
+                <p className="text-sm text-orange-600 font-medium">Total Tests</p>
+                <p className="text-2xl font-bold text-orange-800">{submissions.length}</p>
+              </div>
+            </div>
+          </div>
 
-          <Card className="bg-white/80 backdrop-blur-sm border-green-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Passed</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {submissions.filter(s => s.result?.passed).length}
-                  </p>
-                </div>
-                <CheckCircle className="h-8 w-8 text-green-500" />
+          <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:shadow-[0_25px_60px_rgba(251,146,60,0.4)] hover:scale-105 transition-all duration-300">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(34,197,94,0.4)]">
+                <CheckCircle className="h-6 h-6 text-white" />
               </div>
-            </CardContent>
-          </Card>
+              <div>
+                <p className="text-sm text-orange-600 font-medium">Passed</p>
+                <p className="text-2xl font-bold text-orange-800">
+                  {submissions.filter(s => s.result?.passed).length}
+                </p>
+              </div>
+            </div>
+          </div>
 
-          <Card className="bg-white/80 backdrop-blur-sm border-red-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Failed</p>
-                  <p className="text-2xl font-bold text-red-600">
-                    {submissions.filter(s => s.result && !s.result.passed).length}
-                  </p>
-                </div>
-                <XCircle className="h-8 w-8 text-red-500" />
+          <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:shadow-[0_25px_60px_rgba(251,146,60,0.4)] hover:scale-105 transition-all duration-300">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-red-400 to-red-600 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(239,68,68,0.4)]">
+                <XCircle className="h-6 h-6 text-white" />
               </div>
-            </CardContent>
-          </Card>
+              <div>
+                <p className="text-sm text-orange-600 font-medium">Failed</p>
+                <p className="text-2xl font-bold text-orange-800">
+                  {submissions.filter(s => s.result && !s.result.passed).length}
+                </p>
+              </div>
+            </div>
+          </div>
 
-          <Card className="bg-white/80 backdrop-blur-sm border-purple-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Avg Score</p>
-                  <p className="text-2xl font-bold text-purple-600">
-                    {submissions.filter(s => s.evaluated).length > 0 
-                      ? Math.round(
-                          submissions.filter(s => s.evaluated)
-                            .reduce((acc, s) => acc + calculatePercentage(s.score, s.totalScore), 0) / 
-                          submissions.filter(s => s.evaluated).length
-                        )
-                      : 0
-                    }%
-                  </p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-purple-500" />
+          <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:shadow-[0_25px_60px_rgba(251,146,60,0.4)] hover:scale-105 transition-all duration-300">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-purple-600 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(147,51,234,0.4)]">
+                <TrendingUp className="h-6 h-6 text-white" />
               </div>
-            </CardContent>
-          </Card>
+              <div>
+                <p className="text-sm text-orange-600 font-medium">Avg Score</p>
+                <p className="text-2xl font-bold text-orange-800">
+                  {submissions.filter(s => s.evaluated).length > 0 
+                    ? Math.round(
+                        submissions.filter(s => s.evaluated)
+                          .reduce((acc, s) => acc + calculatePercentage(s.score, s.totalScore), 0) / 
+                        submissions.filter(s => s.evaluated).length
+                      )
+                    : 0
+                  }%
+                </p>
+              </div>
+            </div>
+          </div>
 
-          <Card className="bg-white/80 backdrop-blur-sm border-orange-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Violations</p>
-                  <p className="text-2xl font-bold text-orange-600">
-                    {submissions.reduce((acc, s) => acc + (s.violations || 0), 0)}
-                  </p>
-                </div>
-                <AlertTriangle className="h-8 w-8 text-orange-500" />
+          <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:shadow-[0_25px_60px_rgba(251,146,60,0.4)] hover:scale-105 transition-all duration-300">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(251,191,36,0.4)]">
+                <AlertTriangle className="h-6 h-6 text-white" />
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+              <div>
+                <p className="text-sm text-orange-600 font-medium">Violations</p>
+                <p className="text-2xl font-bold text-orange-800">
+                  {submissions.reduce((acc, s) => acc + (s.violations || 0), 0)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Controls */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="mb-6"
-        >
-          <Card className="border-blue-200">
-            <CardContent className="p-6">
-              <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-                {/* Search */}
-                <div className="relative flex-1 w-full lg:max-w-md">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    placeholder="Search tests by title, description, or institution..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 pr-4 border-blue-200"
-                  />
-                </div>
+        <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 mb-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
+          <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+            {/* Search */}
+            <div className="relative flex-1 w-full lg:max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-orange-500 h-4 w-4" />
+              <input
+                placeholder="Search tests by title, description, or institution..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 bg-white/80 backdrop-blur-xl rounded-2xl shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all duration-300 text-orange-800 placeholder-orange-400"
+              />
+            </div>
 
-                {/* Sort */}
-                <div className="flex items-center gap-2">
-                  <Filter className="h-4 w-4 text-gray-500" />
-                  <select 
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
-                    className="border border-blue-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            {/* Sort */}
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-orange-500" />
+              <select 
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="bg-white/80 backdrop-blur-xl rounded-2xl px-4 py-3 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 focus:outline-none focus:ring-2 focus:ring-orange-400 text-orange-800"
+              >
+                <option value="date">Sort by Date</option>
+                <option value="score">Sort by Score</option>
+                <option value="title">Sort by Title</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="mt-6">
+            <div className="bg-white/60 backdrop-blur-3xl rounded-2xl p-2 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
+              <div className="grid grid-cols-5 gap-2">
+                {[
+                  { id: 'all', label: `All (${submissions.length})` },
+                  { id: 'passed', label: `Passed (${submissions.filter(s => s.result?.passed).length})` },
+                  { id: 'failed', label: `Failed (${submissions.filter(s => s.result && !s.result.passed).length})` },
+                  { id: 'pending', label: `Pending (${submissions.filter(s => !s.evaluated).length})` },
+                  { id: 'violations', label: `Violations (${submissions.filter(s => s.violations > 0).length})` }
+                ].map(({ id, label }) => (
+                  <button
+                    key={id}
+                    onClick={() => setActiveTab(id)}
+                    className={`py-2 px-3 rounded-xl font-medium transition-all duration-300 text-sm ${
+                      activeTab === id
+                        ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-[0_4px_15px_rgba(251,146,60,0.4)] scale-105'
+                        : 'text-orange-700 hover:bg-white/50 hover:scale-105'
+                    }`}
                   >
-                    <option value="date">Sort by Date</option>
-                    <option value="score">Sort by Score</option>
-                    <option value="title">Sort by Title</option>
-                  </select>
-                </div>
+                    {label}
+                  </button>
+                ))}
               </div>
-
-              {/* Tabs */}
-              <div className="mt-4">
-                <Tabs value={activeTab} onValueChange={setActiveTab}>
-                  <TabsList className="grid grid-cols-5">
-                    <TabsTrigger value="all">
-                      All ({submissions.length})
-                    </TabsTrigger>
-                    <TabsTrigger value="passed">
-                      Passed ({submissions.filter(s => s.result?.passed).length})
-                    </TabsTrigger>
-                    <TabsTrigger value="failed">
-                      Failed ({submissions.filter(s => s.result && !s.result.passed).length})
-                    </TabsTrigger>
-                    <TabsTrigger value="pending">
-                      Pending ({submissions.filter(s => !s.evaluated).length})
-                    </TabsTrigger>
-                    <TabsTrigger value="violations">
-                      Violations ({submissions.filter(s => s.violations > 0).length})
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+            </div>
+          </div>
+        </div>
 
         {/* Results Grid */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
-        >
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredAndSortedSubmissions.length === 0 ? (
-            <div className="col-span-full text-center py-12">
-              <FileText className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-              <h3 className="text-lg font-semibold text-gray-600 mb-2">No submissions found</h3>
-              <p className="text-gray-500">
+            <div className="col-span-full bg-white/60 backdrop-blur-3xl rounded-3xl p-12 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 text-center">
+              <FileText className="h-16 w-16 mx-auto mb-4 text-orange-400" />
+              <h3 className="text-lg font-semibold text-orange-800 mb-2">No submissions found</h3>
+              <p className="text-orange-600">
                 {searchTerm ? 'Try adjusting your search terms' : 'You haven\'t taken any tests yet'}
               </p>
             </div>
           ) : (
             filteredAndSortedSubmissions.map((submission, index) => (
-              <motion.div
+              <div
                 key={submission.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                whileHover={{ y: -5, transition: { duration: 0.2 } }}
+                className="bg-white/60 backdrop-blur-3xl rounded-3xl shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:shadow-[0_25px_60px_rgba(251,146,60,0.4)] hover:scale-105 transition-all duration-300 overflow-hidden h-full flex flex-col"
               >
-                <Card className="h-full border-blue-200 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden bg-white/80 backdrop-blur-sm">
-                  <CardHeader className="pb-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
-                    <div className="flex justify-between items-start mb-2">
-                      <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                        {submission.test.institutionName}
-                      </Badge>
-                      {getStatusBadge(submission)}
-                    </div>
-                    <CardTitle className="text-xl font-bold text-gray-800 line-clamp-2">
-                      {submission.test.title}
-                    </CardTitle>
-                    <CardDescription className="text-gray-600 line-clamp-2 mt-2">
-                      {submission.test.description}
-                    </CardDescription>
-                  </CardHeader>
+                <div className="p-6 bg-gradient-to-r from-orange-50/50 to-orange-100/50 border-b border-orange-200/30">
+                  <div className="flex justify-between items-start mb-3">
+                    <span className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-3 py-1 rounded-xl text-sm font-medium shadow-[0_4px_15px_rgba(251,146,60,0.3)]">
+                      {submission.test.institutionName}
+                    </span>
+                    {getStatusBadge(submission)}
+                  </div>
+                  <h3 className="text-xl font-bold text-orange-800 line-clamp-2 mb-2">
+                    {submission.test.title}
+                  </h3>
+                  <p className="text-orange-600 line-clamp-2 text-sm">
+                    {submission.test.description}
+                  </p>
+                </div>
                   
-                  <CardContent className="p-6">
-                    <div className="space-y-4">
-                      {/* Score Section */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Award className="h-5 w-5 text-blue-600" />
-                          <span className="font-semibold">Score</span>
+                <div className="p-6 flex-1 flex flex-col">
+                  <div className="space-y-4 flex-1">
+                    {/* Score Section */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Award className="h-5 w-5 text-orange-600" />
+                        <span className="font-semibold text-orange-800">Score</span>
+                      </div>
+                      <div className="text-right">
+                        <div className={`text-xl font-bold ${getScoreColor(calculatePercentage(submission.score, submission.totalScore))}`}>
+                          {submission.score} / {submission.totalScore}
                         </div>
-                        <div className="text-right">
-                          <div className={`text-xl font-bold ${getScoreColor(calculatePercentage(submission.score, submission.totalScore))}`}>
-                            {submission.score} / {submission.totalScore}
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            {calculatePercentage(submission.score, submission.totalScore)}%
-                          </div>
+                        <div className="text-sm text-orange-600">
+                          {calculatePercentage(submission.score, submission.totalScore)}%
                         </div>
                       </div>
+                    </div>
 
-                      {/* Details Grid */}
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <Calendar className="h-4 w-4" />
-                          <span>{new Date(submission.submittedAt).toLocaleDateString()}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <Clock className="h-4 w-4" />
-                          <span>{submission.test.durationMinutes}m</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <BookOpen className="h-4 w-4" />
-                          <span>{submission.answers.length} questions</span>
-                        </div>
-                        {submission.violations > 0 && (
-                          <div className="flex items-center gap-2 text-red-600">
-                            <AlertTriangle className="h-4 w-4" />
-                            <span>{submission.violations} violations</span>
-                          </div>
-                        )}
+                    {/* Details Grid */}
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="flex items-center gap-2 text-orange-700">
+                        <Calendar className="h-4 w-4 text-orange-500" />
+                        <span>{new Date(submission.submittedAt).toLocaleDateString()}</span>
                       </div>
-
-                      {/* Teacher Feedback Preview */}
-                      {submission.result?.overallFeedback && (
-                        <div className="mt-4 p-3 bg-gray-50 rounded-lg border">
-                          <div className="flex items-center gap-2 mb-1">
-                            <User className="h-4 w-4 text-blue-600" />
-                            <span className="text-sm font-medium text-gray-700">Teacher's Feedback</span>
-                          </div>
-                          <p className="text-sm text-gray-600 line-clamp-2">
-                            {submission.result.overallFeedback}
-                          </p>
+                      <div className="flex items-center gap-2 text-orange-700">
+                        <Clock className="h-4 w-4 text-orange-500" />
+                        <span>{submission.test.durationMinutes}m</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-orange-700">
+                        <BookOpen className="h-4 w-4 text-orange-500" />
+                        <span>{submission.answers.length} questions</span>
+                      </div>
+                      {submission.violations > 0 && (
+                        <div className="flex items-center gap-2 text-red-600">
+                          <AlertTriangle className="h-4 w-4" />
+                          <span>{submission.violations} violations</span>
                         </div>
                       )}
-
-                      {/* Action Button */}
-                      <Button 
-                        onClick={() => handleViewDetails(submission.id)}
-                        className="w-full mt-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                        size="lg"
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View Detailed Results
-                      </Button>
                     </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
+
+                    {/* Teacher Feedback Preview */}
+                    {submission.result?.overallFeedback && (
+                      <div className="mt-4 p-3 bg-white/80 backdrop-blur-xl rounded-2xl shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
+                        <div className="flex items-center gap-2 mb-1">
+                          <User className="h-4 w-4 text-orange-600" />
+                          <span className="text-sm font-medium text-orange-800">Teacher's Feedback</span>
+                        </div>
+                        <p className="text-sm text-orange-600 line-clamp-2">
+                          {submission.result.overallFeedback}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Button */}
+                  <button 
+                    onClick={() => handleViewDetails(submission.id)}
+                    className="w-full mt-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold py-3 px-4 rounded-2xl shadow-[0_8px_30px_rgba(251,146,60,0.4)] hover:shadow-[0_12px_40px_rgba(251,146,60,0.5)] hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2"
+                  >
+                    <Eye className="h-4 w-4" />
+                    View Detailed Results
+                  </button>
+                </div>
+              </div>
             ))
           )}
-        </motion.div>
+        </div>
 
         {/* Footer Info */}
         {submissions.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="mt-8 text-center text-gray-500 text-sm"
-          >
+          <div className="mt-8 text-center text-orange-600 text-sm font-medium">
             <p>Showing {filteredAndSortedSubmissions.length} of {submissions.length} submissions</p>
-          </motion.div>
+          </div>
         )}
       </div>
     </div>

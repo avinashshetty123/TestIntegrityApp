@@ -176,238 +176,283 @@ export default function TestsPage() {
   const draftTestsCount = tests.filter((t) => !t.ispublished).length;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white text-gray-800 p-6" style={{ backdropFilter: 'blur(30px)' }}>
       <div className="max-w-7xl mx-auto">
         {/* HEADER */}
-        <Button onClick={()=>{router.push('/tutor')}}>Back</Button>
+        <button 
+          onClick={()=>{router.push('/tutor')}}
+          className="mb-6 px-6 py-3 bg-white/60 backdrop-blur-3xl text-orange-600 font-bold rounded-xl shadow-2xl hover:shadow-white/80 hover:scale-110 transition-all duration-300 border border-orange-200/60"
+          style={{ 
+            fontFamily: 'Inter, system-ui, sans-serif',
+            boxShadow: '0 20px 40px rgba(255, 255, 255, 0.4), 0 5px 15px rgba(251, 146, 60, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
+          }}
+        >
+          Back
+        </button>
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-orange-600 via-orange-500 to-orange-400 drop-shadow-2xl"
+                style={{ fontFamily: 'Inter, system-ui, sans-serif', textShadow: '0 8px 32px rgba(251, 146, 60, 0.3)' }}>
               Test Management
             </h1>
-            <p className="text-gray-600">Create and manage standalone tests</p>
+            <p className="text-gray-600 text-lg font-medium mt-2" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Create and manage standalone tests</p>
           </div>
 
-          <Button onClick={() => router.push("/tutor/tests/create-test")}>
-            <Plus className="w-4 h-4 mr-2" />
+          <button 
+            onClick={() => router.push("/tutor/tests/create-test")}
+            className="px-8 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-2xl shadow-2xl hover:shadow-orange-500/70 hover:scale-110 transition-all duration-300 backdrop-blur-3xl border border-white/30 flex items-center gap-2"
+            style={{ 
+              fontFamily: 'Inter, system-ui, sans-serif',
+              boxShadow: '0 30px 60px rgba(251, 146, 60, 0.6), 0 10px 30px rgba(251, 146, 60, 0.4), inset 0 2px 0 rgba(255, 255, 255, 0.3)',
+              filter: 'drop-shadow(0 20px 40px rgba(251, 146, 60, 0.3))'
+            }}
+          >
+            <Plus className="w-5 h-5" />
             Create Test
-          </Button>
+          </button>
         </div>
 
         {/* STATS */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Total Tests</p>
-                  <p className="text-2xl font-bold">{tests.length}</p>
-                </div>
-                <FileText className="w-8 h-8 text-blue-500" />
+          <div className="p-6 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl"
+               style={{ 
+                 boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
+                 filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
+               }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500 font-semibold" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Total Tests</p>
+                <p className="text-3xl font-black text-orange-600" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>{tests.length}</p>
               </div>
-            </CardContent>
-          </Card>
+              <div className="p-3 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 shadow-2xl" style={{ boxShadow: '0 15px 30px rgba(251, 146, 60, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3)' }}>
+                <FileText className="w-6 h-6 text-white" />
+              </div>
+            </div>
+          </div>
          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Published Tests</p>
-                  <p className="text-2xl font-bold">{publishedTestsCount}</p>
-                </div>
-                <CheckCircle className="w-8 h-8 text-green-500" />
+          <div className="p-6 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl"
+               style={{ 
+                 boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
+                 filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
+               }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500 font-semibold" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Published Tests</p>
+                <p className="text-3xl font-black text-orange-600" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>{publishedTestsCount}</p>
               </div>
-            </CardContent>
-          </Card>
+              <div className="p-3 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 shadow-2xl" style={{ boxShadow: '0 15px 30px rgba(251, 146, 60, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3)' }}>
+                <CheckCircle className="w-6 h-6 text-white" />
+              </div>
+            </div>
+          </div>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Draft Tests</p>
-                  <p className="text-2xl font-bold text-orange-600">{draftTestsCount}</p>
-                </div>
-                <FileText className="w-8 h-8 text-orange-500" />
+          <div className="p-6 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl"
+               style={{ 
+                 boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
+                 filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
+               }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500 font-semibold" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Draft Tests</p>
+                <p className="text-3xl font-black text-orange-600" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>{draftTestsCount}</p>
               </div>
-            </CardContent>
-          </Card>
+              <div className="p-3 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 shadow-2xl" style={{ boxShadow: '0 15px 30px rgba(251, 146, 60, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3)' }}>
+                <FileText className="w-6 h-6 text-white" />
+              </div>
+            </div>
+          </div>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Avg Score</p>
-                  <p className="text-2xl font-bold text-indigo-600">
-                    {tests.length > 0
-                      ? Math.round(
-                          tests.reduce((sum, t) => sum + t.averageScore, 0) / tests.length
-                        )
-                      : 0}
-                    %
-                  </p>
-                </div>
-                <BarChart3 className="w-8 h-8 text-indigo-500" />
+          <div className="p-6 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl"
+               style={{ 
+                 boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
+                 filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
+               }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500 font-semibold" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Avg Score</p>
+                <p className="text-3xl font-black text-orange-600" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+                  {tests.length > 0
+                    ? Math.round(
+                        tests.reduce((sum, t) => sum + t.averageScore, 0) / tests.length
+                      )
+                    : 0}
+                  %
+                </p>
               </div>
-            </CardContent>
-          </Card>
+              <div className="p-3 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 shadow-2xl" style={{ boxShadow: '0 15px 30px rgba(251, 146, 60, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3)' }}>
+                <BarChart3 className="w-6 h-6 text-white" />
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* TEST LIST */}
-        <Card>
-          <CardHeader>
+        <div className="p-8 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl"
+             style={{ 
+               boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
+               filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
+             }}>
+          <div className="mb-6">
             <div className="flex justify-between items-center">
-              <CardTitle>All Tests</CardTitle>
+              <h2 className="text-2xl font-black text-orange-600" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>All Tests</h2>
 
               <div className="flex items-center gap-4">
                 <div className="relative">
                   <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <Input
+                  <input
                     placeholder="Search tests..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 w-64"
+                    className="pl-10 w-64 px-4 py-2 bg-white/80 backdrop-blur-xl border border-orange-200/50 rounded-xl shadow-lg focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+                    style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
                   />
                 </div>
-                <Button variant="outline" onClick={fetchTests} size="sm">
+                <button 
+                  onClick={fetchTests}
+                  className="px-4 py-2 bg-white/60 backdrop-blur-3xl text-orange-600 font-bold rounded-xl shadow-2xl hover:shadow-white/80 hover:scale-105 transition-all duration-300 border border-orange-200/60"
+                  style={{ 
+                    fontFamily: 'Inter, system-ui, sans-serif',
+                    boxShadow: '0 20px 40px rgba(255, 255, 255, 0.4), 0 5px 15px rgba(251, 146, 60, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
+                  }}
+                >
                   Refresh
-                </Button>
+                </button>
               </div>
             </div>
-          </CardHeader>
+          </div>
 
-          <CardContent>
-            <div className="space-y-4">
-              {filteredTests.length > 0 ? (
-                filteredTests.map((test) => (
-                  <div
-                    key={test.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-medium">{test.title}</h3>
-                        <Badge 
-                          variant={test.ispublished ? "default" : "secondary"}
-                          className={test.ispublished ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}
-                        >
-                          {test.ispublished ? "Published" : "Draft"}
-                        </Badge>
-                        <Badge variant="outline" className="text-xs">
-                          ID: {test.id}
-                        </Badge>
-                        {test.durationMinutes && (
-                          <Badge variant="outline" className="text-xs">
-                            {test.durationMinutes} mins
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-600">
-                        {test.description}
-                      </p>
-
-                      <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
-                        <span>{test.questions.length} questions</span>
-                        <span>{test.submissions?.length || 0} submissions</span>
-                        <span>{test.averageScore}% avg score</span>
-                        <span>
-                          Created: {new Date(test.createdAt).toLocaleDateString()}
+          <div className="space-y-4">
+            {filteredTests.length > 0 ? (
+              filteredTests.map((test) => (
+                <div
+                  key={test.id}
+                  className="flex items-center justify-between p-6 rounded-2xl bg-orange-50/50 border border-orange-200/30 hover:bg-orange-50 transition-all duration-300 shadow-lg"
+                  style={{ 
+                    boxShadow: '0 10px 25px rgba(251, 146, 60, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9)'
+                  }}
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="font-bold text-orange-600" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>{test.title}</h3>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        test.ispublished ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+                      }`} style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+                        {test.ispublished ? "Published" : "Draft"}
+                      </span>
+                      <span className="px-2 py-1 bg-orange-100 text-orange-600 rounded text-xs font-semibold" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+                        ID: {test.id}
+                      </span>
+                      {test.durationMinutes && (
+                        <span className="px-2 py-1 bg-orange-100 text-orange-600 rounded text-xs font-semibold" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+                          {test.durationMinutes} mins
                         </span>
-                        {test.scheduledAt && (
-                          <span>
-                            Starts: {new Date(test.scheduledAt).toLocaleString()}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* ACTIONS */}
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => router.push(`/tutor/tests/${test.id}`)}
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        View
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => router.push(`/tutor/tests/${test.id}/edit`)}
-                      >
-                        <FileText className="w-4 h-4 mr-2" />
-                        Edit
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => autoGradeAll(test.id)}
-                      >
-                        <Play className="w-4 h-4 mr-2" />
-                        Auto Grade
-                      </Button>
-
-                      {!test.ispublished ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => publishTest(test.id)}
-                          disabled={loadingStates[test.id] === 'publishing'}
-                        >
-                          {loadingStates[test.id] === 'publishing' ? (
-                            <>Publishing...</>
-                          ) : (
-                            <>
-                              <Play className="w-4 h-4 mr-2" />
-                              Publish
-                            </>
-                          )}
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => unPublishTest(test.id)}
-                          disabled={loadingStates[test.id] === 'unpublishing'}
-                        >
-                          {loadingStates[test.id] === 'unpublishing' ? (
-                            <>Unpublishing...</>
-                          ) : (
-                            <>
-                              <Pause className="w-4 h-4 mr-2" />
-                              Unpublish
-                            </>
-                          )}
-                        </Button>
                       )}
+                    </div>
+                    <p className="text-sm text-gray-600 font-medium" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+                      {test.description}
+                    </p>
 
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => deleteTest(test.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 font-medium" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+                      <span>{test.questions.length} questions</span>
+                      <span>{test.submissions?.length || 0} submissions</span>
+                      <span>{test.averageScore}% avg score</span>
+                      <span>
+                        Created: {new Date(test.createdAt).toLocaleDateString()}
+                      </span>
+                      {test.scheduledAt && (
+                        <span>
+                          Starts: {new Date(test.scheduledAt).toLocaleString()}
+                        </span>
+                      )}
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 text-sm">No tests found.</p>
-                  {searchTerm && (
-                    <p className="text-gray-500 text-xs mt-2">
-                      No tests matching "{searchTerm}"
-                    </p>
-                  )}
+
+                  {/* ACTIONS */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => router.push(`/tutor/tests/${test.id}`)}
+                      className="px-3 py-2 bg-white/60 backdrop-blur-xl text-orange-600 font-bold rounded-lg shadow-lg hover:shadow-white/50 hover:scale-105 transition-all duration-300 border border-orange-200/50 flex items-center gap-1"
+                      style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
+                    >
+                      <Eye className="w-4 h-4" />
+                      View
+                    </button>
+
+                    <button
+                      onClick={() => router.push(`/tutor/tests/${test.id}/edit`)}
+                      className="px-3 py-2 bg-white/60 backdrop-blur-xl text-orange-600 font-bold rounded-lg shadow-lg hover:shadow-white/50 hover:scale-105 transition-all duration-300 border border-orange-200/50 flex items-center gap-1"
+                      style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
+                    >
+                      <FileText className="w-4 h-4" />
+                      Edit
+                    </button>
+
+                    <button
+                      onClick={() => autoGradeAll(test.id)}
+                      className="px-3 py-2 bg-white/60 backdrop-blur-xl text-orange-600 font-bold rounded-lg shadow-lg hover:shadow-white/50 hover:scale-105 transition-all duration-300 border border-orange-200/50 flex items-center gap-1"
+                      style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
+                    >
+                      <Play className="w-4 h-4" />
+                      Auto Grade
+                    </button>
+
+                    {!test.ispublished ? (
+                      <button
+                        onClick={() => publishTest(test.id)}
+                        disabled={loadingStates[test.id] === 'publishing'}
+                        className="px-3 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-lg shadow-lg hover:shadow-orange-500/25 hover:scale-105 transition-all duration-300 flex items-center gap-1 disabled:opacity-50"
+                        style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
+                      >
+                        {loadingStates[test.id] === 'publishing' ? (
+                          <>Publishing...</>
+                        ) : (
+                          <>
+                            <Play className="w-4 h-4" />
+                            Publish
+                          </>
+                        )}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => unPublishTest(test.id)}
+                        disabled={loadingStates[test.id] === 'unpublishing'}
+                        className="px-3 py-2 bg-gray-500 text-white font-bold rounded-lg shadow-lg hover:shadow-gray-500/25 hover:scale-105 transition-all duration-300 flex items-center gap-1 disabled:opacity-50"
+                        style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
+                      >
+                        {loadingStates[test.id] === 'unpublishing' ? (
+                          <>Unpublishing...</>
+                        ) : (
+                          <>
+                            <Pause className="w-4 h-4" />
+                            Unpublish
+                          </>
+                        )}
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => deleteTest(test.id)}
+                      className="px-3 py-2 bg-red-500 text-white font-bold rounded-lg shadow-lg hover:shadow-red-500/25 hover:scale-105 transition-all duration-300"
+                      style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600 text-sm font-medium" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>No tests found.</p>
+                {searchTerm && (
+                  <p className="text-gray-500 text-xs mt-2" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+                    No tests matching "{searchTerm}"
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

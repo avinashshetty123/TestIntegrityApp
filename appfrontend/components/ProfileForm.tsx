@@ -2,11 +2,6 @@
 
 import { useState, useRef } from "react";
 import { Camera, Upload, Save, User } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Avatar } from "@/components/ui/avatar";
 
 interface ProfileData {
   firstName: string;
@@ -87,38 +82,37 @@ export default function ProfileForm({ userRole, initialData, onSave }: ProfileFo
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-black text-white p-6">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white p-6 font-['Inter']">
       <div className="max-w-2xl mx-auto">
-        <Card className="bg-white/5 border-white/10 p-8">
+        <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 shadow-[0_20px_50px_rgba(251,146,60,0.15)] border border-orange-200/30 hover:shadow-[0_25px_60px_rgba(251,146,60,0.2)] transition-all duration-300">
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold mb-2">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-600 to-orange-800 bg-clip-text text-transparent mb-3">
               {userRole === 'student' ? 'Student Profile' : 'Tutor Profile'}
             </h1>
-            <p className="text-gray-300">Complete your profile information</p>
+            <p className="text-gray-600 text-lg font-medium">Complete your profile information</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Profile Picture */}
-            <div className="flex flex-col items-center mb-6">
+            <div className="flex flex-col items-center mb-8">
               <div className="relative">
-                <Avatar className="w-24 h-24 mb-4">
+                <div className="w-28 h-28 mb-4 rounded-full shadow-[0_15px_35px_rgba(251,146,60,0.2)] border-4 border-orange-200/50 overflow-hidden">
                   {formData.profilePic ? (
-                    <img src={formData.profilePic} alt="Profile" className="w-full h-full object-cover rounded-full" />
+                    <img src={formData.profilePic} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full bg-gray-600 rounded-full flex items-center justify-center">
-                      <User className="w-12 h-12 text-gray-400" />
+                    <div className="w-full h-full bg-gradient-to-br from-orange-200 to-orange-300 flex items-center justify-center">
+                      <User className="w-14 h-14 text-orange-600" />
                     </div>
                   )}
-                </Avatar>
-                <Button
+                </div>
+                <button
                   type="button"
-                  size="sm"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}
-                  className="absolute -bottom-2 -right-2 rounded-full p-2"
+                  className="absolute -bottom-2 -right-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-full p-3 shadow-[0_10px_25px_rgba(251,146,60,0.3)] hover:shadow-[0_15px_35px_rgba(251,146,60,0.4)] transform hover:scale-110 transition-all duration-300 disabled:opacity-50"
                 >
-                  {isUploading ? <Upload className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
-                </Button>
+                  {isUploading ? <Upload className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
+                </button>
               </div>
               <input
                 ref={fileInputRef}
@@ -130,49 +124,49 @@ export default function ProfileForm({ userRole, initialData, onSave }: ProfileFo
             </div>
 
             {/* Basic Information */}
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <Label htmlFor="firstName" className="text-white">First Name *</Label>
-                <Input
+                <label htmlFor="firstName" className="block text-gray-700 font-semibold mb-2">First Name *</label>
+                <input
                   id="firstName"
                   value={formData.firstName}
                   onChange={(e) => handleInputChange('firstName', e.target.value)}
-                  className="bg-white/10 border-white/20 text-white"
+                  className="w-full px-4 py-3 bg-white/80 backdrop-blur-xl border border-orange-200/50 rounded-2xl shadow-[0_8px_25px_rgba(251,146,60,0.1)] focus:shadow-[0_12px_35px_rgba(251,146,60,0.15)] focus:border-orange-300 focus:outline-none transition-all duration-300 text-gray-800 font-medium"
                   required
                 />
               </div>
               <div>
-                <Label htmlFor="lastName" className="text-white">Last Name *</Label>
-                <Input
+                <label htmlFor="lastName" className="block text-gray-700 font-semibold mb-2">Last Name *</label>
+                <input
                   id="lastName"
                   value={formData.lastName}
                   onChange={(e) => handleInputChange('lastName', e.target.value)}
-                  className="bg-white/10 border-white/20 text-white"
+                  className="w-full px-4 py-3 bg-white/80 backdrop-blur-xl border border-orange-200/50 rounded-2xl shadow-[0_8px_25px_rgba(251,146,60,0.1)] focus:shadow-[0_12px_35px_rgba(251,146,60,0.15)] focus:border-orange-300 focus:outline-none transition-all duration-300 text-gray-800 font-medium"
                   required
                 />
               </div>
             </div>
 
             <div>
-              <Label htmlFor="email" className="text-white">Email *</Label>
-              <Input
+              <label htmlFor="email" className="block text-gray-700 font-semibold mb-2">Email *</label>
+              <input
                 id="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
-                className="bg-white/10 border-white/20 text-white"
+                className="w-full px-4 py-3 bg-gray-100/80 backdrop-blur-xl border border-gray-300/50 rounded-2xl shadow-[0_8px_25px_rgba(0,0,0,0.05)] text-gray-600 font-medium cursor-not-allowed"
                 required
                 disabled
               />
             </div>
 
             <div>
-              <Label htmlFor="institutionName" className="text-white">Institution Name *</Label>
-              <Input
+              <label htmlFor="institutionName" className="block text-gray-700 font-semibold mb-2">Institution Name *</label>
+              <input
                 id="institutionName"
                 value={formData.institutionName}
                 onChange={(e) => handleInputChange('institutionName', e.target.value)}
-                className="bg-white/10 border-white/20 text-white"
+                className="w-full px-4 py-3 bg-white/80 backdrop-blur-xl border border-orange-200/50 rounded-2xl shadow-[0_8px_25px_rgba(251,146,60,0.1)] focus:shadow-[0_12px_35px_rgba(251,146,60,0.15)] focus:border-orange-300 focus:outline-none transition-all duration-300 text-gray-800 font-medium"
                 required
               />
             </div>
@@ -180,49 +174,49 @@ export default function ProfileForm({ userRole, initialData, onSave }: ProfileFo
             {/* Role-specific fields */}
             {userRole === 'student' ? (
               <div>
-                <Label htmlFor="rollNumber" className="text-white">Roll Number</Label>
-                <Input
+                <label htmlFor="rollNumber" className="block text-gray-700 font-semibold mb-2">Roll Number</label>
+                <input
                   id="rollNumber"
                   value={formData.rollNumber}
                   onChange={(e) => handleInputChange('rollNumber', e.target.value)}
-                  className="bg-white/10 border-white/20 text-white"
+                  className="w-full px-4 py-3 bg-white/80 backdrop-blur-xl border border-orange-200/50 rounded-2xl shadow-[0_8px_25px_rgba(251,146,60,0.1)] focus:shadow-[0_12px_35px_rgba(251,146,60,0.15)] focus:border-orange-300 focus:outline-none transition-all duration-300 text-gray-800 font-medium"
                 />
               </div>
             ) : (
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <Label htmlFor="designation" className="text-white">Designation</Label>
-                  <Input
+                  <label htmlFor="designation" className="block text-gray-700 font-semibold mb-2">Designation</label>
+                  <input
                     id="designation"
                     value={formData.designation}
                     onChange={(e) => handleInputChange('designation', e.target.value)}
-                    className="bg-white/10 border-white/20 text-white"
+                    className="w-full px-4 py-3 bg-white/80 backdrop-blur-xl border border-orange-200/50 rounded-2xl shadow-[0_8px_25px_rgba(251,146,60,0.1)] focus:shadow-[0_12px_35px_rgba(251,146,60,0.15)] focus:border-orange-300 focus:outline-none transition-all duration-300 text-gray-800 font-medium"
                     placeholder="e.g., Professor, Assistant Professor"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="department" className="text-white">Department</Label>
-                  <Input
+                  <label htmlFor="department" className="block text-gray-700 font-semibold mb-2">Department</label>
+                  <input
                     id="department"
                     value={formData.department}
                     onChange={(e) => handleInputChange('department', e.target.value)}
-                    className="bg-white/10 border-white/20 text-white"
+                    className="w-full px-4 py-3 bg-white/80 backdrop-blur-xl border border-orange-200/50 rounded-2xl shadow-[0_8px_25px_rgba(251,146,60,0.1)] focus:shadow-[0_12px_35px_rgba(251,146,60,0.15)] focus:border-orange-300 focus:outline-none transition-all duration-300 text-gray-800 font-medium"
                     placeholder="e.g., Computer Science"
                   />
                 </div>
               </div>
             )}
 
-            <Button
+            <button
               type="submit"
               disabled={isSaving || !formData.firstName || !formData.lastName || !formData.institutionName}
-              className="w-full bg-blue-600 hover:bg-blue-700"
+              className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-4 px-6 rounded-2xl shadow-[0_15px_35px_rgba(251,146,60,0.3)] hover:shadow-[0_20px_45px_rgba(251,146,60,0.4)] transform hover:scale-[1.02] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-3 text-lg"
             >
-              <Save className="w-4 h-4 mr-2" />
+              <Save className="w-5 h-5" />
               {isSaving ? 'Saving...' : 'Save Profile'}
-            </Button>
+            </button>
           </form>
-        </Card>
+        </div>
       </div>
     </div>
   );

@@ -1,12 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Search, Filter, Clock, Users, BookOpen, Award, Calendar } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Search, Filter, Clock, Users, BookOpen, Award, Calendar, Play, FileText, ArrowLeft } from 'lucide-react';
 
 interface Test {
   id: number;
@@ -22,6 +19,7 @@ interface Test {
 }
 
 export default function StudentTestsPage() {
+  const router = useRouter();
   const [tests, setTests] = useState<Test[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
@@ -81,42 +79,51 @@ export default function StudentTestsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white flex items-center justify-center font-['Inter']">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-green-600 mx-auto mb-4"></div>
-          <p className="text-green-600 font-medium">Loading available tests...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-orange-600 font-medium">Loading available tests...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white font-['Inter']">
       {/* Header */}
       <motion.header
         initial={{ opacity: 0, y: -50 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 backdrop-blur-md border-b border-green-200 shadow-sm"
+        className="bg-white/60 backdrop-blur-3xl border-b border-orange-200/50 shadow-lg shadow-orange-100/50"
       >
         <div className="container mx-auto px-6 py-4">
           <div className="flex justify-between items-center">
-            <motion.div
-              className="flex items-center space-x-3"
-              whileHover={{ scale: 1.02 }}
-            >
-              <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-2 rounded-lg">
-                <Award className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                  Student Portal
-                </h1>
-                <p className="text-sm text-gray-600">Browse and take tests</p>
-              </div>
-            </motion.div>
-            <Button variant="outline" className="rounded-full border-green-200 hover:bg-green-50">
+            <div className="flex items-center space-x-4">
+              <button 
+                onClick={() => router.back()}
+                className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:shadow-[0_12px_40px_rgba(251,146,60,0.3)] hover:scale-105 transition-all duration-300 flex items-center gap-2 text-orange-700 hover:text-orange-800"
+              >
+                <ArrowLeft className="h-5 w-5" />
+                <span className="font-medium">Back</span>
+              </button>
+              <motion.div
+                className="flex items-center space-x-3"
+                whileHover={{ scale: 1.02 }}
+              >
+                <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-3 rounded-xl shadow-lg shadow-orange-200/50">
+                  <Award className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-orange-700 bg-clip-text text-transparent">
+                    Student Portal
+                  </h1>
+                  <p className="text-sm text-gray-600">Browse and take tests</p>
+                </div>
+              </motion.div>
+            </div>
+            <button className="px-6 py-2 bg-white/60 backdrop-blur-xl border border-orange-200/50 rounded-full text-orange-600 font-medium hover:bg-white/80 hover:scale-105 transition-all duration-300 shadow-lg shadow-orange-100/30">
               My Profile
-            </Button>
+            </button>
           </div>
         </div>
       </motion.header>
@@ -127,17 +134,15 @@ export default function StudentTestsPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-center"
+            className="mb-6 p-4 bg-white/60 backdrop-blur-xl border border-red-200/50 rounded-xl text-red-700 flex items-center shadow-lg shadow-red-100/30"
           >
             <div className="flex-1">{error}</div>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <button 
               onClick={fetchTests}
-              className="border-red-200 text-red-700 hover:bg-red-100"
+              className="px-4 py-2 bg-white/60 backdrop-blur-xl border border-red-200/50 rounded-lg text-red-700 hover:bg-white/80 hover:scale-105 transition-all duration-300 shadow-lg shadow-red-100/30"
             >
               Retry
-            </Button>
+            </button>
           </motion.div>
         )}
 
@@ -150,37 +155,43 @@ export default function StudentTestsPage() {
         >
           <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
             <div className="relative flex-1 max-w-2xl w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-orange-400 h-5 w-5" />
+              <input
                 placeholder="Search tests by title, description, or institution..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 rounded-full border-green-200 focus:border-green-400 focus:ring-green-400"
+                className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-xl border border-orange-200/50 rounded-full focus:border-orange-400 focus:ring-2 focus:ring-orange-200/50 outline-none transition-all duration-300 shadow-lg shadow-orange-100/30 text-gray-700"
               />
             </div>
             
-            <div className="flex gap-2 w-full lg:w-auto">
-              <Button
-                variant={filter === 'all' ? 'default' : 'outline'}
+            <div className="flex gap-3 w-full lg:w-auto">
+              <button
                 onClick={() => setFilter('all')}
-                className="rounded-full"
+                className={`px-6 py-2 rounded-full font-medium transition-all duration-300 shadow-lg ${filter === 'all' 
+                  ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-orange-200/50 hover:scale-105' 
+                  : 'bg-white/60 backdrop-blur-xl border border-orange-200/50 text-orange-600 hover:bg-white/80 hover:scale-105 shadow-orange-100/30'
+                }`}
               >
                 All Tests
-              </Button>
-              <Button
-                variant={filter === 'available' ? 'default' : 'outline'}
+              </button>
+              <button
                 onClick={() => setFilter('available')}
-                className="rounded-full"
+                className={`px-6 py-2 rounded-full font-medium transition-all duration-300 shadow-lg ${filter === 'available' 
+                  ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-orange-200/50 hover:scale-105' 
+                  : 'bg-white/60 backdrop-blur-xl border border-orange-200/50 text-orange-600 hover:bg-white/80 hover:scale-105 shadow-orange-100/30'
+                }`}
               >
                 Available
-              </Button>
-              <Button
-                variant={filter === 'upcoming' ? 'default' : 'outline'}
+              </button>
+              <button
                 onClick={() => setFilter('upcoming')}
-                className="rounded-full"
+                className={`px-6 py-2 rounded-full font-medium transition-all duration-300 shadow-lg ${filter === 'upcoming' 
+                  ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-orange-200/50 hover:scale-105' 
+                  : 'bg-white/60 backdrop-blur-xl border border-orange-200/50 text-orange-600 hover:bg-white/80 hover:scale-105 shadow-orange-100/30'
+                }`}
               >
                 Upcoming
-              </Button>
+              </button>
             </div>
           </div>
         </motion.div>
@@ -190,182 +201,137 @@ export default function StudentTestsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8"
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
         >
-          <Card className="bg-white/60 backdrop-blur-sm border-green-200">
-            <CardContent className="p-4 flex items-center space-x-4">
-              <div className="bg-green-100 p-3 rounded-full">
-                <BookOpen className="h-6 w-6 text-green-600" />
+          <div className="bg-white/60 backdrop-blur-3xl border border-orange-200/50 rounded-2xl p-6 shadow-xl shadow-orange-100/50 hover:scale-105 transition-all duration-300">
+            <div className="flex items-center space-x-4">
+              <div className="bg-gradient-to-r from-orange-400 to-orange-500 p-4 rounded-xl shadow-lg shadow-orange-200/50">
+                <BookOpen className="h-7 w-7 text-white drop-shadow-sm" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-green-600">{filteredTests.length}</p>
-                <p className="text-sm text-gray-600">Tests Available</p>
+                <p className="text-3xl font-bold text-orange-600 drop-shadow-sm">{filteredTests.length}</p>
+                <p className="text-sm text-gray-600 font-medium">Tests Available</p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
           
-          <Card className="bg-white/60 backdrop-blur-sm border-blue-200">
-            <CardContent className="p-4 flex items-center space-x-4">
-              <div className="bg-blue-100 p-3 rounded-full">
-                <Clock className="h-6 w-6 text-blue-600" />
+          <div className="bg-white/60 backdrop-blur-3xl border border-orange-200/50 rounded-2xl p-6 shadow-xl shadow-orange-100/50 hover:scale-105 transition-all duration-300">
+            <div className="flex items-center space-x-4">
+              <div className="bg-gradient-to-r from-blue-400 to-blue-500 p-4 rounded-xl shadow-lg shadow-blue-200/50">
+                <Clock className="h-7 w-7 text-white drop-shadow-sm" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-blue-600">
+                <p className="text-3xl font-bold text-blue-600 drop-shadow-sm">
                   {filteredTests.reduce((acc, test) => acc + (test.durationMinutes || 0), 0)}
                 </p>
-                <p className="text-sm text-gray-600">Total Minutes</p>
+                <p className="text-sm text-gray-600 font-medium">Total Minutes</p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
           
-          <Card className="bg-white/60 backdrop-blur-sm border-purple-200">
-            <CardContent className="p-4 flex items-center space-x-4">
-              <div className="bg-purple-100 p-3 rounded-full">
-                <Users className="h-6 w-6 text-purple-600" />
+          <div className="bg-white/60 backdrop-blur-3xl border border-orange-200/50 rounded-2xl p-6 shadow-xl shadow-orange-100/50 hover:scale-105 transition-all duration-300">
+            <div className="flex items-center space-x-4">
+              <div className="bg-gradient-to-r from-purple-400 to-purple-500 p-4 rounded-xl shadow-lg shadow-purple-200/50">
+                <Users className="h-7 w-7 text-white drop-shadow-sm" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-purple-600">
+                <p className="text-3xl font-bold text-purple-600 drop-shadow-sm">
                   {[...new Set(filteredTests.map(test => test.institutionName))].length}
                 </p>
-                <p className="text-sm text-gray-600">Institutions</p>
+                <p className="text-sm text-gray-600 font-medium">Institutions</p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </motion.div>
 
         {/* Tests Grid */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-        >
-          {filteredTests.map((test, index) => {
-            const status = getTestStatus(test);
-            const isAvailable = test.ispublished && (!test.scheduledAt || new Date(test.scheduledAt) <= new Date());
-            
-            return (
-              <motion.div
-                key={test.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                whileHover={{ 
-                  y: -8, 
-                  scale: 1.02,
-                  transition: { duration: 0.2 } 
-                }}
-              >
-                <Card className="h-full border-green-200 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden bg-white/70 backdrop-blur-sm">
-                  <CardHeader className="pb-4 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-100">
-                    <div className="flex justify-between items-start mb-2">
-                      <Badge 
-                        variant="secondary" 
-                        className="bg-green-100 text-green-800 hover:bg-green-200"
-                      >
-                        {test.institutionName}
-                      </Badge>
-                      <Badge variant={status.variant}>
-                        {status.label}
-                      </Badge>
-                    </div>
-                    <CardTitle className="text-xl font-bold text-gray-800 line-clamp-2">
-                      {test.title}
-                    </CardTitle>
-                    <CardDescription className="text-gray-600 line-clamp-3 mt-2">
-                      {test.description || 'No description provided'}
-                    </CardDescription>
-                  </CardHeader>
-                  
-                  <CardContent className="pb-4 pt-6">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <BookOpen className="h-4 w-4" />
-                          <span>Questions</span>
-                        </div>
-                        <span className="font-semibold">{test.questions?.length || 0}</span>
-                      </div>
-                      
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <Clock className="h-4 w-4" />
-                          <span>Duration</span>
-                        </div>
-                        <span className="font-semibold">{test.durationMinutes} mins</span>
-                      </div>
-                      
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <Award className="h-4 w-4" />
-                          <span>Total Score</span>
-                        </div>
-                        <span className="font-semibold">{test.totalScore}</span>
-                      </div>
-
-                      {test.scheduledAt && (
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2 text-gray-600">
-                            <Calendar className="h-4 w-4" />
-                            <span>Scheduled</span>
-                          </div>
-                          <span className="font-semibold text-sm">
-                            {new Date(test.scheduledAt).toLocaleDateString()}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                  
-                  <CardFooter>
-                    <Button 
-                      className={`w-full rounded-full transition-all duration-300 ${
-                        isAvailable 
-                          ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700' 
-                          : 'bg-gray-400 cursor-not-allowed'
-                      }`}
-                      onClick={() => {
-                        if (isAvailable) {
-                          window.location.href = `/student/tests/${test.id}`;
-                        }
-                      }}
-                      disabled={!isAvailable}
-                    >
-                      {isAvailable ? 'Start Test' : 'Not Available'}
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </motion.div>
-            );
-          })}
-        </motion.div>
-
-        {filteredTests.length === 0 && !loading && (
+        {filteredTests.length === 0 ? (
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="text-center py-16"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center py-12"
           >
-            <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-8 max-w-md mx-auto border border-green-200">
-              <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Search className="h-8 w-8 text-green-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">No tests found</h3>
-              <p className="text-gray-600 mb-4">
-                {searchTerm 
-                  ? "No tests match your search criteria. Try different keywords." 
-                  : "There are no tests available at the moment."}
-              </p>
-              {searchTerm && (
-                <Button 
-                  variant="outline" 
-                  onClick={() => setSearchTerm('')}
-                  className="rounded-full border-green-200 hover:bg-green-50"
-                >
-                  Clear Search
-                </Button>
-              )}
+            <div className="bg-white/60 backdrop-blur-3xl border border-orange-200/50 rounded-2xl p-8 shadow-xl shadow-orange-100/50 max-w-md mx-auto">
+              <FileText className="h-16 w-16 text-orange-300 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-700 mb-2">No Tests Found</h3>
+              <p className="text-gray-500">No tests match your current search criteria.</p>
             </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          >
+            {filteredTests.map((test, index) => {
+              const status = getTestStatus(test);
+              return (
+                <motion.div
+                  key={test.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="bg-white/60 backdrop-blur-3xl border border-orange-200/50 rounded-2xl p-6 shadow-xl shadow-orange-100/50 hover:scale-105 hover:shadow-2xl hover:shadow-orange-200/50 transition-all duration-300 group"
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="bg-gradient-to-r from-orange-400 to-orange-500 p-3 rounded-xl shadow-lg shadow-orange-200/50">
+                      <Award className="h-6 w-6 text-white drop-shadow-sm" />
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      status.label === 'Available' 
+                        ? 'bg-green-100 text-green-700 border border-green-200' 
+                        : status.label === 'Upcoming'
+                        ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                        : 'bg-gray-100 text-gray-700 border border-gray-200'
+                    }`}>
+                      {status.label}
+                    </span>
+                  </div>
+                  
+                  <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-orange-600 transition-colors duration-300">
+                    {test.title}
+                  </h3>
+                  
+                  <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                    {test.description}
+                  </p>
+                  
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Users className="h-4 w-4 mr-2 text-orange-400" />
+                      {test.institutionName}
+                    </div>
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Clock className="h-4 w-4 mr-2 text-orange-400" />
+                      {test.durationMinutes} minutes
+                    </div>
+                    <div className="flex items-center text-sm text-gray-600">
+                      <FileText className="h-4 w-4 mr-2 text-orange-400" />
+                      {test.questions?.length || 0} questions
+                    </div>
+                    {test.scheduledAt && (
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Calendar className="h-4 w-4 mr-2 text-orange-400" />
+                        {new Date(test.scheduledAt).toLocaleDateString()}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    {test.ispublished && (
+                      <button className="flex-1 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium hover:scale-105 transition-all duration-300 shadow-lg shadow-orange-200/50 flex items-center justify-center gap-2">
+                        <Play className="h-4 w-4" />
+                        Start Test
+                      </button>
+                    )}
+                    <button className="px-4 py-2 bg-white/60 backdrop-blur-xl border border-orange-200/50 text-orange-600 rounded-xl font-medium hover:bg-white/80 hover:scale-105 transition-all duration-300 shadow-lg shadow-orange-100/30">
+                      Details
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            })}
           </motion.div>
         )}
       </div>

@@ -1,9 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 
 interface JoinByCodeProps {
@@ -62,42 +59,45 @@ export default function JoinByCode({ onJoinMeeting, onCancel }: JoinByCodeProps)
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-black text-white flex items-center justify-center p-6">
-      <Card className="bg-white/5 border-white/10 p-8 max-w-md w-full">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white flex items-center justify-center p-6 font-['Inter']">
+      <div className="bg-white/60 backdrop-blur-3xl border border-orange-200/50 rounded-3xl shadow-2xl shadow-orange-200/50 p-8 max-w-md w-full">
         <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold mb-2">Join Meeting</h1>
-          <p className="text-gray-300">Enter the meeting code provided by your tutor</p>
+          <h1 className="text-3xl font-bold mb-2 text-gray-800 drop-shadow-sm">Join Meeting</h1>
+          <p className="text-gray-600 font-medium">Enter the meeting code provided by your tutor</p>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div>
-            <Input
+            <input
               placeholder="Enter 6-digit code (e.g., ABC123)"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-              className="bg-white/10 border-white/20 text-white text-center text-lg font-mono"
+              className="w-full px-4 py-4 bg-white/60 backdrop-blur-xl border border-orange-200/30 rounded-xl focus:border-orange-400 focus:ring-2 focus:ring-orange-200/50 outline-none transition-all duration-300 shadow-lg shadow-orange-100/20 text-gray-700 text-center text-lg font-mono placeholder-gray-500"
               maxLength={6}
             />
           </div>
 
           <div className="flex gap-3">
-            <Button 
+            <button 
               onClick={handleJoin}
               disabled={loading || !joinCode.trim()}
-              className="flex-1 bg-green-600 hover:bg-green-700"
+              className={`flex-1 px-6 py-4 rounded-xl font-semibold text-white transition-all duration-300 shadow-lg ${
+                loading || !joinCode.trim()
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-green-500 to-green-600 hover:scale-105 shadow-green-200/50'
+              }`}
             >
               {loading ? "Joining..." : "Join Meeting"}
-            </Button>
-            <Button 
+            </button>
+            <button 
               onClick={onCancel}
-              variant="outline"
-              className="flex-1"
+              className="flex-1 px-6 py-4 bg-white/60 backdrop-blur-xl border border-orange-200/50 text-orange-600 rounded-xl font-semibold hover:bg-white/80 hover:scale-105 transition-all duration-300 shadow-lg shadow-orange-100/30"
             >
               Cancel
-            </Button>
+            </button>
           </div>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }

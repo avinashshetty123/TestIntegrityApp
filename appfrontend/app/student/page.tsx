@@ -157,10 +157,10 @@ export default function StudentPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-black text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p>Loading...</p>
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white text-gray-800 flex items-center justify-center">
+        <div className="text-center p-8 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl" style={{ boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25)' }}>
+          <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-orange-600 font-semibold" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Loading...</p>
         </div>
       </div>
     );
@@ -178,47 +178,91 @@ export default function StudentPage() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-black text-white px-6 md:px-12 py-10">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white text-gray-800 px-6 md:px-12 py-10" style={{ backdropFilter: 'blur(30px)' }}>
       {/* HERO */}
       <section className="max-w-5xl mx-auto mb-12">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div>
-            <motion.h1 initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} className="text-4xl md:text-5xl font-extrabold">
+            <motion.h1 
+              initial={{ opacity: 0, y: -12 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              className="text-4xl md:text-5xl font-black bg-clip-text text-transparent bg-gradient-to-r from-orange-600 via-orange-500 to-orange-400 drop-shadow-2xl"
+              style={{ fontFamily: 'Inter, system-ui, sans-serif', textShadow: '0 8px 32px rgba(251, 146, 60, 0.3)' }}
+            >
               Welcome, Student
             </motion.h1>
-            <motion.p initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }} className="mt-2 text-slate-300 max-w-lg">
+            <motion.p 
+              initial={{ opacity: 0, y: 6 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              transition={{ delay: 0.12 }} 
+              className="mt-4 text-gray-600 max-w-lg text-lg font-medium leading-relaxed"
+              style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
+            >
               Take tests, join meetings, check results and review submissions — all in a secure, proctored environment.
             </motion.p>
 
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Button size="lg" className="bg-green-600" onClick={() => setCurrentView("join-code")}>
+            <div className="mt-8 flex flex-wrap gap-4">
+              <button 
+                onClick={() => setCurrentView("join-code")}
+                className="px-8 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-2xl shadow-2xl hover:shadow-orange-500/70 hover:scale-110 transition-all duration-300 backdrop-blur-3xl border border-white/30"
+                style={{ 
+                  fontFamily: 'Inter, system-ui, sans-serif',
+                  boxShadow: '0 30px 60px rgba(251, 146, 60, 0.6), 0 10px 30px rgba(251, 146, 60, 0.4), inset 0 2px 0 rgba(255, 255, 255, 0.3)',
+                  filter: 'drop-shadow(0 20px 40px rgba(251, 146, 60, 0.3))'
+                }}
+              >
                 Join by Code
-              </Button>
-              <Button size="lg" variant="secondary" onClick={() => router.push("/student/meeting")}>
+              </button>
+              <button 
+                onClick={() => router.push("/student/meeting")}
+                className="px-8 py-4 bg-white/60 backdrop-blur-3xl text-orange-600 font-bold rounded-2xl shadow-2xl hover:shadow-white/80 hover:scale-110 transition-all duration-300 border border-orange-200/60"
+                style={{ 
+                  fontFamily: 'Inter, system-ui, sans-serif',
+                  boxShadow: '0 30px 60px rgba(255, 255, 255, 0.5), 0 10px 30px rgba(251, 146, 60, 0.2), inset 0 2px 0 rgba(255, 255, 255, 0.9)',
+                  filter: 'drop-shadow(0 20px 40px rgba(255, 255, 255, 0.4))'
+                }}
+              >
                 Browse Meetings
-              </Button>
-              <Button size="lg" variant="outline" onClick={() => router.push("/student/results")}>
+              </button>
+              <button 
+                onClick={() => router.push("/student/results")}
+                className="px-8 py-4 bg-white/60 backdrop-blur-3xl text-orange-600 font-bold rounded-2xl shadow-2xl hover:shadow-white/80 hover:scale-110 transition-all duration-300 border border-orange-200/60"
+                style={{ 
+                  fontFamily: 'Inter, system-ui, sans-serif',
+                  boxShadow: '0 30px 60px rgba(255, 255, 255, 0.5), 0 10px 30px rgba(251, 146, 60, 0.2), inset 0 2px 0 rgba(255, 255, 255, 0.9)',
+                  filter: 'drop-shadow(0 20px 40px rgba(255, 255, 255, 0.4))'
+                }}
+              >
                 Check Results
-              </Button>
+              </button>
             </div>
           </div>
 
           {/* Profile + quick stats */}
-          <motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-4">
+          <motion.div 
+            initial={{ opacity: 0, x: 30 }} 
+            animate={{ opacity: 1, x: 0 }} 
+            className="flex items-center gap-6 p-6 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl"
+            style={{ 
+              boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
+              filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
+            }}
+          >
             <button 
               onClick={() => router.push('/student/profile')}
-              className="w-20 h-20 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center text-xl font-bold hover:scale-105 transition-transform overflow-hidden"
+              className="w-20 h-20 rounded-full bg-gradient-to-r from-orange-400 to-orange-600 flex items-center justify-center text-xl font-bold hover:scale-110 transition-transform overflow-hidden shadow-2xl"
+              style={{ boxShadow: '0 15px 30px rgba(251, 146, 60, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3)' }}
             >
               {userData?.profilePic ? (
                 <img src={userData.profilePic} alt="Profile" className="w-full h-full object-cover" />
               ) : (
-                userData?.firstName ? userData.firstName.charAt(0).toUpperCase() : <User className="w-8 h-8" />
+                userData?.firstName ? userData.firstName.charAt(0).toUpperCase() : <User className="w-8 h-8 text-white" />
               )}
             </button>
             <div>
-              <div className="text-sm text-slate-300">{userData?.firstName ? `${userData.firstName} ${userData.lastName}` : 'Student Profile'}</div>
-              <div className="text-lg font-semibold">Click to Edit</div>
-              <div className="mt-1 text-xs text-slate-400">{userData?.institutionName || 'Complete your profile'}</div>
+              <div className="text-sm text-gray-500 font-semibold" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>{userData?.firstName ? `${userData.firstName} ${userData.lastName}` : 'Student Profile'}</div>
+              <div className="text-lg font-black text-orange-600" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Click to Edit</div>
+              <div className="mt-1 text-xs text-gray-400 font-medium" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>{userData?.institutionName || 'Complete your profile'}</div>
             </div>
           </motion.div>
         </div>
@@ -226,34 +270,56 @@ export default function StudentPage() {
 
       {/* Performance Overview */}
       <section className="max-w-5xl mx-auto mb-12 grid md:grid-cols-2 gap-8 items-start">
-        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="p-6 rounded-2xl bg-white/4 border border-white/8">
-          <h3 className="text-lg font-semibold mb-4">Performance Trend</h3>
+        <motion.div 
+          initial={{ opacity: 0, x: -20 }} 
+          animate={{ opacity: 1, x: 0 }} 
+          className="p-8 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl"
+          style={{ 
+            boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
+            filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
+          }}
+        >
+          <h3 className="text-xl font-black text-orange-600 mb-6" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Performance Trend</h3>
           <Line data={performanceData} />
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="p-6 rounded-2xl bg-white/4 border border-white/8 flex flex-col items-center">
-          <h3 className="text-lg font-semibold mb-4">Attempts</h3>
+        <motion.div 
+          initial={{ opacity: 0, x: 20 }} 
+          animate={{ opacity: 1, x: 0 }} 
+          className="p-8 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl flex flex-col items-center"
+          style={{ 
+            boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
+            filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
+          }}
+        >
+          <h3 className="text-xl font-black text-orange-600 mb-6" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Attempts</h3>
           <Doughnut data={donutData} />
-          <div className="mt-4 text-slate-300 text-sm">Attempted {recentTests.length} tests</div>
+          <div className="mt-4 text-gray-600 text-sm font-medium" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Attempted {recentTests.length} tests</div>
         </motion.div>
       </section>
 
       {/* Quick Actions */}
       <section className="max-w-5xl mx-auto mb-12">
-        <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {quickActions.map((a, i) => (
+        <h3 className="text-2xl font-black text-orange-600 mb-8" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Quick Actions</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          {quickActions.map((action, i) => (
             <motion.button
               key={i}
-              whileHover={{ scale: 1.03 }}
-              onClick={a.onClick}
-              className="min-w-[200px] p-4 rounded-2xl bg-gradient-to-r from-white/5 to-white/3 border border-white/10 flex items-center gap-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              whileHover={{ scale: 1.05 }}
+              onClick={action.onClick}
+              className="p-6 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl hover:shadow-2xl transition-all duration-300 flex flex-col items-center gap-3"
+              style={{ 
+                boxShadow: '0 25px 50px rgba(251, 146, 60, 0.2), 0 10px 25px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
+                filter: 'drop-shadow(0 15px 30px rgba(251, 146, 60, 0.15))'
+              }}
             >
-              <div className="w-10 h-10 rounded-lg bg-white/6 flex items-center justify-center">{a.icon}</div>
-              <div className="text-left">
-                <div className="font-semibold">{a.label}</div>
-                <div className="text-xs text-slate-400">Open</div>
+              <div className="p-3 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 shadow-2xl" style={{ boxShadow: '0 15px 30px rgba(251, 146, 60, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3)' }}>
+                <div className="text-white">{action.icon}</div>
               </div>
+              <span className="text-sm font-bold text-orange-600" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>{action.label}</span>
             </motion.button>
           ))}
         </div>

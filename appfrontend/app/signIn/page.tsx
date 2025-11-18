@@ -2,9 +2,6 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { ZodError } from "zod";
@@ -186,27 +183,27 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col lg:flex-row bg-gradient-to-br from-gray-900 via-black to-gray-800 relative overflow-hidden">
+    <div className="min-h-screen w-full flex flex-col lg:flex-row bg-gradient-to-br from-orange-50 via-orange-100 to-white relative overflow-hidden font-['Inter']">
       {/* Floating Blobs */}
       <motion.div
         animate={{ x: [0, 80, 0], y: [0, -60, 0] }}
         transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute -top-40 -left-40 w-[32rem] h-[32rem] bg-purple-500/30 rounded-full blur-[120px]"
+        className="absolute -top-40 -left-40 w-[32rem] h-[32rem] bg-orange-400/20 rounded-full blur-[120px]"
       />
       <motion.div
         animate={{ x: [0, -100, 0], y: [0, 40, 0] }}
         transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute bottom-0 right-0 w-[36rem] h-[36rem] bg-pink-500/20 rounded-full blur-[120px]"
+        className="absolute bottom-0 right-0 w-[36rem] h-[36rem] bg-orange-300/15 rounded-full blur-[120px]"
       />
 
       {/* Branding */}
-      <div className="relative flex-1 flex items-center justify-center text-white px-6 sm:px-12 py-16">
+      <div className="relative flex-1 flex items-center justify-center px-6 sm:px-12 py-16">
         <div className="relative z-10 text-center lg:text-left space-y-8 max-w-lg mb-1.5">
           <motion.h1
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1 }}
-            className="text-5xl  sm:text-6xl lg:text-7xl font-extrabold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent"
+            className="text-5xl sm:text-6xl lg:text-7xl font-extrabold bg-gradient-to-r from-orange-600 to-orange-700 bg-clip-text text-transparent drop-shadow-lg"
           >
             TestIntegrity
           </motion.h1>
@@ -214,7 +211,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, delay: 0.3 }}
-            className="text-base sm:text-lg text-gray-300 max-w-md leading-relaxed"
+            className="text-base sm:text-lg text-gray-700 max-w-md leading-relaxed font-medium"
           >
             Secure. Seamless. Smart. <br />
             AI-powered proctoring & collaboration that puts trust first.
@@ -228,7 +225,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
             <img
               src="8912831.svg"
               alt="Illustration"
-              className="w-80 h-auto drop-shadow-2xl invert mix-blend-screen"
+              className="w-80 h-auto drop-shadow-2xl opacity-60"
             />
           </motion.div>
         </div>
@@ -242,8 +239,8 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
           transition={{ duration: 1 }}
           className="w-full max-w-md"
         >
-          <Card className="rounded-3xl shadow-2xl bg-white/10 backdrop-blur-xl border border-white/20">
-            <CardContent className="p-8 sm:p-10">
+          <div className="rounded-3xl shadow-2xl shadow-orange-200/50 bg-white/60 backdrop-blur-3xl border border-orange-200/50">
+            <div className="p-8 sm:p-10">
               <AnimatePresence mode="wait">
                 {isLogin ? (
                   // 🔹 Login
@@ -254,46 +251,46 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                     exit={{ opacity: 0, x: -60 }}
                     transition={{ duration: 0.6 }}
                   >
-                    <h2 className="text-3xl font-bold text-white text-center mb-8">
+                    <h2 className="text-3xl font-bold text-gray-800 text-center mb-8 drop-shadow-sm">
                       Login
                     </h2>
                     <form className="space-y-5" onSubmit={handleSubmit}>
-                      <Input
+                      <input
                         name="email"
                         placeholder="Email"
-                        className="rounded-xl bg-white/20 border-none text-white placeholder-gray-300"
+                        className="w-full px-4 py-3 bg-white/40 backdrop-blur-xl border border-orange-200/30 rounded-xl focus:border-orange-400 focus:ring-2 focus:ring-orange-200/50 outline-none transition-all duration-300 shadow-lg shadow-orange-100/20 text-gray-700 placeholder-gray-500"
                       />
                       {errors.email && (
-                        <p className="text-red-400 text-sm">{errors.email}</p>
+                        <p className="text-red-500 text-sm font-medium">{errors.email}</p>
                       )}
 
-                      <Input
+                      <input
                         type="password"
                         name="password"
                         placeholder="Password"
-                        className="rounded-xl bg-white/20 border-none text-white placeholder-gray-300"
+                        className="w-full px-4 py-3 bg-white/40 backdrop-blur-xl border border-orange-200/30 rounded-xl focus:border-orange-400 focus:ring-2 focus:ring-orange-200/50 outline-none transition-all duration-300 shadow-lg shadow-orange-100/20 text-gray-700 placeholder-gray-500"
                       />
                       {errors.password && (
-                        <p className="text-red-400 text-sm">
+                        <p className="text-red-500 text-sm font-medium">
                           {errors.password}
                         </p>
                       )}
 
-                      <Button
+                      <button
                         type="submit"
-                        className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl py-3 text-lg hover:opacity-90 transition"
+                        className="w-full px-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-semibold text-lg hover:scale-105 transition-all duration-300 shadow-xl shadow-orange-200/50"
                       >
                         Sign In
-                      </Button>
+                      </button>
                     </form>
 
                     {/* Google Sign-In */}
-                    <Button
+                    <button
                       onClick={handleGoogleSignIn}
-                      className="w-full mt-4 bg-white text-black rounded-xl py-3 text-lg hover:opacity-90 transition"
+                      className="w-full mt-4 px-6 py-4 bg-white/60 backdrop-blur-xl border border-orange-200/50 text-gray-800 rounded-xl font-semibold text-lg hover:bg-white/80 hover:scale-105 transition-all duration-300 shadow-lg shadow-orange-100/30"
                     >
                       Sign in with Google
-                    </Button>
+                    </button>
                   </motion.div>
                 ) : (
                   // 🔹 Register
@@ -304,38 +301,38 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                     exit={{ opacity: 0, x: 60 }}
                     transition={{ duration: 0.6 }}
                   >
-                    <h2 className="text-3xl font-bold text-white text-center mb-8">
+                    <h2 className="text-3xl font-bold text-gray-800 text-center mb-8 drop-shadow-sm">
                       Register
                     </h2>
                     <form className="space-y-5" onSubmit={handleSubmit}>
-                      <Input
+                      <input
                         name="fullName"
                         placeholder="Full Name"
-                        className="rounded-xl bg-white/20 border-none text-white placeholder-gray-300"
+                        className="w-full px-4 py-3 bg-white/40 backdrop-blur-xl border border-orange-200/30 rounded-xl focus:border-orange-400 focus:ring-2 focus:ring-orange-200/50 outline-none transition-all duration-300 shadow-lg shadow-orange-100/20 text-gray-700 placeholder-gray-500"
                       />
                       {errors.fullName && (
-                        <p className="text-red-400 text-sm">
+                        <p className="text-red-500 text-sm font-medium">
                           {errors.fullName}
                         </p>
                       )}
 
-                      <Input
+                      <input
                         name="email"
                         placeholder="Email"
-                        className="rounded-xl bg-white/20 border-none text-white placeholder-gray-300"
+                        className="w-full px-4 py-3 bg-white/40 backdrop-blur-xl border border-orange-200/30 rounded-xl focus:border-orange-400 focus:ring-2 focus:ring-orange-200/50 outline-none transition-all duration-300 shadow-lg shadow-orange-100/20 text-gray-700 placeholder-gray-500"
                       />
                       {errors.email && (
-                        <p className="text-red-400 text-sm">{errors.email}</p>
+                        <p className="text-red-500 text-sm font-medium">{errors.email}</p>
                       )}
 
-                      <Input
+                      <input
                         type="password"
                         name="password"
                         placeholder="Password"
-                        className="rounded-xl bg-white/20 border-none text-white placeholder-gray-300"
+                        className="w-full px-4 py-3 bg-white/40 backdrop-blur-xl border border-orange-200/30 rounded-xl focus:border-orange-400 focus:ring-2 focus:ring-orange-200/50 outline-none transition-all duration-300 shadow-lg shadow-orange-100/20 text-gray-700 placeholder-gray-500"
                       />
                       {errors.password && (
-                        <p className="text-red-400 text-sm">
+                        <p className="text-red-500 text-sm font-medium">
                           {errors.password}
                         </p>
                       )}
@@ -343,16 +340,16 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                       {/* Role Dropdown */}
                       <select
                         name="role"
-                        className="w-full rounded-xl p-3 bg-white/20 text-white placeholder-gray-300"
+                        className="w-full px-4 py-3 bg-white/40 backdrop-blur-xl border border-orange-200/30 rounded-xl focus:border-orange-400 focus:ring-2 focus:ring-orange-200/50 outline-none transition-all duration-300 shadow-lg shadow-orange-100/20 text-gray-700"
                         value={role}
                         onChange={(e) =>
                           setRole(e.target.value as "student" | "tutor")
                         }
                       >
-                        <option value="student" className="text-black">
+                        <option value="student" className="text-gray-800">
                           Student
                         </option>
-                        <option value="tutor" className="text-black">
+                        <option value="tutor" className="text-gray-800">
                           Tutor
                         </option>
                       </select>
@@ -360,25 +357,25 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                       {/* Student Fields */}
                       {role === "student" && (
                         <div className="space-y-3">
-                          <Input
+                          <input
                             name="studentUid"
                             placeholder="Student UID"
-                            className="rounded-xl bg-white/20 border-none text-white placeholder-gray-300"
+                            className="w-full px-4 py-3 bg-white/40 backdrop-blur-xl border border-orange-200/30 rounded-xl focus:border-orange-400 focus:ring-2 focus:ring-orange-200/50 outline-none transition-all duration-300 shadow-lg shadow-orange-100/20 text-gray-700 placeholder-gray-500"
                           />
-                          <Input
+                          <input
                             name="rollNumber"
                             placeholder="Roll Number"
-                            className="rounded-xl bg-white/20 border-none text-white placeholder-gray-300"
+                            className="w-full px-4 py-3 bg-white/40 backdrop-blur-xl border border-orange-200/30 rounded-xl focus:border-orange-400 focus:ring-2 focus:ring-orange-200/50 outline-none transition-all duration-300 shadow-lg shadow-orange-100/20 text-gray-700 placeholder-gray-500"
                           />
-                          <Input
+                          <input
                             name="institutionName"
                             placeholder="Institution"
-                            className="rounded-xl bg-white/20 border-none text-white placeholder-gray-300"
+                            className="w-full px-4 py-3 bg-white/40 backdrop-blur-xl border border-orange-200/30 rounded-xl focus:border-orange-400 focus:ring-2 focus:ring-orange-200/50 outline-none transition-all duration-300 shadow-lg shadow-orange-100/20 text-gray-700 placeholder-gray-500"
                           />
 
                           {/* Cloudinary Upload */}
                           <div className="flex flex-col gap-2">
-                            <label className="w-full flex flex-col items-center justify-center border-2 border-dashed border-gray-500/50 rounded-xl p-6 text-gray-300 cursor-pointer hover:border-purple-400 hover:text-purple-400 transition">
+                            <label className="w-full flex flex-col items-center justify-center border-2 border-dashed border-orange-300/50 rounded-xl p-6 bg-white/20 backdrop-blur-xl text-gray-600 cursor-pointer hover:border-orange-400 hover:text-orange-600 hover:bg-white/30 transition-all duration-300 shadow-lg shadow-orange-100/20">
                               <input
                                 type="file"
                                 accept="image/*"
@@ -386,17 +383,17 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                                 onChange={handleUpload}
                               />
                               {uploading ? (
-                                <Loader2 className="w-10 h-10 animate-spin text-purple-400" />
+                                <Loader2 className="w-10 h-10 animate-spin text-orange-500" />
                               ) : profilePic ? (
                                 <img
                                   src={profilePic}
                                   alt="Profile"
-                                  className="w-24 h-24 rounded-full object-cover border-2 border-purple-400"
+                                  className="w-24 h-24 rounded-full object-cover border-3 border-orange-400 shadow-lg shadow-orange-200/50"
                                 />
                               ) : (
                                 <>
-                                  <Upload className="w-10 h-10 mb-2 text-purple-400" />
-                                  <span className="text-sm">
+                                  <Upload className="w-10 h-10 mb-2 text-orange-500" />
+                                  <span className="text-sm font-medium">
                                     Click to upload profile photo
                                   </span>
                                 </>
@@ -404,7 +401,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                             </label>
 
                             {publicId && (
-                              <p className="text-xs text-gray-500 text-center">
+                              <p className="text-xs text-green-600 text-center font-medium">
                                 Uploaded ✔
                               </p>
                             )}
@@ -415,49 +412,49 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                       {/* Tutor Fields */}
                       {role === "tutor" && (
                         <div className="space-y-3">
-                          <Input
+                          <input
                             name="institutionName"
                             placeholder="Institution"
-                            className="rounded-xl bg-white/20 border-none text-white placeholder-gray-300"
+                            className="w-full px-4 py-3 bg-white/40 backdrop-blur-xl border border-orange-200/30 rounded-xl focus:border-orange-400 focus:ring-2 focus:ring-orange-200/50 outline-none transition-all duration-300 shadow-lg shadow-orange-100/20 text-gray-700 placeholder-gray-500"
                           />
-                          <Input
+                          <input
                             name="designation"
                             placeholder="Designation"
-                            className="rounded-xl bg-white/20 border-none text-white placeholder-gray-300"
+                            className="w-full px-4 py-3 bg-white/40 backdrop-blur-xl border border-orange-200/30 rounded-xl focus:border-orange-400 focus:ring-2 focus:ring-orange-200/50 outline-none transition-all duration-300 shadow-lg shadow-orange-100/20 text-gray-700 placeholder-gray-500"
                           />
-                          <Input
+                          <input
                             name="department"
                             placeholder="Department"
-                            className="rounded-xl bg-white/20 border-none text-white placeholder-gray-300"
+                            className="w-full px-4 py-3 bg-white/40 backdrop-blur-xl border border-orange-200/30 rounded-xl focus:border-orange-400 focus:ring-2 focus:ring-orange-200/50 outline-none transition-all duration-300 shadow-lg shadow-orange-100/20 text-gray-700 placeholder-gray-500"
                           />
                         </div>
                       )}
 
-                      <Button
+                      <button
                         type="submit"
-                        className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl py-3 text-lg hover:opacity-90 transition"
+                        className="w-full px-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-semibold text-lg hover:scale-105 transition-all duration-300 shadow-xl shadow-orange-200/50"
                       >
                         Register
-                      </Button>
+                      </button>
                     </form>
                   </motion.div>
                 )}
               </AnimatePresence>
 
               {/* Toggle */}
-              <p className="text-center text-sm text-gray-300 mt-8">
+              <p className="text-center text-sm text-gray-600 mt-8">
                 {isLogin
-                  ? "Don’t have an account?"
+                  ? "Don't have an account?"
                   : "Already have an account?"}{" "}
                 <button
                   onClick={() => setIsLogin(!isLogin)}
-                  className="text-purple-400 font-medium hover:underline"
+                  className="text-orange-600 font-semibold hover:text-orange-700 hover:underline transition-colors duration-300"
                 >
                   {isLogin ? "Register" : "Login"}
                 </button>
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </motion.div>
       </div>
     </div>

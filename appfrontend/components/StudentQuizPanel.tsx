@@ -2,12 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { 
   MessageSquare, Clock, CheckCircle, XCircle, Play, Square,
   Send, Award, Users, Timer
@@ -355,10 +349,12 @@ export default function StudentQuizPanel({ meetingId, isConnected, userInfo }: S
   const isthere = socketRef.current?.connected;
 
   return (
-    <div className="w-80 bg-black/70 backdrop-blur-sm border-l border-white/20 flex flex-col">
-      <div className="p-4 border-b border-white/20">
-        <h3 className="text-lg font-semibold flex items-center gap-2 text-white">
-          <MessageSquare className="w-5 h-5" />
+    <div className="w-80 bg-white/60 backdrop-blur-3xl border-l border-orange-200/30 flex flex-col shadow-[0_0_50px_rgba(251,146,60,0.1)] font-['Inter']">
+      <div className="p-6 border-b border-orange-200/30">
+        <h3 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-orange-800 bg-clip-text text-transparent flex items-center gap-3">
+          <div className="p-2 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg shadow-orange-500/30">
+            <MessageSquare className="w-5 h-5 text-white" />
+          </div>
           Student Quiz
         </h3>
       </div>
@@ -366,114 +362,114 @@ export default function StudentQuizPanel({ meetingId, isConnected, userInfo }: S
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Connection Status */}
         <div className="text-center">
-          <Badge 
-            variant={isthere ? "default" : "destructive"} 
-            className={isthere ? "bg-green-500" : "bg-red-500"}
-          >
+          <div className={`inline-flex items-center px-4 py-2 rounded-full font-semibold text-sm shadow-lg ${
+            isthere 
+              ? "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-green-500/30" 
+              : "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-red-500/30"
+          }`}>
             {isthere ? `Connected to Quiz` : "Disconnected"}
             {socketRef.current?.id && ` (${socketRef.current.id.slice(-6)})`}
-          </Badge>
+          </div>
         </div>
 
         {activeQuiz ? (
-          <Card className="bg-white/10 backdrop-blur-sm border border-white/20">
-            <CardHeader>
-              <CardTitle className="text-white text-lg flex items-center justify-between">
-                <span>Active Quiz</span>
-                <Badge variant="secondary" className="bg-green-500">
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-[0_15px_35px_rgba(251,146,60,0.15)] border border-orange-200/40 hover:shadow-[0_20px_45px_rgba(251,146,60,0.2)] transition-all duration-300">
+            <div className="mb-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xl font-bold text-gray-800">Active Quiz</h4>
+                <div className="bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-full font-semibold text-sm shadow-lg shadow-green-500/30">
                   Live
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+                </div>
+              </div>
+            </div>
+            <div className="space-y-4">
               {/* Timer Section */}
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Timer className="w-4 h-4 text-gray-300" />
-                  <span className={`text-sm font-bold ${getTimerColor()}`}>
+                <div className="bg-orange-100 p-3 rounded-xl flex items-center gap-2">
+                  <Timer className="w-4 h-4 text-orange-600" />
+                  <span className={`font-bold ${
+                    timeRemaining <= 10 ? 'text-red-600' : 
+                    timeRemaining <= 30 ? 'text-orange-600' : 'text-green-600'
+                  }`}>
                     {timeRemaining}s
                   </span>
                 </div>
-                <Badge variant="outline" className="text-white border-white/30">
+                <div className="bg-orange-100 text-orange-800 px-4 py-2 rounded-xl font-semibold text-sm">
                   {activeQuiz.type}
-                </Badge>
+                </div>
               </div>
 
               {/* Progress Bar */}
-              <div className="w-full bg-gray-700 rounded-full h-2">
+              <div className="w-full bg-orange-200 rounded-full h-3 shadow-inner">
                 <div 
-                  className="h-2 rounded-full transition-all duration-1000"
+                  className="h-3 rounded-full transition-all duration-1000 shadow-lg"
                   style={{ 
                     width: `${getProgressPercentage()}%`,
-                    backgroundColor: timeRemaining <= 10 ? '#ef4444' : 
-                                   timeRemaining <= 30 ? '#f97316' : '#10b981'
+                    background: timeRemaining <= 10 ? 'linear-gradient(to right, #ef4444, #dc2626)' : 
+                               timeRemaining <= 30 ? 'linear-gradient(to right, #f97316, #ea580c)' : 'linear-gradient(to right, #f97316, #ea580c)'
                   }}
                 />
               </div>
 
               {/* Question */}
-              <div className="bg-white/5 p-4 rounded-lg">
-                <h4 className="text-white font-medium text-sm mb-3">
+              <div className="bg-orange-50 p-6 rounded-2xl border border-orange-200/50">
+                <h4 className="text-gray-800 font-bold text-lg mb-4">
                   {activeQuiz.question}
                 </h4>
 
                 {/* Answer Input Based on Question Type */}
                 {activeQuiz.type === 'MCQ' && activeQuiz.options && (
-                  <RadioGroup 
-                    value={selectedAnswer} 
-                    onValueChange={setSelectedAnswer}
-                    className="space-y-2"
-                  >
+                  <div className="space-y-3">
                     {activeQuiz.options.map((option, index) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <RadioGroupItem 
-                          value={option} 
-                          id={`option-${index}`}
+                      <label key={index} className="flex items-center space-x-3 cursor-pointer">
+                        <input
+                          type="radio"
+                          value={option}
+                          checked={selectedAnswer === option}
+                          onChange={(e) => setSelectedAnswer(e.target.value)}
                           disabled={hasSubmitted}
-                          className="text-blue-500 border-white/30"
+                          className="w-4 h-4 text-orange-600 border-orange-300 focus:ring-orange-500"
                         />
-                        <Label 
-                          htmlFor={`option-${index}`}
-                          className="text-white text-sm flex-1 cursor-pointer py-2 px-3 rounded bg-white/5 hover:bg-white/10 transition-colors"
-                        >
-                          {String.fromCharCode(65 + index)}. {option}
-                        </Label>
-                      </div>
+                        <div className="flex-1 py-3 px-4 rounded-xl bg-white/80 border border-orange-200/50 hover:bg-white/90 hover:border-orange-300 transition-all duration-300 shadow-[0_4px_15px_rgba(251,146,60,0.1)]">
+                          <span className="text-gray-800 font-medium">
+                            {String.fromCharCode(65 + index)}. {option}
+                          </span>
+                        </div>
+                      </label>
                     ))}
-                  </RadioGroup>
+                  </div>
                 )}
 
                 {activeQuiz.type === 'TRUE_FALSE' && (
-                  <RadioGroup 
-                    value={selectedAnswer} 
-                    onValueChange={setSelectedAnswer}
-                    className="space-y-2"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="True" id="true" disabled={hasSubmitted} />
-                      <Label htmlFor="true" className="text-white text-sm cursor-pointer py-2 px-3 rounded bg-white/5 hover:bg-white/10 transition-colors flex-1">
-                        True
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="False" id="false" disabled={hasSubmitted} />
-                      <Label htmlFor="false" className="text-white text-sm cursor-pointer py-2 px-3 rounded bg-white/5 hover:bg-white/10 transition-colors flex-1">
-                        False
-                      </Label>
-                    </div>
-                  </RadioGroup>
+                  <div className="space-y-3">
+                    {['True', 'False'].map((option) => (
+                      <label key={option} className="flex items-center space-x-3 cursor-pointer">
+                        <input
+                          type="radio"
+                          value={option}
+                          checked={selectedAnswer === option}
+                          onChange={(e) => setSelectedAnswer(e.target.value)}
+                          disabled={hasSubmitted}
+                          className="w-4 h-4 text-orange-600 border-orange-300 focus:ring-orange-500"
+                        />
+                        <div className="flex-1 py-3 px-4 rounded-xl bg-white/80 border border-orange-200/50 hover:bg-white/90 hover:border-orange-300 transition-all duration-300 shadow-[0_4px_15px_rgba(251,146,60,0.1)]">
+                          <span className="text-gray-800 font-medium">{option}</span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
                 )}
 
                 {activeQuiz.type === 'SHORT_ANSWER' && (
-                  <div className="space-y-2">
-                    <Input
+                  <div className="space-y-3">
+                    <input
                       value={shortAnswer}
                       onChange={(e) => setShortAnswer(e.target.value)}
                       placeholder="Type your answer here..."
                       disabled={hasSubmitted}
-                      className="bg-white/5 border-white/20 text-white placeholder-gray-400"
+                      className="w-full px-4 py-3 bg-white/80 backdrop-blur-xl border border-orange-200/50 rounded-xl shadow-[0_8px_25px_rgba(251,146,60,0.1)] focus:shadow-[0_12px_35px_rgba(251,146,60,0.15)] focus:border-orange-300 focus:outline-none transition-all duration-300 text-gray-800 font-medium"
                     />
-                    <p className="text-gray-400 text-xs">
+                    <p className="text-gray-600 text-sm font-medium">
                       Press submit when you're ready
                     </p>
                   </div>
@@ -482,24 +478,26 @@ export default function StudentQuizPanel({ meetingId, isConnected, userInfo }: S
 
               {/* Submission Button */}
               {!hasSubmitted ? (
-                <Button 
+                <button 
                   onClick={() => submitAnswer()}
                   disabled={isSubmitting || 
                     (activeQuiz.type !== 'SHORT_ANSWER' && !selectedAnswer) ||
                     (activeQuiz.type === 'SHORT_ANSWER' && !shortAnswer.trim())
                   }
-                  className={`w-full ${
-                    isSubmitting ? 'bg-blue-400' : 'bg-blue-500 hover:bg-blue-600'
-                  } text-white`}
+                  className={`w-full py-4 px-6 rounded-2xl font-bold text-lg transition-all duration-300 flex items-center justify-center gap-3 shadow-[0_15px_35px_rgba(0,0,0,0.15)] hover:shadow-[0_20px_45px_rgba(0,0,0,0.2)] transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none ${
+                    isSubmitting 
+                      ? 'bg-gradient-to-r from-blue-400 to-blue-500 text-white' 
+                      : 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-orange-500/30'
+                  }`}
                 >
-                  <Send className="w-4 h-4 mr-2" />
+                  <Send className="w-5 h-5" />
                   {getAnswerButtonText()}
-                </Button>
+                </button>
               ) : (
-                <div className="text-center p-3 bg-green-500/20 border border-green-500/30 rounded-lg">
-                  <CheckCircle className="w-6 h-6 text-green-400 mx-auto mb-2" />
-                  <p className="text-green-400 text-sm font-medium">Answer Submitted!</p>
-                  <p className="text-green-300 text-xs">
+                <div className="text-center p-6 bg-gradient-to-br from-green-100 to-green-200 border border-green-300 rounded-2xl shadow-[0_10px_25px_rgba(34,197,94,0.2)]">
+                  <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-3" />
+                  <p className="text-green-800 font-bold text-lg">Answer Submitted!</p>
+                  <p className="text-green-700 text-sm font-medium">
                     Response ID: {submissionResult?.responseId?.slice(-8)}
                   </p>
                 </div>
@@ -507,106 +505,110 @@ export default function StudentQuizPanel({ meetingId, isConnected, userInfo }: S
 
               {/* Auto-submit warning */}
               {timeRemaining <= 10 && !hasSubmitted && (
-                <div className="text-center p-2 bg-red-500/20 border border-red-500/30 rounded">
-                  <p className="text-red-400 text-xs">
+                <div className="text-center p-4 bg-gradient-to-br from-red-100 to-red-200 border border-red-300 rounded-2xl shadow-[0_10px_25px_rgba(239,68,68,0.2)]">
+                  <p className="text-red-800 font-bold text-sm">
                     ⚠️ Auto-submitting in {timeRemaining} seconds...
                   </p>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ) : (
           /* No Active Quiz State */
           <div className="space-y-4">
-            <Card className="bg-white/10 backdrop-blur-sm border border-white/20">
-              <CardContent className="p-6 text-center">
-                <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h4 className="text-white font-medium mb-2">No Active Quiz</h4>
-                <p className="text-gray-400 text-sm">
-                  Wait for the tutor to start a quiz. You'll see the question here when it begins.
-                </p>
-              </CardContent>
-            </Card>
+            <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-8 shadow-[0_15px_35px_rgba(251,146,60,0.15)] border border-orange-200/40 text-center">
+              <div className="p-4 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl inline-block mb-6 shadow-lg shadow-orange-500/30">
+                <MessageSquare className="w-12 h-12 text-white" />
+              </div>
+              <h4 className="text-gray-800 font-bold text-xl mb-3">No Active Quiz</h4>
+              <p className="text-gray-600 font-medium">
+                Wait for the tutor to start a quiz. You'll see the question here when it begins.
+              </p>
+            </div>
 
             {/* Leaderboard */}
             {leaderboard.length > 0 && (
-              <Card className="bg-white/10 backdrop-blur-sm border border-white/20">
-                <CardHeader>
-                  <CardTitle className="text-white text-lg flex items-center gap-2">
-                    <Award className="w-5 h-5" />
+              <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-[0_15px_35px_rgba(251,146,60,0.15)] border border-orange-200/40">
+                <div className="mb-4">
+                  <h4 className="text-xl font-bold text-gray-800 flex items-center gap-3">
+                    <div className="p-2 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg shadow-orange-500/30">
+                      <Award className="w-5 h-5 text-white" />
+                    </div>
                     Leaderboard
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 max-h-64 overflow-y-auto">
+                  </h4>
+                </div>
+                <div className="space-y-3 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-orange-300 scrollbar-track-orange-100">
                   {leaderboard.slice(0, 10).map((student, index) => (
                     <div 
                       key={student.studentId}
-                      className={`flex items-center justify-between p-2 rounded ${
+                      className={`flex items-center justify-between p-4 rounded-xl transition-all duration-300 ${
                         student.studentId === userInfo?.id 
-                          ? 'bg-blue-500/20 border border-blue-500/30' 
-                          : 'bg-white/5'
+                          ? 'bg-gradient-to-r from-blue-100 to-blue-200 border border-blue-300 shadow-[0_8px_25px_rgba(59,130,246,0.2)]' 
+                          : 'bg-white/80 border border-orange-200/50 shadow-[0_4px_15px_rgba(251,146,60,0.1)]'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                          index === 0 ? 'bg-yellow-500 text-white' :
-                          index === 1 ? 'bg-gray-400 text-white' :
-                          index === 2 ? 'bg-amber-700 text-white' :
-                          'bg-gray-600 text-white'
+                      <div className="flex items-center gap-4">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shadow-lg ${
+                          index === 0 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white' :
+                          index === 1 ? 'bg-gradient-to-r from-gray-400 to-gray-500 text-white' :
+                          index === 2 ? 'bg-gradient-to-r from-amber-700 to-amber-800 text-white' :
+                          'bg-gradient-to-r from-gray-600 to-gray-700 text-white'
                         }`}>
                           {index + 1}
                         </div>
                         <div>
-                          <p className="text-white text-sm font-medium">
+                          <p className="text-gray-800 font-bold">
                             {student.studentName}
                             {student.studentId === userInfo?.id && ' (You)'}
                           </p>
-                          <p className="text-gray-400 text-xs">
+                          <p className="text-gray-600 text-sm font-medium">
                             {student.correctAnswers}/{student.totalAnswers} correct
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-white text-sm font-bold">
+                        <p className="text-gray-800 font-bold text-lg">
                           {Math.round(student.accuracy)}%
                         </p>
-                        <p className="text-gray-400 text-xs">
+                        <p className="text-gray-600 text-sm font-medium">
                           {Math.round(student.averageTime)}s avg
                         </p>
                       </div>
                     </div>
                   ))}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             )}
 
             {/* Quiz History */}
             {quizHistory.length > 0 && (
-              <Card className="bg-white/10 backdrop-blur-sm border border-white/20">
-                <CardHeader>
-                  <CardTitle className="text-white text-lg flex items-center gap-2">
-                    <Clock className="w-5 h-5" />
+              <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-[0_15px_35px_rgba(251,146,60,0.15)] border border-orange-200/40">
+                <div className="mb-4">
+                  <h4 className="text-xl font-bold text-gray-800 flex items-center gap-3">
+                    <div className="p-2 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg shadow-orange-500/30">
+                      <Clock className="w-5 h-5 text-white" />
+                    </div>
                     Recent Quizzes
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 max-h-48 overflow-y-auto">
+                  </h4>
+                </div>
+                <div className="space-y-3 max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-orange-300 scrollbar-track-orange-100">
                   {quizHistory.map((quiz) => (
-                    <div key={quiz.id} className="bg-white/5 p-3 rounded">
-                      <p className="text-white text-sm font-medium truncate">
+                    <div key={quiz.id} className="bg-white/80 p-4 rounded-xl border border-orange-200/50 shadow-[0_4px_15px_rgba(251,146,60,0.1)]">
+                      <p className="text-gray-800 font-semibold truncate">
                         {quiz.question}
                       </p>
-                      <div className="flex items-center justify-between mt-1">
-                        <Badge variant="outline" className="text-xs text-gray-300">
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="bg-orange-100 text-orange-800 px-3 py-1 rounded-lg text-xs font-medium">
                           {quiz.type}
-                        </Badge>
-                        <span className="text-gray-400 text-xs">
+                        </div>
+                        <span className="text-gray-600 text-xs font-medium">
                           {new Date(quiz.startedAt).toLocaleDateString()}
                         </span>
                       </div>
                     </div>
                   ))}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             )}
           </div>
         )}

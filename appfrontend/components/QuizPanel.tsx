@@ -2,12 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { 
   MessageSquare, Clock, Users, Trophy, CheckCircle, XCircle,
   Play, Square, Plus, Trash2, List, Send
@@ -364,42 +358,45 @@ export default function QuizPanel({ meetingId, isConnected, onSendQuiz, onEndQui
   const isSocketConnected = socketRef.current?.connected;
 
   return (
-    <div className="w-80 bg-black/70 backdrop-blur-sm border-l border-white/20 flex flex-col">
-      <div className="p-4 border-b border-white/20">
-        <h3 className="text-lg font-semibold flex items-center gap-2 text-white">
-          <MessageSquare className="w-5 h-5" />
+    <div className="w-80 bg-white/60 backdrop-blur-3xl border-l border-orange-200/30 flex flex-col shadow-[0_0_50px_rgba(251,146,60,0.1)] font-['Inter']">
+      <div className="p-6 border-b border-orange-200/30">
+        <h3 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-orange-800 bg-clip-text text-transparent flex items-center gap-3">
+          <div className="p-2 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg shadow-orange-500/30">
+            <MessageSquare className="w-5 h-5 text-white" />
+          </div>
           Quiz Control
         </h3>
         {/* Connection Status */}
-        <div className="text-center mt-2">
-          <Badge 
-            variant={isSocketConnected ? "default" : "destructive"} 
-            className={isSocketConnected ? "bg-green-500" : "bg-red-500"}
-          >
+        <div className="text-center mt-4">
+          <div className={`inline-flex items-center px-4 py-2 rounded-full font-semibold text-sm shadow-lg ${
+            isSocketConnected 
+              ? "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-green-500/30" 
+              : "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-red-500/30"
+          }`}>
             {isSocketConnected ? `Connected` : "Disconnected"}
             {socketRef.current?.id && ` (${socketRef.current.id.slice(-6)})`}
-          </Badge>
+          </div>
         </div>
       </div>
       
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {activeQuiz ? (
-          <Card className="bg-white/10 backdrop-blur-sm border border-white/20">
-            <CardHeader>
-              <CardTitle className="text-white text-lg flex items-center justify-between">
-                <span>Active Quiz</span>
-                <Badge variant="secondary" className="bg-green-500">
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-[0_15px_35px_rgba(251,146,60,0.15)] border border-orange-200/40 hover:shadow-[0_20px_45px_rgba(251,146,60,0.2)] transition-all duration-300">
+            <div className="mb-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xl font-bold text-gray-800">Active Quiz</h4>
+                <div className="bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-full font-semibold text-sm shadow-lg shadow-green-500/30">
                   Live
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+                </div>
+              </div>
+            </div>
+            <div className="space-y-4">
               <div>
-                <h4 className="text-white font-medium mb-2">{activeQuiz.question}</h4>
+                <h5 className="text-gray-800 font-bold mb-3 text-lg">{activeQuiz.question}</h5>
                 {activeQuiz.options && (
-                  <div className="space-y-2 mt-2">
+                  <div className="space-y-2 mt-3">
                     {activeQuiz.options.map((option, index) => (
-                      <div key={index} className="text-sm text-gray-300 bg-white/5 p-2 rounded">
+                      <div key={index} className="text-sm font-medium text-gray-700 bg-orange-50 p-3 rounded-xl border border-orange-200/50">
                         {String.fromCharCode(65 + index)}. {option}
                       </div>
                     ))}
@@ -408,31 +405,31 @@ export default function QuizPanel({ meetingId, isConnected, onSendQuiz, onEndQui
               </div>
               
               {/* Timer Display */}
-              <div className="flex items-center justify-between text-sm text-gray-300">
-                <div className="flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
+              <div className="grid grid-cols-3 gap-3 text-sm">
+                <div className="bg-orange-100 p-3 rounded-xl flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-orange-600" />
                   <span className={`font-bold ${
                     activeQuiz.timeRemaining && activeQuiz.timeRemaining <= 10 
-                      ? 'text-red-400' 
-                      : 'text-white'
+                      ? 'text-red-600' 
+                      : 'text-orange-800'
                   }`}>
                     {activeQuiz.timeRemaining || activeQuiz.timeLimit}s
                   </span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Users className="w-4 h-4" />
-                  {activeQuiz.responses.length} responses
+                <div className="bg-blue-100 p-3 rounded-xl flex items-center gap-2">
+                  <Users className="w-4 h-4 text-blue-600" />
+                  <span className="font-bold text-blue-800">{activeQuiz.responses.length}</span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <CheckCircle className="w-4 h-4 text-green-400" />
-                  {getCorrectAnswersCount()} correct
+                <div className="bg-green-100 p-3 rounded-xl flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <span className="font-bold text-green-800">{getCorrectAnswersCount()}</span>
                 </div>
               </div>
 
               {/* Progress bar for timer */}
-              <div className="w-full bg-gray-700 rounded-full h-2">
+              <div className="w-full bg-orange-200 rounded-full h-3 shadow-inner">
                 <div 
-                  className="bg-blue-500 h-2 rounded-full transition-all duration-1000"
+                  className="bg-gradient-to-r from-orange-500 to-orange-600 h-3 rounded-full transition-all duration-1000 shadow-lg"
                   style={{ 
                     width: `${((activeQuiz.timeRemaining || activeQuiz.timeLimit) / activeQuiz.timeLimit) * 100}%` 
                   }}
@@ -440,88 +437,88 @@ export default function QuizPanel({ meetingId, isConnected, onSendQuiz, onEndQui
               </div>
 
               {activeQuiz.responses.length > 0 && (
-                <div className="max-h-32 overflow-y-auto space-y-2">
-                  <h5 className="text-white text-sm font-medium">Responses:</h5>
+                <div className="max-h-32 overflow-y-auto space-y-2 scrollbar-thin scrollbar-thumb-orange-300 scrollbar-track-orange-100">
+                  <h5 className="text-gray-800 text-sm font-bold">Responses:</h5>
                   {activeQuiz.responses.map((response, index) => (
-                    <div key={index} className="flex items-center justify-between text-xs p-2 bg-white/5 rounded">
-                      <span className="text-gray-300 truncate">{response.studentName}</span>
-                      <Badge className={response.isCorrect ? "bg-green-500" : "bg-red-500"}>
+                    <div key={index} className="flex items-center justify-between text-xs p-3 bg-white/80 rounded-xl border border-orange-200/50">
+                      <span className="text-gray-700 font-medium truncate">{response.studentName}</span>
+                      <div className={`px-3 py-1 rounded-full font-bold text-white shadow-lg ${
+                        response.isCorrect ? "bg-gradient-to-r from-green-500 to-green-600" : "bg-gradient-to-r from-red-500 to-red-600"
+                      }`}>
                         {response.isCorrect ? '✓' : '✗'}
-                      </Badge>
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
 
-              <Button 
+              <button 
                 onClick={endActiveQuiz}
-                className="w-full bg-red-500 hover:bg-red-600 text-white"
+                className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-3 px-4 rounded-xl shadow-[0_10px_25px_rgba(239,68,68,0.3)] hover:shadow-[0_15px_35px_rgba(239,68,68,0.4)] transform hover:scale-[1.02] transition-all duration-300 flex items-center justify-center gap-2"
               >
-                <Square className="w-4 h-4 mr-2" />
+                <Square className="w-4 h-4" />
                 End Quiz
-              </Button>
-            </CardContent>
-          </Card>
+              </button>
+            </div>
+          </div>
         ) : (
           <>
-            <div className="space-y-3">
-              <Button 
+            <div className="space-y-4">
+              <button 
                 onClick={() => setShowCreateForm(true)}
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-3 px-4 rounded-xl shadow-[0_10px_25px_rgba(251,146,60,0.3)] hover:shadow-[0_15px_35px_rgba(251,146,60,0.4)] transform hover:scale-[1.02] transition-all duration-300 flex items-center justify-center gap-2"
               >
-                <Plus className="w-4 h-4 mr-2" />
+                <Plus className="w-4 h-4" />
                 Create New Question
-              </Button>
+              </button>
 
-              <Button 
+              <button 
                 onClick={async () => {
                   await fetchAllQuizzes();
                   setShowAllQuizzes(true);
                 }}
-                className="w-full bg-purple-500 hover:bg-purple-600 text-white"
+                className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-bold py-3 px-4 rounded-xl shadow-[0_10px_25px_rgba(147,51,234,0.3)] hover:shadow-[0_15px_35px_rgba(147,51,234,0.4)] transform hover:scale-[1.02] transition-all duration-300 flex items-center justify-center gap-2"
               >
-                <List className="w-4 h-4 mr-2" />
+                <List className="w-4 h-4" />
                 View All Quizzes
-              </Button>
+              </button>
               
               {questions.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="text-white text-sm font-medium">Quick Start:</h4>
+                <div className="space-y-3">
+                  <h4 className="text-gray-800 text-sm font-bold">Quick Start:</h4>
                   {questions.map((question) => (
-                    <Card key={question.id} className="bg-white/5 border-white/20 p-3">
+                    <div key={question.id} className="bg-white/80 backdrop-blur-xl rounded-xl p-4 shadow-[0_8px_25px_rgba(251,146,60,0.1)] border border-orange-200/40">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <p className="text-white text-sm font-medium truncate">
+                          <p className="text-gray-800 text-sm font-semibold truncate">
                             {question.question}
                           </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="outline" className="text-xs">
+                          <div className="flex items-center gap-2 mt-2">
+                            <div className="bg-orange-100 text-orange-800 px-2 py-1 rounded-lg text-xs font-medium">
                               {question.type}
-                            </Badge>
-                            <span className="text-gray-400 text-xs">
+                            </div>
+                            <span className="text-gray-600 text-xs font-medium">
                               {question.timeLimit}s
                             </span>
                           </div>
                         </div>
-                        <div className="flex gap-1 ml-2">
-                          <Button
-                            size="sm"
+                        <div className="flex gap-2 ml-3">
+                          <button
                             onClick={() => startQuiz(question)}
                             disabled={!isSocketConnected}
-                            className="bg-green-500 hover:bg-green-600 text-white h-8 w-8 p-0"
+                            className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white h-8 w-8 rounded-lg shadow-lg shadow-green-500/30 hover:shadow-green-500/40 transform hover:scale-110 transition-all duration-300 disabled:opacity-50 flex items-center justify-center"
                           >
                             <Play className="w-3 h-3" />
-                          </Button>
-                          <Button
-                            size="sm"
+                          </button>
+                          <button
                             onClick={() => deleteQuestion(question.id)}
-                            className="bg-red-500 hover:bg-red-600 text-white h-8 w-8 p-0"
+                            className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white h-8 w-8 rounded-lg shadow-lg shadow-red-500/30 hover:shadow-red-500/40 transform hover:scale-110 transition-all duration-300 flex items-center justify-center"
                           >
                             <Trash2 className="w-3 h-3" />
-                          </Button>
+                          </button>
                         </div>
                       </div>
-                    </Card>
+                    </div>
                   ))}
                 </div>
               )}
@@ -529,96 +526,92 @@ export default function QuizPanel({ meetingId, isConnected, onSendQuiz, onEndQui
 
             {/* All Quizzes Modal */}
             {showAllQuizzes && (
-              <Card className="bg-white/10 backdrop-blur-sm border border-white/20 p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-white font-medium">All Quizzes</h4>
-                  <Button
+              <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-[0_15px_35px_rgba(251,146,60,0.15)] border border-orange-200/40">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-gray-800 font-bold text-lg">All Quizzes</h4>
+                  <button
                     onClick={() => setShowAllQuizzes(false)}
-                    variant="outline"
-                    size="sm"
-                    className="border-white/20 text-white"
+                    className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white px-4 py-2 rounded-xl font-semibold text-sm shadow-lg transform hover:scale-105 transition-all duration-300"
                   >
                     Close
-                  </Button>
+                  </button>
                 </div>
                 
-                <div className="space-y-2 max-h-64 overflow-y-auto">
+                <div className="space-y-3 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-orange-300 scrollbar-track-orange-100">
                   {allQuizzes.length > 0 ? (
                     allQuizzes.map((quiz) => (
-                      <Card key={quiz.id} className="bg-white/5 border-white/20 p-3">
-                        <div className="space-y-2">
-                          <p className="text-white text-sm font-medium">{quiz.question}</p>
+                      <div key={quiz.id} className="bg-white/80 backdrop-blur-xl rounded-xl p-4 shadow-[0_8px_25px_rgba(251,146,60,0.1)] border border-orange-200/40">
+                        <div className="space-y-3">
+                          <p className="text-gray-800 text-sm font-semibold">{quiz.question}</p>
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="text-xs">
+                              <div className="bg-orange-100 text-orange-800 px-2 py-1 rounded-lg text-xs font-medium">
                                 {quiz.type}
-                              </Badge>
-                              <Badge className={
-                                quiz.status === 'ACTIVE' ? 'bg-green-500' :
-                                quiz.status === 'COMPLETED' ? 'bg-blue-500' : 'bg-gray-500'
-                              }>
+                              </div>
+                              <div className={`px-2 py-1 rounded-lg text-xs font-medium text-white ${
+                                quiz.status === 'ACTIVE' ? 'bg-gradient-to-r from-green-500 to-green-600' :
+                                quiz.status === 'COMPLETED' ? 'bg-gradient-to-r from-blue-500 to-blue-600' : 'bg-gradient-to-r from-gray-500 to-gray-600'
+                              }`}>
                                 {quiz.status}
-                              </Badge>
+                              </div>
                             </div>
-                            <span className="text-gray-400 text-xs">
+                            <span className="text-gray-600 text-xs font-medium">
                               {new Date(quiz.createdAt).toLocaleDateString()}
                             </span>
                           </div>
                         </div>
-                      </Card>
+                      </div>
                     ))
                   ) : (
-                    <p className="text-gray-400 text-sm text-center py-4">
+                    <p className="text-gray-600 text-sm text-center py-8 font-medium">
                       No quizzes found for this meeting
                     </p>
                   )}
                 </div>
-              </Card>
+              </div>
             )}
 
             {showCreateForm && (
-              <Card className="bg-white/10 backdrop-blur-sm border border-white/20 p-4">
-                <h4 className="text-white font-medium mb-3">Create New Question</h4>
+              <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-[0_15px_35px_rgba(251,146,60,0.15)] border border-orange-200/40">
+                <h4 className="text-gray-800 font-bold mb-4 text-lg">Create New Question</h4>
                 
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div>
-                    <Label className="text-white text-sm">Question</Label>
-                    <Input
+                    <label className="block text-gray-700 font-semibold mb-2 text-sm">Question</label>
+                    <input
                       value={newQuestion.question}
                       onChange={(e) => setNewQuestion(prev => ({ ...prev, question: e.target.value }))}
                       placeholder="Enter your question..."
-                      className="bg-white/5 border-white/20 text-white mt-1"
+                      className="w-full px-4 py-3 bg-white/80 backdrop-blur-xl border border-orange-200/50 rounded-xl shadow-[0_8px_25px_rgba(251,146,60,0.1)] focus:shadow-[0_12px_35px_rgba(251,146,60,0.15)] focus:border-orange-300 focus:outline-none transition-all duration-300 text-gray-800 font-medium"
                     />
                   </div>
 
                   <div>
-                    <Label className="text-white text-sm">Type</Label>
-                    <RadioGroup 
-                      value={newQuestion.type} 
-                      onValueChange={(value: any) => setNewQuestion(prev => ({ ...prev, type: value }))}
-                      className="flex gap-4 mt-1"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="MCQ" id="mcq" />
-                        <Label htmlFor="mcq" className="text-white text-sm">MCQ</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="TRUE_FALSE" id="tf" />
-                        <Label htmlFor="tf" className="text-white text-sm">True/False</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="SHORT_ANSWER" id="sa" />
-                        <Label htmlFor="sa" className="text-white text-sm">Short Answer</Label>
-                      </div>
-                    </RadioGroup>
+                    <label className="block text-gray-700 font-semibold mb-2 text-sm">Type</label>
+                    <div className="flex gap-4 mt-2">
+                      {['MCQ', 'TRUE_FALSE', 'SHORT_ANSWER'].map((type) => (
+                        <label key={type} className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            value={type}
+                            checked={newQuestion.type === type}
+                            onChange={(e) => setNewQuestion(prev => ({ ...prev, type: e.target.value as any }))}
+                            className="w-4 h-4 text-orange-600 border-orange-300 focus:ring-orange-500"
+                          />
+                          <span className="text-gray-700 font-medium text-sm">
+                            {type === 'TRUE_FALSE' ? 'True/False' : type === 'SHORT_ANSWER' ? 'Short Answer' : 'MCQ'}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
 
                   {newQuestion.type === 'MCQ' && (
                     <div>
-                      <Label className="text-white text-sm">Options</Label>
-                      <div className="space-y-2 mt-1">
+                      <label className="block text-gray-700 font-semibold mb-2 text-sm">Options</label>
+                      <div className="space-y-3 mt-2">
                         {newQuestion.options?.map((option, index) => (
-                          <Input
+                          <input
                             key={index}
                             value={option}
                             onChange={(e) => {
@@ -627,7 +620,7 @@ export default function QuizPanel({ meetingId, isConnected, onSendQuiz, onEndQui
                               setNewQuestion(prev => ({ ...prev, options: newOptions }));
                             }}
                             placeholder={`Option ${String.fromCharCode(65 + index)}`}
-                            className="bg-white/5 border-white/20 text-white"
+                            className="w-full px-4 py-3 bg-white/80 backdrop-blur-xl border border-orange-200/50 rounded-xl shadow-[0_8px_25px_rgba(251,146,60,0.1)] focus:shadow-[0_12px_35px_rgba(251,146,60,0.15)] focus:border-orange-300 focus:outline-none transition-all duration-300 text-gray-800 font-medium"
                           />
                         ))}
                       </div>
@@ -635,42 +628,41 @@ export default function QuizPanel({ meetingId, isConnected, onSendQuiz, onEndQui
                   )}
 
                   <div>
-                    <Label className="text-white text-sm">Correct Answer</Label>
-                    <Input
+                    <label className="block text-gray-700 font-semibold mb-2 text-sm">Correct Answer</label>
+                    <input
                       value={newQuestion.correctAnswer}
                       onChange={(e) => setNewQuestion(prev => ({ ...prev, correctAnswer: e.target.value }))}
                       placeholder="Enter correct answer..."
-                      className="bg-white/5 border-white/20 text-white mt-1"
+                      className="w-full px-4 py-3 bg-white/80 backdrop-blur-xl border border-orange-200/50 rounded-xl shadow-[0_8px_25px_rgba(251,146,60,0.1)] focus:shadow-[0_12px_35px_rgba(251,146,60,0.15)] focus:border-orange-300 focus:outline-none transition-all duration-300 text-gray-800 font-medium"
                     />
                   </div>
 
                   <div>
-                    <Label className="text-white text-sm">Time Limit (seconds)</Label>
-                    <Input
+                    <label className="block text-gray-700 font-semibold mb-2 text-sm">Time Limit (seconds)</label>
+                    <input
                       type="number"
                       value={newQuestion.timeLimit}
                       onChange={(e) => setNewQuestion(prev => ({ ...prev, timeLimit: parseInt(e.target.value) || 30 }))}
-                      className="bg-white/5 border-white/20 text-white mt-1"
+                      className="w-full px-4 py-3 bg-white/80 backdrop-blur-xl border border-orange-200/50 rounded-xl shadow-[0_8px_25px_rgba(251,146,60,0.1)] focus:shadow-[0_12px_35px_rgba(251,146,60,0.15)] focus:border-orange-300 focus:outline-none transition-all duration-300 text-gray-800 font-medium"
                     />
                   </div>
 
-                  <div className="flex gap-2 pt-2">
-                    <Button 
+                  <div className="flex gap-3 pt-4">
+                    <button 
                       onClick={addQuestion}
-                      className="flex-1 bg-green-500 hover:bg-green-600 text-white"
+                      className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-3 px-4 rounded-xl shadow-[0_10px_25px_rgba(34,197,94,0.3)] hover:shadow-[0_15px_35px_rgba(34,197,94,0.4)] transform hover:scale-[1.02] transition-all duration-300"
                     >
                       Save Question
-                    </Button>
-                    <Button 
+                    </button>
+                    <button 
                       onClick={() => setShowCreateForm(false)}
-                      variant="outline"
-                      className="flex-1 bg-white/10 hover:bg-white/20 text-white border-white/20"
+                      className="flex-1 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white font-bold py-3 px-4 rounded-xl shadow-[0_10px_25px_rgba(107,114,128,0.3)] hover:shadow-[0_15px_35px_rgba(107,114,128,0.4)] transform hover:scale-[1.02] transition-all duration-300"
                     >
                       Cancel
-                    </Button>
+                    </button>
                   </div>
                 </div>
-              </Card>
+              </div>
             )}
           </>
         )}

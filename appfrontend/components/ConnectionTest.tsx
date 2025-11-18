@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 
 export default function ConnectionTest() {
   const [testResults, setTestResults] = useState<string[]>([]);
@@ -23,7 +21,7 @@ export default function ConnectionTest() {
         credentials: 'include'
       });
       addResult(`Backend API: ${response.ok ? '✅ Connected' : '❌ Failed'}`);
-    } catch (error) {
+    } catch (error: any) {
       addResult(`Backend API: ❌ Error - ${error.message}`);
     }
 
@@ -58,7 +56,7 @@ export default function ConnectionTest() {
           };
         });
         break;
-      } catch (error) {
+      } catch (error: any) {
         addResult(`${url}: ❌ Failed - ${error.message}`);
       }
     }
@@ -88,7 +86,7 @@ export default function ConnectionTest() {
       });
       
       addResult(`Deepfake service: ${response.ok ? '✅ Available' : '❌ Failed'}`);
-    } catch (error) {
+    } catch (error: any) {
       addResult(`Deepfake service: ❌ Error - ${error.message}`);
     }
 
@@ -96,27 +94,31 @@ export default function ConnectionTest() {
   };
 
   return (
-    <Card className="p-6 max-w-2xl mx-auto">
-      <h2 className="text-xl font-bold mb-4">Connection Test</h2>
+    <div className="bg-white/60 backdrop-blur-3xl border border-orange-200/50 rounded-2xl shadow-xl shadow-orange-100/50 p-8 max-w-2xl mx-auto font-['Inter']">
+      <h2 className="text-2xl font-bold mb-6 text-gray-800 drop-shadow-sm">Connection Test</h2>
       
-      <Button 
+      <button 
         onClick={testConnections} 
         disabled={testing}
-        className="mb-4"
+        className={`mb-6 px-6 py-3 rounded-xl font-semibold text-white transition-all duration-300 shadow-lg ${
+          testing 
+            ? 'bg-gray-400 cursor-not-allowed' 
+            : 'bg-gradient-to-r from-orange-500 to-orange-600 hover:scale-105 shadow-orange-200/50'
+        }`}
       >
         {testing ? 'Testing...' : 'Run Connection Tests'}
-      </Button>
+      </button>
 
-      <div className="space-y-2 max-h-96 overflow-y-auto">
+      <div className="space-y-3 max-h-96 overflow-y-auto">
         {testResults.map((result, index) => (
           <div 
             key={index} 
-            className="text-sm font-mono p-2 bg-gray-100 rounded"
+            className="text-sm font-mono p-3 bg-white/40 backdrop-blur-xl border border-orange-200/30 rounded-xl shadow-lg shadow-orange-100/20 text-gray-700"
           >
             {result}
           </div>
         ))}
       </div>
-    </Card>
+    </div>
   );
 }

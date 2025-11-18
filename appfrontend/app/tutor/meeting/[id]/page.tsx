@@ -383,10 +383,10 @@ export default function MeetingDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-black text-white p-6 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p>Loading meeting report...</p>
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white font-['Inter'] p-6 flex items-center justify-center">
+        <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 text-center">
+          <div className="w-12 h-12 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-orange-800 font-medium">Loading meeting report...</p>
         </div>
       </div>
     );
@@ -394,12 +394,15 @@ export default function MeetingDetailPage() {
 
   if (!report) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-black text-white p-6 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Meeting not found</h2>
-          <Button onClick={() => router.push("/tutor/dashboard")}>
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white font-['Inter'] p-6 flex items-center justify-center">
+        <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 text-center">
+          <h2 className="text-xl font-semibold mb-4 text-orange-800">Meeting not found</h2>
+          <button 
+            onClick={() => router.push("/tutor/dashboard")}
+            className="bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold py-3 px-6 rounded-2xl shadow-[0_8px_30px_rgba(251,146,60,0.4)] hover:shadow-[0_12px_40px_rgba(251,146,60,0.5)] hover:scale-105 transition-all duration-300 drop-shadow-lg"
+          >
             Return to Dashboard
-          </Button>
+          </button>
         </div>
       </div>
     );
@@ -421,289 +424,272 @@ export default function MeetingDetailPage() {
   }, {} as Record<string, number>);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-black text-white p-6">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white font-['Inter'] p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              onClick={() => router.push("/tutor/meeting")}
-              className="border-white/20"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold">{report.meeting.title}</h1>
-              <p className="text-slate-300">{report.meeting.description}</p>
+        <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 mb-8 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => router.push("/tutor/meeting")}
+                className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 shadow-[0_8px_30px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:scale-105 transition-all duration-300 hover:shadow-[0_12px_40px_rgba(251,146,60,0.4)] group"
+              >
+                <ArrowLeft className="w-5 h-5 text-orange-600 group-hover:text-orange-700" />
+              </button>
+              <div>
+                <h1 className="text-3xl font-bold text-orange-800 drop-shadow-sm">{report.meeting.title}</h1>
+                <p className="text-orange-600">{report.meeting.description}</p>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Badge
-              className={`${
+            <div className="flex items-center gap-3">
+              <span className={`px-3 py-1 rounded-xl text-white text-sm font-medium shadow-[0_4px_15px_rgba(0,0,0,0.2)] ${
                 report.meeting.status === "LIVE"
-                  ? "bg-green-500"
+                  ? "bg-gradient-to-r from-green-500 to-green-600"
                   : report.meeting.status === "SCHEDULED"
-                  ? "bg-blue-500"
-                  : "bg-gray-500"
-              } text-white`}
-            >
-              {report.meeting.status}
-            </Badge>
-            <Button
-              onClick={refreshData}
-              disabled={refreshing}
-              variant="outline"
-              className="border-white/20"
-            >
-              <RefreshCw
-                className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`}
-              />
-              Refresh
-            </Button>
-            <Button
-              onClick={exportReport}
-              variant="outline"
-              className="border-white/20"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </Button>
-            <Button
-              onClick={async () => {
-                try {
-                  const response = await fetch(`http://localhost:4000/proctoring/test-alert`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                      meetingId,
-                      userId: 'test-user-123',
-                      alertType: 'PHONE_DETECTED',
-                      description: 'Test alert for debugging'
-                    })
-                  });
-                  if (response.ok) {
-                    toast({ title: "Test Alert Created", description: "Check the alerts tab" });
-                    await fetchLiveAlerts();
+                  ? "bg-gradient-to-r from-blue-500 to-blue-600"
+                  : "bg-gradient-to-r from-gray-500 to-gray-600"
+              }`}>
+                {report.meeting.status}
+              </span>
+              <button
+                onClick={refreshData}
+                disabled={refreshing}
+                className="bg-white/80 backdrop-blur-xl rounded-2xl py-2 px-4 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:scale-105 transition-all duration-300 text-orange-700 font-medium flex items-center gap-2 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+                Refresh
+              </button>
+              <button
+                onClick={exportReport}
+                className="bg-white/80 backdrop-blur-xl rounded-2xl py-2 px-4 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:scale-105 transition-all duration-300 text-orange-700 font-medium flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Export
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    const response = await fetch(`http://localhost:4000/proctoring/test-alert`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                      body: JSON.stringify({
+                        meetingId,
+                        userId: 'test-user-123',
+                        alertType: 'PHONE_DETECTED',
+                        description: 'Test alert for debugging'
+                      })
+                    });
+                    if (response.ok) {
+                      toast({ title: "Test Alert Created", description: "Check the alerts tab" });
+                      await fetchLiveAlerts();
+                    }
+                  } catch (error) {
+                    toast({ title: "Error", description: "Failed to create test alert", variant: "destructive" });
                   }
-                } catch (error) {
-                  toast({ title: "Error", description: "Failed to create test alert", variant: "destructive" });
-                }
-              }}
-              variant="outline"
-              className="border-yellow-500 text-yellow-400"
-            >
-              <AlertTriangle className="w-4 h-4 mr-2" />
-              Test Alert
-            </Button>
+                }}
+                className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white font-semibold py-2 px-4 rounded-2xl shadow-[0_8px_30px_rgba(251,191,36,0.4)] hover:shadow-[0_12px_40px_rgba(251,191,36,0.5)] hover:scale-105 transition-all duration-300 flex items-center gap-2"
+              >
+                <AlertTriangle className="w-4 h-4" />
+                Test Alert
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Live Alerts Banner */}
         {report.meeting.status === "LIVE" && liveAlerts.length > 0 && (
-          <Card className="bg-red-500/20 border-red-500/30 mb-6">
-            <div className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <AlertTriangle className="w-5 h-5 text-red-400" />
-                  <div>
-                    <h3 className="font-semibold">Live Alerts</h3>
-                    <p className="text-sm text-red-300">
-                      {liveAlerts.length} new alert(s) in the last 5 minutes
-                    </p>
-                  </div>
+          <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 mb-6 shadow-[0_20px_50px_rgba(239,68,68,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-red-200/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-red-400 to-red-600 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(239,68,68,0.4)]">
+                  <AlertTriangle className="w-5 h-5 text-white" />
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-red-400 text-red-300 hover:bg-red-500/20"
-                  onClick={() => setActiveTab("alerts")}
-                >
-                  View Alerts
-                </Button>
+                <div>
+                  <h3 className="font-semibold text-red-800">Live Alerts</h3>
+                  <p className="text-sm text-red-600">
+                    {liveAlerts.length} new alert(s) in the last 5 minutes
+                  </p>
+                </div>
               </div>
+              <button
+                onClick={() => setActiveTab("alerts")}
+                className="bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold py-2 px-4 rounded-2xl shadow-[0_8px_30px_rgba(239,68,68,0.4)] hover:shadow-[0_12px_40px_rgba(239,68,68,0.5)] hover:scale-105 transition-all duration-300"
+              >
+                View Alerts
+              </button>
             </div>
-          </Card>
+          </div>
         )}
 
         {/* Navigation Tabs */}
-        <Tabs
-          value={activeTab}
-          onValueChange={setActiveTab}
-          className="space-y-6"
-        >
-          <TabsList className="grid w-full grid-cols-5 bg-white/5 p-1 rounded-lg">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger
-              value="participants"
-              className="flex items-center gap-2"
-            >
-              <Users className="w-4 h-4" />
-              Participants ({report.participants.total})
-            </TabsTrigger>
-            <TabsTrigger value="alerts" className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4" />
-              Alerts ({report.summary.totalAlerts})
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4" />
-              Analytics
-            </TabsTrigger>
-            <TabsTrigger value="quizzes" className="flex items-center gap-2">
-              <Brain className="w-4 h-4" />
-              Quizzes
-            </TabsTrigger>
-          </TabsList>
+        <div className="space-y-6">
+          <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-2 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
+            <div className="grid w-full grid-cols-5 gap-2">
+              {[
+                { id: 'overview', icon: BarChart3, label: 'Overview' },
+                { id: 'participants', icon: Users, label: `Participants (${report.participants.total})` },
+                { id: 'alerts', icon: AlertTriangle, label: `Alerts (${report.summary.totalAlerts})` },
+                { id: 'analytics', icon: TrendingUp, label: 'Analytics' },
+                { id: 'quizzes', icon: Brain, label: 'Quizzes' }
+              ].map(({ id, icon: Icon, label }) => (
+                <button
+                  key={id}
+                  onClick={() => setActiveTab(id)}
+                  className={`flex items-center justify-center gap-2 py-3 px-4 rounded-2xl font-medium transition-all duration-300 ${
+                    activeTab === id
+                      ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-[0_8px_30px_rgba(251,146,60,0.4)] scale-105'
+                      : 'text-orange-700 hover:bg-white/50 hover:scale-105'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="text-sm">{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="bg-white/5 border-white/10 p-4 hover:bg-white/10 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                    <Users className="w-5 h-5 text-blue-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-400">Total Participants</p>
-                    <p className="text-xl font-bold">
-                      {report.summary.totalStudents}
-                    </p>
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="bg-white/5 border-white/10 p-4 hover:bg-white/10 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
-                    <User className="w-5 h-5 text-green-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-400">Students Joined</p>
-                    <p className="text-xl font-bold">
-                      {report.summary.studentsJoined}
-                    </p>
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:shadow-[0_25px_60px_rgba(251,146,60,0.4)] hover:scale-105 transition-all duration-300">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(59,130,246,0.4)]">
+                      <Users className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-orange-600 font-medium">Total Participants</p>
+                      <p className="text-2xl font-bold text-orange-800">
+                        {report.summary.totalStudents}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </Card>
 
-              <Card className="bg-white/5 border-white/10 p-4 hover:bg-white/10 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center">
-                    <AlertTriangle className="w-5 h-5 text-red-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-400">Total Alerts</p>
-                    <p className="text-xl font-bold">
-                      {report.summary.totalAlerts}
-                    </p>
+                <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:shadow-[0_25px_60px_rgba(251,146,60,0.4)] hover:scale-105 transition-all duration-300">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(34,197,94,0.4)]">
+                      <User className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-orange-600 font-medium">Students Joined</p>
+                      <p className="text-2xl font-bold text-orange-800">
+                        {report.summary.studentsJoined}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </Card>
 
-              <Card className="bg-white/5 border-white/10 p-4 hover:bg-white/10 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-yellow-500/20 rounded-lg flex items-center justify-center">
-                    <Shield className="w-5 h-5 text-yellow-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-400">High Risk Students</p>
-                    <p className="text-xl font-bold">
-                      {report.summary.highRiskStudents}
-                    </p>
+                <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:shadow-[0_25px_60px_rgba(251,146,60,0.4)] hover:scale-105 transition-all duration-300">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-red-400 to-red-600 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(239,68,68,0.4)]">
+                      <AlertTriangle className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-orange-600 font-medium">Total Alerts</p>
+                      <p className="text-2xl font-bold text-orange-800">
+                        {report.summary.totalAlerts}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </Card>
-            </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Meeting Details */}
-              <Card className="bg-white/5 border-white/10 p-6">
-                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                  <Calendar className="w-5 h-5" />
-                  Meeting Information
-                </h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between py-2 border-b border-white/10">
-                    <span className="text-gray-400">Scheduled Time</span>
-                    <span>{formatTime(report.meeting.scheduledAt)}</span>
-                  </div>
-                  <div className="flex items-center justify-between py-2 border-b border-white/10">
-                    <span className="text-gray-400">Started At</span>
-                    <span>
-                      {report.meeting.startedAt
-                        ? formatTime(report.meeting.startedAt)
-                        : "Not started"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between py-2 border-b border-white/10">
-                    <span className="text-gray-400">Ended At</span>
-                    <span>
-                      {report.meeting.endedAt
-                        ? formatTime(report.meeting.endedAt)
-                        : "Not ended"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between py-2 border-b border-white/10">
-                    <span className="text-gray-400">Teacher</span>
-                    <span>{report.meeting.teacher.fullName}</span>
-                  </div>
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-gray-400">Subject</span>
-                    <span>{report.meeting.subject}</span>
+                <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:shadow-[0_25px_60px_rgba(251,146,60,0.4)] hover:scale-105 transition-all duration-300">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(251,191,36,0.4)]">
+                      <Shield className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-orange-600 font-medium">High Risk Students</p>
+                      <p className="text-2xl font-bold text-orange-800">
+                        {report.summary.highRiskStudents}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </Card>
+              </div>
 
-              {/* Risk Summary */}
-              <Card className="bg-white/5 border-white/10 p-6">
-                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                  <Shield className="w-5 h-5" />
-                  Risk Summary
-                </h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-400">Average Risk Score</span>
-                    <Badge
-                      className={`${getRiskColor(
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Meeting Details */}
+                <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
+                  <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-orange-800">
+                    <Calendar className="w-5 h-5 text-orange-600" />
+                    Meeting Information
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between py-2 border-b border-orange-200/30">
+                      <span className="text-orange-600 font-medium">Scheduled Time</span>
+                      <span className="text-orange-800">{formatTime(report.meeting.scheduledAt)}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-2 border-b border-orange-200/30">
+                      <span className="text-orange-600 font-medium">Started At</span>
+                      <span className="text-orange-800">
+                        {report.meeting.startedAt
+                          ? formatTime(report.meeting.startedAt)
+                          : "Not started"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between py-2 border-b border-orange-200/30">
+                      <span className="text-orange-600 font-medium">Ended At</span>
+                      <span className="text-orange-800">
+                        {report.meeting.endedAt
+                          ? formatTime(report.meeting.endedAt)
+                          : "Not ended"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between py-2 border-b border-orange-200/30">
+                      <span className="text-orange-600 font-medium">Teacher</span>
+                      <span className="text-orange-800">{report.meeting.teacher.fullName}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-orange-600 font-medium">Subject</span>
+                      <span className="text-orange-800">{report.meeting.subject}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Risk Summary */}
+                <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
+                  <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-orange-800">
+                    <Shield className="w-5 h-5 text-orange-600" />
+                    Risk Summary
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-orange-600 font-medium">Average Risk Score</span>
+                      <span className={`px-3 py-1 rounded-xl text-white text-sm font-medium shadow-[0_4px_15px_rgba(0,0,0,0.2)] ${
                         report.proctoring.overallSummary.averageRiskScore > 0.7
-                          ? "HIGH"
-                          : report.proctoring.overallSummary.averageRiskScore >
-                            0.4
-                          ? "MEDIUM"
-                          : "LOW"
-                      )} text-white`}
-                    >
-                      {report.proctoring.overallSummary.averageRiskScore.toFixed(
-                        2
-                      )}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-400">
-                      High Risk Participants
-                    </span>
-                    <span className="text-red-400 font-semibold">
-                      {report.proctoring.overallSummary.highRiskParticipants}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-400">Most Common Alert</span>
-                    <Badge className="bg-white/10 text-white capitalize">
-                      {report.proctoring.overallSummary.mostCommonAlert
-                        .toLowerCase()
-                        .replace(/_/g, " ")}
-                    </Badge>
+                          ? "bg-gradient-to-r from-red-500 to-red-600"
+                          : report.proctoring.overallSummary.averageRiskScore > 0.4
+                          ? "bg-gradient-to-r from-yellow-500 to-yellow-600"
+                          : "bg-gradient-to-r from-green-500 to-green-600"
+                      }`}>
+                        {report.proctoring.overallSummary.averageRiskScore.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-orange-600 font-medium">
+                        High Risk Participants
+                      </span>
+                      <span className="text-red-600 font-semibold">
+                        {report.proctoring.overallSummary.highRiskParticipants}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-orange-600 font-medium">Most Common Alert</span>
+                      <span className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-3 py-1 rounded-xl text-sm font-medium shadow-[0_4px_15px_rgba(251,146,60,0.3)] capitalize">
+                        {report.proctoring.overallSummary.mostCommonAlert
+                          .toLowerCase()
+                          .replace(/_/g, " ")}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </Card>
+              </div>
             </div>
-          </TabsContent>
+          )}
 
           {/* Participants Tab */}
           <TabsContent value="participants">
@@ -1127,7 +1113,7 @@ export default function MeetingDetailPage() {
               )}
             </Card>
           </TabsContent>
-        </Tabs>
+        </div>
       </div>
     </div>
   );

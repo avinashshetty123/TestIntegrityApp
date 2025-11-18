@@ -63,8 +63,11 @@ export default function TestStatsPage() {
 
   if (!test) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-lg text-slate-600">
-        Loading...
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white flex items-center justify-center">
+        <div className="text-center p-8 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl" style={{ boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25)' }}>
+          <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-orange-600 font-semibold" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Loading...</p>
+        </div>
       </div>
     );
   }
@@ -86,73 +89,111 @@ export default function TestStatsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8 space-y-8">
-        <Button variant="outline" onClick={() => router.back()}>
-                Back
-              </Button>
-      <div className="flex justify-between">
-        <h1 className="text-3xl font-bold text-indigo-700">
-          {test.title} – Analytics
-        </h1>
-        <Button
-          variant="outline"
-          onClick={() => router.push(`/tutor/tests/${id}/submission`)}
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white text-gray-800 p-8" style={{ backdropFilter: 'blur(30px)' }}>
+      <div className="max-w-7xl mx-auto space-y-8">
+        <button 
+          onClick={() => router.back()}
+          className="mb-6 px-6 py-3 bg-white/60 backdrop-blur-3xl text-orange-600 font-bold rounded-xl shadow-2xl hover:shadow-white/80 hover:scale-110 transition-all duration-300 border border-orange-200/60"
+          style={{ 
+            fontFamily: 'Inter, system-ui, sans-serif',
+            boxShadow: '0 20px 40px rgba(255, 255, 255, 0.4), 0 5px 15px rgba(251, 146, 60, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
+          }}
         >
-          View Submissions
-        </Button>
-      </div>
+          Back
+        </button>
+        
+        <div className="flex justify-between items-center">
+          <h1 className="text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-orange-600 via-orange-500 to-orange-400 drop-shadow-2xl"
+              style={{ fontFamily: 'Inter, system-ui, sans-serif', textShadow: '0 8px 32px rgba(251, 146, 60, 0.3)' }}>
+            {test.title} – Analytics
+          </h1>
+          <button
+            onClick={() => router.push(`/tutor/tests/${id}/submission`)}
+            className="px-8 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-2xl shadow-2xl hover:shadow-orange-500/70 hover:scale-110 transition-all duration-300 backdrop-blur-3xl border border-white/30"
+            style={{ 
+              fontFamily: 'Inter, system-ui, sans-serif',
+              boxShadow: '0 30px 60px rgba(251, 146, 60, 0.6), 0 10px 30px rgba(251, 146, 60, 0.4), inset 0 2px 0 rgba(255, 255, 255, 0.3)',
+              filter: 'drop-shadow(0 20px 40px rgba(251, 146, 60, 0.3))'
+            }}
+          >
+            View Submissions
+          </button>
+        </div>
       
 
-      {/* Overview Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <p className="text-gray-500 text-sm">Total Students</p>
-            <p className="text-2xl font-bold text-black">{test.totalStudents}</p>
-          </CardContent>
-        </Card>
+        {/* Overview Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="p-6 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl"
+               style={{ 
+                 boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
+                 filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
+               }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500 font-semibold" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Total Students</p>
+                <p className="text-3xl font-black text-orange-600" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>{test.totalStudents}</p>
+              </div>
+              <div className="p-3 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 shadow-2xl" style={{ boxShadow: '0 15px 30px rgba(251, 146, 60, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3)' }}>
+                <div className="w-6 h-6 bg-white rounded opacity-80"></div>
+              </div>
+            </div>
+          </div>
           
 
 
 
-        <Card>
-          <CardContent className="p-6">
-            <p className="text-gray-500 text-sm">Evaluated</p>
-            <p className="text-2xl font-bold text-indigo-600">
-              {test.evaluated}
-            </p>
-          </CardContent>
-        </Card>
+          <div className="p-6 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl"
+               style={{ 
+                 boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
+                 filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
+               }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500 font-semibold" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Evaluated</p>
+                <p className="text-3xl font-black text-orange-600" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>{test.evaluated}</p>
+              </div>
+              <div className="p-3 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 shadow-2xl" style={{ boxShadow: '0 15px 30px rgba(251, 146, 60, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3)' }}>
+                <div className="w-6 h-6 bg-white rounded opacity-80"></div>
+              </div>
+            </div>
+          </div>
 
-        <Card>
-          <CardContent className="p-6">
-            <p className="text-gray-500 text-sm">Questions</p>
-     <p className="text-2xl font-bold">{test.perQuestionStats?.length ?? 0}</p>
+          <div className="p-6 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl"
+               style={{ 
+                 boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
+                 filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
+               }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500 font-semibold" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Questions</p>
+                <p className="text-3xl font-black text-orange-600" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>{test.perQuestionStats?.length ?? 0}</p>
+              </div>
+              <div className="p-3 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 shadow-2xl" style={{ boxShadow: '0 15px 30px rgba(251, 146, 60, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3)' }}>
+                <div className="w-6 h-6 bg-white rounded opacity-80"></div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Charts */}
-      <div className="grid md:grid-cols-2 gap-8">
-
-
-        <Card className="shadow-md border">
-          <CardHeader>
-            <CardTitle>Evaluation Progress</CardTitle>
-          </CardHeader>
-          <CardContent>
+        {/* Charts */}
+        <div className="grid md:grid-cols-2 gap-8">
+          <div className="p-8 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl"
+               style={{ 
+                 boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
+                 filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
+               }}>
+            <h3 className="text-xl font-black text-orange-600 mb-6" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Evaluation Progress</h3>
             <Pie data={evaluationData} />
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </div>
 
-      {/* Questions Overview */}
-      <Card className="shadow-md border mt-6">
-        <CardHeader>
-          <CardTitle>Questions Overview</CardTitle>
-        </CardHeader>
-        <CardContent>
+        {/* Questions Overview */}
+        <div className="p-8 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl"
+             style={{ 
+               boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
+               filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
+             }}>
+          <h3 className="text-xl font-black text-orange-600 mb-6" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Questions Overview</h3>
           <Bar
             data={{
               labels:
@@ -161,13 +202,15 @@ export default function TestStatsPage() {
                 {
                   label: "Marks",
                   data: test.perQuestionStats?.map((q) => q.marks) ?? [],
-                  backgroundColor: "#8b5cf6",
+                  backgroundColor: "rgba(251, 146, 60, 0.8)",
+                  borderColor: "rgba(251, 146, 60, 1)",
+                  borderWidth: 2,
                 },
               ],
             }}
           />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

@@ -21,7 +21,8 @@ import {
   UserCheck,
   Clock4,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  ArrowLeft
 } from 'lucide-react';
 import axios from 'axios';
 import io from 'socket.io-client';
@@ -368,340 +369,278 @@ export default function StudentMeetingDashboard() {
     const meeting = meetings.find(m => m.id === meetingId);
     
     return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-      >
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl"
-        >
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white/90 backdrop-blur-3xl rounded-3xl p-8 max-w-md w-full shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
           <div className="text-center space-y-6">
             <div className="relative">
-              <motion.div
-                animate={{ 
-                  scale: [1, 1.1, 1],
-                  rotate: [0, 5, -5, 0]
-                }}
-                transition={{ 
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-                className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4"
-              >
-                <Clock4 className="w-10 h-10 text-blue-600" />
-              </motion.div>
+              <div className="w-20 h-20 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-[0_8px_30px_rgba(251,146,60,0.4)]">
+                <Clock4 className="w-10 h-10 text-white" />
+              </div>
               
               <div className="absolute -top-2 -right-2">
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                >
-                  <Loader2 className="w-6 h-6 text-blue-600" />
-                </motion.div>
+                <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
               </div>
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-2xl font-bold text-gray-900">
+              <h3 className="text-2xl font-bold text-orange-800">
                 Waiting for Approval
               </h3>
-              <p className="text-gray-600">
+              <p className="text-orange-600">
                 Your request to join{" "}
-                <span className="font-semibold text-blue-600">
+                <span className="font-semibold text-orange-800">
                   {meeting?.title}
                 </span>{" "}
                 has been sent to the tutor.
               </p>
             </div>
 
-            <div className="space-y-3 text-sm text-gray-500">
+            <div className="space-y-3 text-sm text-orange-700">
               <div className="flex items-center justify-center space-x-2">
-                <CheckCircle2 className="w-4 h-4 text-green-500" />
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
                 <span>Request sent successfully</span>
               </div>
               <div className="flex items-center justify-center space-x-2">
-                <Clock4 className="w-4 h-4 text-blue-500" />
+                <Clock4 className="w-4 h-4 text-orange-600" />
                 <span>Waiting for tutor approval</span>
               </div>
               <div className="flex items-center justify-center space-x-2">
-                <AlertCircle className="w-4 h-4 text-amber-500" />
+                <AlertCircle className="w-4 h-4 text-yellow-600" />
                 <span>You'll be notified when approved</span>
               </div>
             </div>
 
             <div className="pt-4 space-y-3">
-              <Button
+              <button
                 onClick={() => setShowWaitingRoom(null)}
-                variant="outline"
-                className="w-full"
+                className="w-full bg-white/80 backdrop-blur-xl rounded-2xl py-3 px-4 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:scale-105 transition-all duration-300 text-orange-700 font-medium"
               >
                 Close
-              </Button>
-              <Button
+              </button>
+              <button
                 onClick={() => checkRequestStatus(meetingId)}
-                variant="ghost"
-                className="w-full"
+                className="w-full text-orange-600 hover:text-orange-700 py-3 px-4 rounded-2xl hover:bg-white/50 transition-all duration-300 font-medium"
               >
                 Check Status
-              </Button>
+              </button>
             </div>
           </div>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
     );
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          >
-            <Loader2 className="w-12 h-12 mx-auto text-blue-600" />
-          </motion.div>
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mt-4 text-gray-600 text-lg"
-          >
-            Loading meetings...
-          </motion.p>
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white font-['Inter'] flex items-center justify-center">
+        <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 text-center">
+          <div className="w-12 h-12 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-orange-800 font-medium text-lg">Loading meetings...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white font-['Inter'] py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-12 text-center"
-        >
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
-            Meeting Dashboard
-          </h1>
-          <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-            Discover and join educational meetings. Request access to locked sessions and get real-time approval notifications.
-          </p>
-        </motion.div>
+        <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 mb-8 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
+          <div className="flex items-center justify-between mb-6">
+            <button 
+              onClick={() => router.back()}
+              className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:shadow-[0_12px_40px_rgba(251,146,60,0.3)] hover:scale-105 transition-all duration-300 flex items-center gap-2 text-orange-700 hover:text-orange-800"
+            >
+              <ArrowLeft className="h-5 w-5" />
+              <span className="font-medium">Back</span>
+            </button>
+          </div>
+          <div className="text-center">
+            <h1 className="text-4xl font-bold text-orange-800 drop-shadow-sm mb-4">
+              Meeting Dashboard
+            </h1>
+            <p className="text-orange-600 text-lg max-w-2xl mx-auto">
+              Discover and join educational meetings. Request access to locked sessions and get real-time approval notifications.
+            </p>
+          </div>
+        </div>
 
         {/* Search Bar */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mb-12 max-w-2xl mx-auto"
-        >
+        <div className="mb-8 max-w-2xl mx-auto">
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <Input
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-orange-500 w-5 h-5" />
+            <input
               type="text"
               placeholder="Search meetings by title, description, subject, or tutor name..."
               value={searchQuery}
               onChange={handleSearch}
-              className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm text-lg bg-white/80 backdrop-blur-sm"
+              className="w-full pl-12 pr-4 py-4 bg-white/80 backdrop-blur-xl rounded-2xl shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all duration-300 text-orange-800 placeholder-orange-400 text-lg"
             />
           </div>
-        </motion.div>
+        </div>
 
         {/* Meetings Grid */}
-        <AnimatePresence mode="wait">
-          {filteredMeetings.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="text-center py-16"
-            >
-              <Users className="w-24 h-24 text-gray-300 mx-auto mb-6" />
-              <h3 className="text-2xl font-medium text-gray-900 mb-3">
-                {searchQuery ? 'No meetings found' : 'No meetings available'}
-              </h3>
-              <p className="text-gray-600 max-w-md mx-auto">
-                {searchQuery 
-                  ? 'Try adjusting your search terms or check back later for new meetings.'
-                  : 'Check back later for scheduled meetings or contact your institution.'
-                }
-              </p>
-            </motion.div>
-          ) : (
-            <motion.div
-              layout
-              className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8"
-            >
-              {filteredMeetings.map((meeting, index) => {
-                const buttonState = getJoinButtonState(meeting);
-                const IconComponent = buttonState.icon;
-                const isPending = pendingRequests[meeting.id];
-                const isApproved = approvedMeetings[meeting.id];
-                
-                return (
-                  <motion.div
-                    key={meeting.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    whileHover={{ y: -4 }}
-                  >
-                    <Card className="overflow-hidden border-2 border-gray-100/80 bg-white/90 backdrop-blur-sm hover:shadow-2xl transition-all duration-300 rounded-3xl h-full flex flex-col">
-                      <CardHeader className="pb-4 relative">
-                        {/* Status Badge */}
-                        <div className="flex justify-between items-start mb-4">
-                          <Badge 
-                            variant={meeting.status === 'LIVE' ? 'destructive' : 'secondary'}
-                            className="shrink-0 text-sm px-3 py-1 rounded-full"
-                          >
-                            {meeting.status === 'LIVE' && (
-                              <motion.span
-                                animate={{ opacity: [1, 0.5, 1] }}
-                                transition={{ duration: 2, repeat: Infinity }}
-                                className="w-2 h-2 bg-white rounded-full mr-2"
-                              />
-                            )}
-                            {meeting.status}
-                          </Badge>
-                          
-                          {/* Request Status Badge */}
-                          {isPending && (
-                            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                              <Clock4 className="w-3 h-3 mr-1" />
-                              Pending
-                            </Badge>
-                          )}
-                          {isApproved && (
-                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                              <CheckCircle2 className="w-3 h-3 mr-1" />
-                              Approved
-                            </Badge>
-                          )}
+        {filteredMeetings.length === 0 ? (
+          <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-16 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 text-center">
+            <Users className="w-24 h-24 text-orange-400 mx-auto mb-6" />
+            <h3 className="text-2xl font-medium text-orange-800 mb-3">
+              {searchQuery ? 'No meetings found' : 'No meetings available'}
+            </h3>
+            <p className="text-orange-600 max-w-md mx-auto">
+              {searchQuery 
+                ? 'Try adjusting your search terms or check back later for new meetings.'
+                : 'Check back later for scheduled meetings or contact your institution.'
+              }
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {filteredMeetings.map((meeting, index) => {
+              const buttonState = getJoinButtonState(meeting);
+              const IconComponent = buttonState.icon;
+              const isPending = pendingRequests[meeting.id];
+              const isApproved = approvedMeetings[meeting.id];
+              
+              return (
+                <div
+                  key={meeting.id}
+                  className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:shadow-[0_25px_60px_rgba(251,146,60,0.4)] hover:scale-105 transition-all duration-300 h-full flex flex-col"
+                >
+                  <div className="pb-4 relative">
+                    {/* Status Badge */}
+                    <div className="flex justify-between items-start mb-4">
+                      <span className={`px-3 py-1 rounded-xl text-white text-sm font-medium shadow-[0_4px_15px_rgba(0,0,0,0.2)] ${
+                        meeting.status === 'LIVE'
+                          ? 'bg-gradient-to-r from-green-500 to-green-600'
+                          : meeting.status === 'SCHEDULED'
+                          ? 'bg-gradient-to-r from-blue-500 to-blue-600'
+                          : 'bg-gradient-to-r from-gray-500 to-gray-600'
+                      }`}>
+                        {meeting.status === 'LIVE' && (
+                          <span className="w-2 h-2 bg-white rounded-full mr-2 inline-block animate-pulse" />
+                        )}
+                        {meeting.status}
+                      </span>
+                      
+                      {/* Request Status Badge */}
+                      {isPending && (
+                        <span className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white px-3 py-1 rounded-xl text-sm font-medium shadow-[0_4px_15px_rgba(251,191,36,0.3)] flex items-center gap-1">
+                          <Clock4 className="w-3 h-3" />
+                          Pending
+                        </span>
+                      )}
+                      {isApproved && (
+                        <span className="bg-gradient-to-r from-green-500 to-green-600 text-white px-3 py-1 rounded-xl text-sm font-medium shadow-[0_4px_15px_rgba(34,197,94,0.3)] flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Approved
+                        </span>
+                      )}
+                    </div>
+                    
+                    <h3 className="text-xl font-bold line-clamp-2 text-orange-800 leading-tight mb-4">
+                      {meeting.title}
+                    </h3>
+                  </div>
+
+                  <div className="flex-1 space-y-4">
+                    {/* Meeting Details */}
+                    <div className="space-y-3">
+                      {meeting.description && (
+                        <p className="text-orange-600 text-sm line-clamp-3 leading-relaxed">
+                          {meeting.description}
+                        </p>
+                      )}
+                      
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center shadow-[0_4px_15px_rgba(251,146,60,0.3)]">
+                            <span className="text-white text-sm font-semibold">
+                              {meeting.teacher?.fullName?.charAt(0) || 'T'}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-medium text-orange-800">
+                              {meeting.teacher?.fullName || 'Unknown Teacher'}
+                            </p>
+                            <p className="text-orange-600 text-xs">
+                              Tutor
+                            </p>
+                          </div>
                         </div>
                         
-                        <CardTitle className="text-xl font-bold line-clamp-2 text-gray-900 leading-tight">
-                          {meeting.title}
-                        </CardTitle>
-                      </CardHeader>
-
-                      <CardContent className="flex-1 space-y-4">
-                        {/* Meeting Details */}
-                        <div className="space-y-3">
-                          {meeting.description && (
-                            <p className="text-gray-600 text-sm line-clamp-3 leading-relaxed">
-                              {meeting.description}
-                            </p>
-                          )}
-                          
-                          <div className="space-y-2 text-sm">
-                            <div className="flex items-center space-x-3">
-                              <Avatar className="w-8 h-8">
-                                <AvatarFallback className="bg-blue-100 text-blue-600 text-sm">
-                                  {meeting.teacher?.fullName?.charAt(0) || 'T'}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <p className="font-medium text-gray-900">
-                                  {meeting.teacher?.fullName || 'Unknown Teacher'}
-                                </p>
-                                <p className="text-gray-500 text-xs">
-                                  Tutor
-                                </p>
-                              </div>
-                            </div>
-                            
-                            {meeting.subject && (
-                              <div className="flex items-center text-gray-600">
-                                <BookOpen className="w-4 h-4 mr-3" />
-                                <span>{meeting.subject}</span>
-                              </div>
-                            )}
-                            
-                            <div className="flex items-center text-gray-600">
-                              <Clock className="w-4 h-4 mr-3" />
-                              <span>{formatDate(meeting.scheduledAt || '')}</span>
-                            </div>
+                        {meeting.subject && (
+                          <div className="flex items-center text-orange-700">
+                            <BookOpen className="w-4 h-4 mr-3 text-orange-500" />
+                            <span>{meeting.subject}</span>
                           </div>
+                        )}
+                        
+                        <div className="flex items-center text-orange-700">
+                          <Clock className="w-4 h-4 mr-3 text-orange-500" />
+                          <span>{formatDate(meeting.scheduledAt || '')}</span>
                         </div>
+                      </div>
+                    </div>
 
-                        {/* Access Information */}
-                        <div className="bg-gray-50 rounded-xl p-4 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-700">Access:</span>
-                            {meeting.isLocked ? (
-                              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                                <Lock className="w-3 h-3 mr-1" />
-                                Locked
-                              </Badge>
-                            ) : meeting.requireApproval ? (
-                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                <UserCheck className="w-3 h-3 mr-1" />
-                                Approval Required
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                <Video className="w-3 h-3 mr-1" />
-                                Open Access
-                              </Badge>
-                            )}
-                          </div>
-                          
-                          {isPending && (
-                            <motion.p
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              className="text-xs text-amber-600 text-center"
-                            >
-                              Waiting for tutor approval...
-                            </motion.p>
-                          )}
-                          
-                          {isApproved && (
-                            <motion.p
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              className="text-xs text-green-600 text-center"
-                            >
-                              Your request has been approved!
-                            </motion.p>
-                          )}
-                        </div>
+                    {/* Access Information */}
+                    <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-orange-800">Access:</span>
+                        {meeting.isLocked ? (
+                          <span className="bg-gradient-to-r from-red-500 to-red-600 text-white px-3 py-1 rounded-xl text-xs font-medium shadow-[0_4px_15px_rgba(239,68,68,0.3)] flex items-center gap-1">
+                            <Lock className="w-3 h-3" />
+                            Locked
+                          </span>
+                        ) : meeting.requireApproval ? (
+                          <span className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-1 rounded-xl text-xs font-medium shadow-[0_4px_15px_rgba(59,130,246,0.3)] flex items-center gap-1">
+                            <UserCheck className="w-3 h-3" />
+                            Approval Required
+                          </span>
+                        ) : (
+                          <span className="bg-gradient-to-r from-green-500 to-green-600 text-white px-3 py-1 rounded-xl text-xs font-medium shadow-[0_4px_15px_rgba(34,197,94,0.3)] flex items-center gap-1">
+                            <Video className="w-3 h-3" />
+                            Open Access
+                          </span>
+                        )}
+                      </div>
+                      
+                      {isPending && (
+                        <p className="text-xs text-yellow-600 text-center font-medium">
+                          Waiting for tutor approval...
+                        </p>
+                      )}
+                      
+                      {isApproved && (
+                        <p className="text-xs text-green-600 text-center font-medium">
+                          Your request has been approved!
+                        </p>
+                      )}
+                    </div>
 
-                        {/* Action Button */}
-                        <motion.div whileTap={{ scale: 0.95 }}>
-                          <Button
-                            onClick={buttonState.onClick}
-                            disabled={buttonState.disabled}
-                            variant={buttonState.variant}
-                            className="w-full py-3 rounded-xl font-semibold transition-all duration-200"
-                            size="lg"
-                          >
-                            <IconComponent className={`w-5 h-5 mr-2 ${
-                              joiningMeeting === meeting.id ? 'animate-spin' : ''
-                            }`} />
-                            {buttonState.text}
-                          </Button>
-                        </motion.div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                );
-              })}
-            </motion.div>
-          )}
-        </AnimatePresence>
+                    {/* Action Button */}
+                    <button
+                      onClick={buttonState.onClick}
+                      disabled={buttonState.disabled}
+                      className={`w-full py-3 rounded-2xl font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-[0_8px_30px_rgba(0,0,0,0.3)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.4)] hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 ${
+                        buttonState.variant === 'default'
+                          ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white'
+                          : 'bg-white/80 backdrop-blur-xl border border-orange-200/50 text-orange-700 hover:bg-white/90'
+                      }`}
+                    >
+                      <IconComponent className={`w-5 h-5 ${
+                        joiningMeeting === meeting.id ? 'animate-spin' : ''
+                      }`} />
+                      {buttonState.text}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Waiting Room Modal */}
-        <AnimatePresence>
-          {showWaitingRoom && <WaitingRoom meetingId={showWaitingRoom} />}
-        </AnimatePresence>
+        {showWaitingRoom && <WaitingRoom meetingId={showWaitingRoom} />}
       </div>
     </div>
   );

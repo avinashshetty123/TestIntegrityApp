@@ -1,23 +1,27 @@
 "use client";
 
-import { useState } from "react";
-import { Calendar, Clock, Users, BookOpen, Eye, ArrowLeft } from "lucide-react";
+import React, { useState } from "react";
+import { Calendar, Users, BookOpen, Eye, ArrowLeft } from "lucide-react";
+import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import { useRouter } from "next/navigation";
 
 interface CreateMeetingFormProps {
   onBack: () => void;
-  
 }
 
-export default function CreateMeetingForm({ onBack }: CreateMeetingFormProps) {
-  const router=useRouter();
+export default function CreateMeetingForm() {
+  const router = useRouter();
   const { toast } = useToast();
+  
+  const onBack = () => router.push('/tutor/meeting');
+
   const [formData, setFormData] = useState({
     title: "",
     subject: "",
@@ -30,14 +34,18 @@ export default function CreateMeetingForm({ onBack }: CreateMeetingFormProps) {
     enableRecording: true,
     enableEyeTracking: true,
     institution: "",
-    joinCode: ""
+    joinCode: "",
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const generateJoinCode = () => {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    setFormData(prev => ({ ...prev, joinCode: code }));
+    setFormData((prev) => ({ ...prev, joinCode: code }));
+  };
+
+  const handleInputChange = (field: string, value: any) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -45,41 +53,38 @@ export default function CreateMeetingForm({ onBack }: CreateMeetingFormProps) {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('http://localhost:4000/meetings/create', {
-        method: 'POST',
+      const response = await fetch("http://localhost:4000/meetings/create", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
-        credentials: 'include',
+        credentials: "include",
         body: JSON.stringify({
           title: formData.title,
           description: formData.description,
           institution: formData.institution,
           subject: formData.subject,
-          scheduledAt: `${formData.scheduledDate}T${formData.scheduledTime}:00Z`
-        })
+          scheduledAt: `${formData.scheduledDate}T${formData.scheduledTime}:00Z`,
+        }),
       });
-      
-      console.log('Response status:', response.status);
+
       const responseData = await response.json();
-      console.log('Response data:', responseData);
-      
+
       if (response.ok) {
         toast({
           title: "Success",
           description: "Meeting created successfully!",
         });
-        router.push('/tutor/meeting')
-  
+        router.push("/tutor/meeting");
       } else {
         toast({
           title: "Error",
-          description: responseData.message || `Failed to create meeting (${response.status})`,
+          description: responseData?.message || `Failed to create meeting (${response.status})`,
           variant: "destructive",
         });
       }
     } catch (error) {
-      console.error('Error creating meeting:', error);
+      console.error("Error creating meeting:", error);
       toast({
         title: "Error",
         description: "Network error. Please check your connection.",
@@ -90,231 +95,265 @@ export default function CreateMeetingForm({ onBack }: CreateMeetingFormProps) {
     }
   };
 
-  const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
+  // Animation easing (framer-motion-friendly cubic-bezier)
+  const easeOut = "easeOut";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-black text-white p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Button onClick={onBack} variant="outline" size="sm">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold">Create New Meeting</h1>
-            <p className="text-slate-300">Set up a proctored examination or interview</p>
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white font-['Inter'] p-6">
+      <div className="max-w-5xl mx-auto">
+        <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 mb-8 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={onBack} 
+              className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 shadow-[0_8px_30px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:scale-105 transition-all duration-300 hover:shadow-[0_12px_40px_rgba(251,146,60,0.4)] group"
+            >
+              <ArrowLeft className="w-5 h-5 text-orange-600 group-hover:text-orange-700" />
+            </button>
+            <div>
+              <h1 className="text-3xl font-bold text-orange-800 drop-shadow-sm">Create New Meeting</h1>
+              <p className="text-orange-600">Set up a proctored examination or interview</p>
+            </div>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="grid md:grid-cols-2 gap-8">
             {/* Basic Information */}
-            <Card className="bg-white/5 border-white/10 p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <BookOpen className="w-5 h-5" />
-                Basic Information
-              </h3>
-              
+            <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-orange-600 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(251,146,60,0.4)]">
+                  <BookOpen className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="text-lg font-semibold text-orange-800">Basic Information</h3>
+              </div>
+
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="title" className="text-white">Meeting Title *</Label>
-                  <Input
+                  <label htmlFor="title" className="text-sm font-semibold text-orange-800 block mb-2">
+                    Meeting Title *
+                  </label>
+                  <input
                     id="title"
                     value={formData.title}
                     onChange={(e) => handleInputChange("title", e.target.value)}
                     placeholder="e.g., Physics Viva Examination"
-                    className="bg-white/10 border-white/20 text-white"
+                    className="w-full bg-white/80 backdrop-blur-xl rounded-2xl px-4 py-3 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all duration-300 text-orange-800 placeholder-orange-400"
                     required
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="subject" className="text-white">Subject *</Label>
-                  <Input
+                  <label htmlFor="subject" className="text-sm font-semibold text-orange-800 block mb-2">
+                    Subject *
+                  </label>
+                  <input
                     id="subject"
                     value={formData.subject}
                     onChange={(e) => handleInputChange("subject", e.target.value)}
                     placeholder="e.g., Physics, Mathematics"
-                    className="bg-white/10 border-white/20 text-white"
+                    className="w-full bg-white/80 backdrop-blur-xl rounded-2xl px-4 py-3 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all duration-300 text-orange-800 placeholder-orange-400"
                     required
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="institution" className="text-white">Institution</Label>
-                  <Input
+                  <label htmlFor="institution" className="text-sm font-semibold text-orange-800 block mb-2">
+                    Institution
+                  </label>
+                  <input
                     id="institution"
                     value={formData.institution}
                     onChange={(e) => handleInputChange("institution", e.target.value)}
                     placeholder="e.g., ABC University"
-                    className="bg-white/10 border-white/20 text-white"
+                    className="w-full bg-white/80 backdrop-blur-xl rounded-2xl px-4 py-3 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all duration-300 text-orange-800 placeholder-orange-400"
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="description" className="text-white">Description</Label>
-                  <Textarea
+                  <label htmlFor="description" className="text-sm font-semibold text-orange-800 block mb-2">
+                    Description
+                  </label>
+                  <textarea
                     id="description"
                     value={formData.description}
                     onChange={(e) => handleInputChange("description", e.target.value)}
                     placeholder="Meeting description and instructions..."
-                    className="bg-white/10 border-white/20 text-white"
-                    rows={3}
+                    className="w-full bg-white/80 backdrop-blur-xl rounded-2xl px-4 py-3 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all duration-300 text-orange-800 placeholder-orange-400 resize-none"
+                    rows={4}
                   />
                 </div>
               </div>
-            </Card>
+            </div>
 
             {/* Schedule & Participants */}
-            <Card className="bg-white/5 border-white/10 p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                Schedule & Participants
-              </h3>
-              
+            <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(59,130,246,0.4)]">
+                  <Calendar className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="text-lg font-semibold text-orange-800">Schedule & Participants</h3>
+              </div>
+
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="scheduledDate" className="text-white">Date *</Label>
-                  <Input
+                  <label htmlFor="scheduledDate" className="text-sm font-semibold text-orange-800 block mb-2">
+                    Date *
+                  </label>
+                  <input
                     id="scheduledDate"
                     type="date"
                     value={formData.scheduledDate}
                     onChange={(e) => handleInputChange("scheduledDate", e.target.value)}
-                    className="bg-white/10 border-white/20 text-white"
+                    className="w-full bg-white/80 backdrop-blur-xl rounded-2xl px-4 py-3 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all duration-300 text-orange-800"
                     required
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="scheduledTime" className="text-white">Time *</Label>
-                  <Input
+                  <label htmlFor="scheduledTime" className="text-sm font-semibold text-orange-800 block mb-2">
+                    Time *
+                  </label>
+                  <input
                     id="scheduledTime"
                     type="time"
                     value={formData.scheduledTime}
                     onChange={(e) => handleInputChange("scheduledTime", e.target.value)}
-                    className="bg-white/10 border-white/20 text-white"
+                    className="w-full bg-white/80 backdrop-blur-xl rounded-2xl px-4 py-3 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all duration-300 text-orange-800"
                     required
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="duration" className="text-white">Duration (minutes) *</Label>
-                  <Input
+                  <label htmlFor="duration" className="text-sm font-semibold text-orange-800 block mb-2">
+                    Duration (minutes) *
+                  </label>
+                  <input
                     id="duration"
                     type="number"
-                    min="15"
-                    max="480"
+                    min={15}
+                    max={480}
                     value={formData.duration}
-                    onChange={(e) => handleInputChange("duration", parseInt(e.target.value))}
-                    className="bg-white/10 border-white/20 text-white"
+                    onChange={(e) => handleInputChange("duration", parseInt(e.target.value || "0"))}
+                    className="w-full bg-white/80 backdrop-blur-xl rounded-2xl px-4 py-3 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all duration-300 text-orange-800"
                     required
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="maxParticipants" className="text-white">Max Participants *</Label>
-                  <Input
+                  <label htmlFor="maxParticipants" className="text-sm font-semibold text-orange-800 block mb-2">
+                    Max Participants *
+                  </label>
+                  <input
                     id="maxParticipants"
                     type="number"
-                    min="1"
-                    max="50"
+                    min={1}
+                    max={50}
                     value={formData.maxParticipants}
-                    onChange={(e) => handleInputChange("maxParticipants", parseInt(e.target.value))}
-                    className="bg-white/10 border-white/20 text-white"
+                    onChange={(e) => handleInputChange("maxParticipants", parseInt(e.target.value || "0"))}
+                    className="w-full bg-white/80 backdrop-blur-xl rounded-2xl px-4 py-3 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all duration-300 text-orange-800"
                     required
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="joinCode" className="text-white">Join Code</Label>
+                  <label htmlFor="joinCode" className="text-sm font-semibold text-orange-800 block mb-2">
+                    Join Code
+                  </label>
                   <div className="flex gap-2">
-                    <Input
+                    <input
                       id="joinCode"
                       value={formData.joinCode}
                       onChange={(e) => handleInputChange("joinCode", e.target.value)}
                       placeholder="Auto-generated"
-                      className="bg-white/10 border-white/20 text-white"
+                      className="flex-1 bg-white/80 backdrop-blur-xl rounded-2xl px-4 py-3 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all duration-300 text-orange-800 placeholder-orange-400"
                     />
-                    <Button type="button" onClick={generateJoinCode} variant="outline">
+                    <button 
+                      type="button" 
+                      onClick={generateJoinCode} 
+                      className="bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold py-3 px-4 rounded-2xl shadow-[0_8px_30px_rgba(251,146,60,0.4)] hover:shadow-[0_12px_40px_rgba(251,146,60,0.5)] hover:scale-105 transition-all duration-300"
+                    >
                       Generate
-                    </Button>
+                    </button>
                   </div>
                 </div>
               </div>
-            </Card>
+            </div>
           </div>
 
           {/* Proctoring Settings */}
-          <Card className="bg-white/5 border-white/10 p-6">
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Eye className="w-5 h-5" />
-              Proctoring Settings
-            </h3>
-            
+          <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(34,197,94,0.4)]">
+                <Eye className="w-5 h-5 text-white" />
+              </div>
+              <h3 className="text-lg font-semibold text-orange-800">Proctoring Settings</h3>
+            </div>
+
             <div className="grid md:grid-cols-3 gap-6">
               <div className="flex items-center space-x-3">
                 <input
-                  type="checkbox"
                   id="enableProctoring"
+                  type="checkbox"
                   checked={formData.enableProctoring}
                   onChange={(e) => handleInputChange("enableProctoring", e.target.checked)}
-                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded"
+                  className="w-4 h-4 text-orange-600 bg-white border-orange-300 rounded focus:ring-orange-500"
                 />
-                <Label htmlFor="enableProctoring" className="text-white">
+                <label htmlFor="enableProctoring" className="text-orange-800 font-medium">
                   Enable AI Proctoring
-                </Label>
+                </label>
               </div>
 
               <div className="flex items-center space-x-3">
                 <input
-                  type="checkbox"
                   id="enableEyeTracking"
+                  type="checkbox"
                   checked={formData.enableEyeTracking}
                   onChange={(e) => handleInputChange("enableEyeTracking", e.target.checked)}
-                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded"
+                  className="w-4 h-4 text-orange-600 bg-white border-orange-300 rounded focus:ring-orange-500"
                 />
-                <Label htmlFor="enableEyeTracking" className="text-white">
+                <label htmlFor="enableEyeTracking" className="text-orange-800 font-medium">
                   Enable Eye Tracking
-                </Label>
+                </label>
               </div>
 
               <div className="flex items-center space-x-3">
                 <input
-                  type="checkbox"
                   id="enableRecording"
+                  type="checkbox"
                   checked={formData.enableRecording}
                   onChange={(e) => handleInputChange("enableRecording", e.target.checked)}
-                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded"
+                  className="w-4 h-4 text-orange-600 bg-white border-orange-300 rounded focus:ring-orange-500"
                 />
-                <Label htmlFor="enableRecording" className="text-white">
+                <label htmlFor="enableRecording" className="text-orange-800 font-medium">
                   Record Session
-                </Label>
+                </label>
               </div>
             </div>
 
-            <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-              <p className="text-sm text-blue-300">
-                <strong>AI Proctoring Features:</strong> Face detection, multiple person detection, 
+            <div className="mt-6 p-4 bg-white/80 backdrop-blur-xl rounded-2xl shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
+              <p className="text-sm text-orange-700">
+                <strong className="text-orange-800">AI Proctoring Features:</strong> Face detection, multiple person detection,
                 eye tracking, suspicious movement detection, and real-time alerts.
               </p>
             </div>
-          </Card>
+          </div>
 
-          {/* Submit Button */}
+          {/* Submit Row */}
           <div className="flex justify-end gap-4">
-            <Button type="button" onClick={onBack} variant="outline">
+            <button 
+              type="button" 
+              onClick={onBack} 
+              className="bg-white/80 backdrop-blur-xl rounded-2xl py-3 px-6 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:scale-105 transition-all duration-300 text-orange-700 font-medium"
+            >
               Cancel
-            </Button>
-            <Button
+            </button>
+            <button
               type="submit"
               disabled={isSubmitting || !formData.title || !formData.subject}
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold py-3 px-8 rounded-2xl shadow-[0_8px_30px_rgba(251,146,60,0.4)] hover:shadow-[0_12px_40px_rgba(251,146,60,0.5)] hover:scale-105 transition-all duration-300 drop-shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               {isSubmitting ? "Creating..." : "Create Meeting"}
-            </Button>
+            </button>
           </div>
         </form>
       </div>

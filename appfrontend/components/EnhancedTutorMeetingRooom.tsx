@@ -13,7 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import QuizPanel from "./QuizPanel";
 
-interface ParticipantData extends RemoteParticipant {
+interface ParticipantData {
+  participant: RemoteParticipant;
   flagCount: number;
   isSpeaking: boolean;
   lastActivity: number;
@@ -21,6 +22,8 @@ interface ParticipantData extends RemoteParticipant {
   alerts: any[];
   displayName: string;
   riskScore: number;
+  identity: string;
+  name?: string;
 }
 
 interface JoinRequest {
@@ -171,7 +174,9 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
     }
 
     // Update participant risk level
-    updateParticipantAfterAlert(alert.participantId, alert);
+    if (alert.participantId) {
+      updateParticipantAfterAlert(alert.participantId, alert);
+    }
   };
 
   const updateParticipantAfterAlert = (participantId: string, alert: ProctoringAlert) => {
@@ -237,15 +242,17 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
         setIsConnecting(false);
         
         // Initialize participants from remote participants
-        const initialParticipants = Array.from(newRoom.remoteParticipants.values()).map(p => ({
-          ...p,
+        const initialParticipants: ParticipantData[] = Array.from(newRoom.remoteParticipants.values()).map(p => ({
+          participant: p,
           flagCount: 0,
           isSpeaking: false,
           lastActivity: Date.now(),
           riskLevel: 'LOW' as const,
           riskScore: 0,
           alerts: [],
-          displayName: p.name || p.identity
+          displayName: p.name || p.identity,
+          identity: p.identity,
+          name: p.name
         }));
         setParticipants(initialParticipants);
         
@@ -284,16 +291,19 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
 
       newRoom.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
         console.log("Participant connected:", participant.identity);
-        setParticipants(prev => [...prev, {
-          ...participant,
+        const newParticipant: ParticipantData = {
+          participant: participant,
           flagCount: 0,
           isSpeaking: false,
           lastActivity: Date.now(),
           riskLevel: 'LOW',
           riskScore: 0,
           alerts: [],
-          displayName: participant.name || participant.identity
-        }]);
+          displayName: participant.name || participant.identity,
+          identity: participant.identity,
+          name: participant.name
+        };
+        setParticipants(prev => [...prev, newParticipant]);
       });
 
       newRoom.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
@@ -330,7 +340,9 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
           console.log('📨 Data received from LiveKit:', data);
           
           if (data.type === 'QUIZ_RESPONSE') {
-            handleQuizResponse(data, participant);
+            if (participant) {
+              handleQuizResponse(data, participant);
+            }
           } else if (data.type === 'PROCTORING_ALERT') {
             // Handle real-time proctoring alerts from LiveKit
             console.log('🚨 Proctoring alert received via LiveKit:', data.data);
@@ -497,7 +509,7 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
           
           await room.localParticipant.publishData(
             data,
-         
+            { reliable: true }
           );
         }
 
@@ -621,23 +633,23 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
     });
   };
 
-  const renderParticipantVideo = (participant: ParticipantData, isMain = false) => (
+  const renderParticipantVideo = (participantData: ParticipantData, isMain = false) => (
     <div 
-      key={participant.identity}
+      key={participantData.identity}
       className={`relative bg-gray-900 rounded-xl overflow-hidden shadow-2xl border cursor-pointer transition-all ${
         isMain ? 'col-span-2 row-span-2' : ''
       } ${
-        participant.riskLevel === 'CRITICAL' ? 'ring-4 ring-red-500 border-red-400' :
-        participant.riskLevel === 'HIGH' ? 'ring-3 ring-orange-500 border-orange-400' :
-        participant.riskLevel === 'MEDIUM' ? 'ring-2 ring-yellow-500 border-yellow-400' :
-        participant.flagCount > 0 ? 'ring-1 ring-red-500 border-red-400' : 
+        participantData.riskLevel === 'CRITICAL' ? 'ring-4 ring-red-500 border-red-400' :
+        participantData.riskLevel === 'HIGH' ? 'ring-3 ring-orange-500 border-orange-400' :
+        participantData.riskLevel === 'MEDIUM' ? 'ring-2 ring-yellow-500 border-yellow-400' :
+        participantData.flagCount > 0 ? 'ring-1 ring-red-500 border-red-400' : 
         'border-white/20 hover:border-blue-400'
       }`}
-      onClick={() => isTutor && setFocusedParticipant(participant.identity)}
+      onClick={() => isTutor && setFocusedParticipant(participantData.identity)}
     >
       <video
         ref={(el) => {
-          if (el) remoteVideoRefs.current[participant.identity] = el;
+          if (el) remoteVideoRefs.current[participantData.identity] = el;
         }}
         className="w-full h-full object-cover"
         autoPlay
@@ -646,22 +658,22 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
       
       <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full flex items-center gap-2">
         <img 
-          src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${participant.displayName}`}
+          src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${participantData.displayName}`}
           alt="Profile"
           className="w-5 h-5 rounded-full"
         />
-        <span className="text-sm font-medium">{participant.displayName}</span>
-        {participant.isSpeaking && <Volume2 className="w-4 h-4 text-green-400" />}
+        <span className="text-sm font-medium">{participantData.displayName}</span>
+        {participantData.isSpeaking && <Volume2 className="w-4 h-4 text-green-400" />}
       </div>
 
-      {participant.flagCount > 0 && (
+      {participantData.flagCount > 0 && (
         <div className="absolute top-3 right-3 flex flex-col gap-1 items-end">
           <div className="bg-red-500 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1">
             <Flag className="w-3 h-3" />
-            {participant.flagCount}
+            {participantData.flagCount}
           </div>
-          <Badge className={`${getRiskColor(participant.riskLevel)} text-white text-xs`}>
-            {participant.riskLevel}
+          <Badge className={`${getRiskColor(participantData.riskLevel)} text-white text-xs`}>
+            {participantData.riskLevel}
           </Badge>
         </div>
       )}
@@ -672,7 +684,7 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              flagParticipant(participant.identity);
+              flagParticipant(participantData.identity);
             }}
             className="bg-red-500 hover:bg-red-600 text-white border-none rounded-full w-8 h-8 p-0"
           >
@@ -682,7 +694,7 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              kickParticipant(participant.identity);
+              kickParticipant(participantData.identity);
             }}
             className="bg-orange-500 hover:bg-orange-600 text-white border-none rounded-full w-8 h-8 p-0"
           >
@@ -708,24 +720,27 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
 
   if (!isConnected) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-black text-white flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white flex items-center justify-center font-['Inter']">
         <div className="text-center max-w-md">
-          <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Video className="w-8 h-8 text-white" />
+          <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-xl shadow-orange-200/50">
+            <Video className="w-8 h-8 text-white drop-shadow-sm" />
           </div>
           {connectionError ? (
             <>
-              <h1 className="text-xl font-bold mb-4 text-red-400">Connection Failed</h1>
-              <p className="text-gray-300 mb-4">{connectionError}</p>
-              <Button onClick={() => connectToRoom()} className="bg-blue-500 hover:bg-blue-600 text-white">
+              <h1 className="text-xl font-bold mb-4 text-red-600">Connection Failed</h1>
+              <p className="text-gray-600 mb-4 font-medium">{connectionError}</p>
+              <button 
+                onClick={() => connectToRoom()}
+                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-semibold hover:scale-105 transition-all duration-300 shadow-xl shadow-orange-200/50"
+              >
                 Retry Connection
-              </Button>
+              </button>
             </>
           ) : (
             <>
-              <h1 className="text-xl font-bold mb-4">Connecting to Meeting...</h1>
-              <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-300">Establishing connection to LiveKit server...</p>
+              <h1 className="text-xl font-bold mb-4 text-gray-800">Connecting to Meeting...</h1>
+              <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-600 font-medium">Establishing connection to LiveKit server...</p>
             </>
           )}
         </div>
@@ -739,13 +754,13 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
     : sortedParticipants[0];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-black text-white flex">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white flex font-['Inter']">
       {/* Main Video Area */}
       <div className="flex-1 flex flex-col">
         {/* Header Bar */}
-        <div className="p-4 bg-black/50 backdrop-blur-sm border-b border-white/10 flex justify-between items-center">
+        <div className="p-4 bg-white/60 backdrop-blur-3xl border-b border-orange-200/50 shadow-lg shadow-orange-100/50 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <h2 className="text-xl font-semibold">Meeting Room</h2>
+            <h2 className="text-xl font-bold text-gray-800 drop-shadow-sm">Meeting Room</h2>
             <Badge variant={isMeetingLocked ? "destructive" : "secondary"}>
               {isMeetingLocked ? "Locked" : "Unlocked"}
             </Badge>
@@ -806,20 +821,20 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
             {isTutor && mainParticipant ? (
               <>
                 {renderParticipantVideo(mainParticipant, true)}
-                {sortedParticipants.slice(1, 7).map(participant => 
-                  renderParticipantVideo(participant)
+                {sortedParticipants.slice(1, 7).map(participantData => 
+                  renderParticipantVideo(participantData)
                 )}
               </>
             ) : (
-              sortedParticipants.slice(0, 8).map(participant => 
-                renderParticipantVideo(participant)
+              sortedParticipants.slice(0, 8).map(participantData => 
+                renderParticipantVideo(participantData)
               )
             )}
           </div>
         </div>
 
         {/* Controls */}
-        <div className="p-6 bg-black/50 backdrop-blur-sm border-t border-white/10 flex justify-center items-center gap-4">
+        <div className="p-6 bg-white/60 backdrop-blur-3xl border-t border-orange-200/50 shadow-lg shadow-orange-100/50 flex justify-center items-center gap-4">
           <Button
             onClick={toggleAudio}
             variant={isAudioEnabled ? "outline" : "destructive"}
@@ -918,7 +933,7 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
             }}
             variant="destructive"
             size="lg"
-            className="rounded-full w-14 h-14 p-0 bg-red-500 hover:bg-red-600 text-white transition-all"
+            className="rounded-full w-14 h-14 p-0 bg-gradient-to-r from-red-500 to-red-600 text-white hover:scale-105 transition-all shadow-xl shadow-red-200/50"
           >
             <PhoneOff className="w-6 h-6" />
           </Button>
@@ -939,29 +954,29 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
               </div>
               
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {sortedParticipants.map((participant) => (
+                {sortedParticipants.map((participantData) => (
                   <Card 
-                    key={participant.identity}
+                    key={participantData.identity}
                     className={`p-3 bg-white/10 backdrop-blur-sm border cursor-pointer hover:bg-white/20 transition-colors ${
-                      participant.riskLevel === 'CRITICAL' ? 'border-red-400 bg-red-500/20' :
-                      participant.riskLevel === 'HIGH' ? 'border-orange-400 bg-orange-500/20' :
-                      participant.riskLevel === 'MEDIUM' ? 'border-yellow-400 bg-yellow-500/20' :
+                      participantData.riskLevel === 'CRITICAL' ? 'border-red-400 bg-red-500/20' :
+                      participantData.riskLevel === 'HIGH' ? 'border-orange-400 bg-orange-500/20' :
+                      participantData.riskLevel === 'MEDIUM' ? 'border-yellow-400 bg-yellow-500/20' :
                       'border-white/20'
                     }`}
-                    onClick={() => setFocusedParticipant(participant.identity)}
+                    onClick={() => setFocusedParticipant(participantData.identity)}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <img 
-                          src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${participant.displayName}`}
+                          src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${participantData.displayName}`}
                           alt="Profile"
                           className="w-8 h-8 rounded-full"
                         />
                         <div>
                           <p className="text-sm font-medium text-white">
-                            {participant.displayName}
+                            {participantData.displayName}
                           </p>
-                          {participant.isSpeaking && (
+                          {participantData.isSpeaking && (
                             <p className="text-xs text-green-400 flex items-center gap-1">
                               <Volume2 className="w-3 h-3" />
                               Speaking
@@ -971,14 +986,14 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
                       </div>
                       
                       <div className="flex items-center gap-2">
-                        {participant.flagCount > 0 && (
+                        {participantData.flagCount > 0 && (
                           <div className="flex flex-col items-end gap-1">
                             <div className="bg-red-500 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1">
                               <Flag className="w-3 h-3" />
-                              {participant.flagCount}
+                              {participantData.flagCount}
                             </div>
-                            <Badge className={`${getRiskColor(participant.riskLevel)} text-white text-xs`}>
-                              {participant.riskLevel}
+                            <Badge className={`${getRiskColor(participantData.riskLevel)} text-white text-xs`}>
+                              {participantData.riskLevel}
                             </Badge>
                           </div>
                         )}
@@ -987,7 +1002,7 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
-                              flagParticipant(participant.identity);
+                              flagParticipant(participantData.identity);
                             }}
                             className="bg-red-500 hover:bg-red-600 text-white border-none rounded-full w-8 h-8 p-0"
                           >
@@ -997,7 +1012,7 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
-                              kickParticipant(participant.identity);
+                              kickParticipant(participantData.identity);
                             }}
                             className="bg-orange-500 hover:bg-orange-600 text-white border-none rounded-full w-8 h-8 p-0"
                           >

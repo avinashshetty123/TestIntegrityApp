@@ -3,15 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger,
-  DropdownMenuSeparator 
-} from '@/components/ui/dropdown-menu';
 import { 
   Video, 
   Users, 
@@ -80,14 +71,14 @@ export default function Navigation() {
   }
 
   return (
-    <nav className="bg-white border-b border-gray-200 px-6 py-4">
+    <nav className="bg-white/60 backdrop-blur-3xl border-b border-orange-200/50 shadow-lg shadow-orange-100/50 px-6 py-4 font-['Inter']">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         {/* Logo */}
         <div className="flex items-center gap-8">
           <Link href={user.role === 'tutor' ? '/tutor/dashboard' : '/student/dashboard'}>
             <div className="flex items-center gap-2">
-              <Shield className="w-8 h-8 text-blue-600" />
-              <span className="text-xl font-bold text-gray-900">TestIntegrity</span>
+              <Shield className="w-8 h-8 text-orange-600 drop-shadow-sm" />
+              <span className="text-xl font-bold bg-gradient-to-r from-orange-600 to-orange-700 bg-clip-text text-transparent drop-shadow-sm">TestIntegrity</span>
             </div>
           </Link>
 
@@ -101,10 +92,10 @@ export default function Navigation() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 shadow-lg ${
                     isActive
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-orange-200/50 hover:scale-105'
+                      : 'bg-white/40 backdrop-blur-xl border border-orange-200/30 text-gray-700 hover:bg-white/60 hover:scale-105 shadow-orange-100/20'
                   }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -118,56 +109,58 @@ export default function Navigation() {
         {/* Right Side */}
         <div className="flex items-center gap-4">
           {/* Role Badge */}
-          <Badge variant={user.role === 'tutor' ? 'default' : 'secondary'}>
+          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+            user.role === 'tutor' 
+              ? 'bg-orange-100 text-orange-700 border border-orange-200' 
+              : 'bg-blue-100 text-blue-700 border border-blue-200'
+          }`}>
             {user.role === 'tutor' ? 'Tutor' : 'Student'}
-          </Badge>
+          </span>
 
           {/* Notifications */}
           {notifications > 0 && (
-            <Button variant="outline" size="sm" className="relative">
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+            <button className="relative px-4 py-2 bg-white/60 backdrop-blur-xl border border-orange-200/50 text-orange-600 rounded-xl font-medium hover:bg-white/80 hover:scale-105 transition-all duration-300 shadow-lg shadow-orange-100/30">
+              <span className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center shadow-lg shadow-red-200/50">
                 {notifications}
               </span>
               Alerts
-            </Button>
+            </button>
           )}
 
           {/* User Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                  <User className="w-4 h-4" />
-                </div>
-                <span className="hidden md:block">{user.name}</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <div className="px-2 py-1.5">
-                <p className="text-sm font-medium">{user.name}</p>
-                <p className="text-xs text-gray-500">{user.email}</p>
+          <div className="relative group">
+            <button className="flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-xl border border-orange-200/50 text-gray-700 rounded-xl font-medium hover:bg-white/80 hover:scale-105 transition-all duration-300 shadow-lg shadow-orange-100/30">
+              <div className="w-8 h-8 bg-gradient-to-r from-orange-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg shadow-orange-200/50">
+                <User className="w-4 h-4 text-white" />
               </div>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <User className="w-4 h-4 mr-2" />
-                Profile
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Settings className="w-4 h-4 mr-2" />
-                Settings
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="text-red-600">
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              <span className="hidden md:block">{user.name}</span>
+            </button>
+            <div className="absolute right-0 top-full mt-2 w-56 bg-white/60 backdrop-blur-3xl border border-orange-200/50 rounded-2xl shadow-xl shadow-orange-100/50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300">
+              <div className="px-4 py-3 border-b border-orange-200/30">
+                <p className="text-sm font-medium text-gray-800">{user.name}</p>
+                <p className="text-xs text-gray-600">{user.email}</p>
+              </div>
+              <div className="p-2">
+                <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-white/60 rounded-xl transition-all duration-300">
+                  <User className="w-4 h-4" />
+                  Profile
+                </button>
+                <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-white/60 rounded-xl transition-all duration-300">
+                  <Settings className="w-4 h-4" />
+                  Settings
+                </button>
+                <button onClick={handleLogout} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300">
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Mobile Navigation */}
-      <div className="md:hidden mt-4 border-t pt-4">
+      <div className="md:hidden mt-4 border-t border-orange-200/30 pt-4">
         <div className="flex flex-wrap gap-2">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -177,10 +170,10 @@ export default function Navigation() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300 shadow-lg ${
                   isActive
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-orange-200/50 hover:scale-105'
+                    : 'bg-white/40 backdrop-blur-xl border border-orange-200/30 text-gray-700 hover:bg-white/60 hover:scale-105 shadow-orange-100/20'
                 }`}
               >
                 <Icon className="w-4 h-4" />

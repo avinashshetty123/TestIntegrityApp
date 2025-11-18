@@ -56,10 +56,10 @@ export default function TutorMeetingJoinPage() {
 
   if (isConnecting) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-black text-white p-6 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p>Connecting to meeting...</p>
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white font-['Inter'] p-6 flex items-center justify-center">
+        <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 text-center">
+          <div className="w-12 h-12 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-orange-800 font-medium">Connecting to meeting...</p>
         </div>
       </div>
     );
@@ -67,19 +67,22 @@ export default function TutorMeetingJoinPage() {
 
   if (!token || !serverUrl) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-black text-white p-6 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-4">Connection Error</h2>
-          <Button onClick={() => router.push('/tutor/meeting')}>
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white font-['Inter'] p-6 flex items-center justify-center">
+        <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 text-center">
+          <h2 className="text-xl font-semibold mb-4 text-orange-800">Connection Error</h2>
+          <button 
+            onClick={() => router.push('/tutor/meeting')}
+            className="bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold py-3 px-6 rounded-2xl shadow-[0_8px_30px_rgba(251,146,60,0.4)] hover:shadow-[0_12px_40px_rgba(251,146,60,0.5)] hover:scale-105 transition-all duration-300 drop-shadow-lg"
+          >
             Return to Dashboard
-          </Button>
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen bg-black">
+    <div className="h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white font-['Inter']">
       <EnhancedTutorMeetingRoom
         token={token}
         serverUrl={serverUrl}

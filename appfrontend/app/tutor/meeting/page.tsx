@@ -283,180 +283,185 @@ export default function TutorMeetingDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-black text-white p-6 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p>Loading meetings...</p>
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white font-['Inter'] p-6 flex items-center justify-center">
+        <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 shadow-[0_20px_50px_rgba(251,146,60,0.3)] border border-orange-200/50">
+          <div className="w-12 h-12 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-orange-800">Loading meetings...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-black text-white p-6">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white font-['Inter'] p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Meeting Management</h1>
-            <p className="text-slate-300">Create and manage proctored examinations</p>
-          </div>
-          <div className="flex gap-3">
-            {joinRequests.length > 0 && (
-              <div className="relative">
-                <Button className="bg-yellow-600 hover:bg-yellow-700">
-                  <Bell className="w-4 h-4 mr-2" />
+        <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 mb-8 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold mb-2 text-orange-800 drop-shadow-sm">Meeting Management</h1>
+              <p className="text-orange-600">Create and manage proctored examinations</p>
+            </div>
+            <div className="flex gap-3">
+              {joinRequests.length > 0 && (
+                <button className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white font-semibold py-3 px-6 rounded-2xl shadow-[0_8px_30px_rgba(251,146,60,0.4)] hover:shadow-[0_12px_40px_rgba(251,146,60,0.5)] hover:scale-105 transition-all duration-300 flex items-center gap-2 drop-shadow-lg">
+                  <Bell className="w-4 h-4" />
                   Join Requests ({joinRequests.length})
-                </Button>
-              </div>
-            )}
-            <Button onClick={() => router.push('/tutor/meeting/create-meeting')} className="bg-green-600 hover:bg-green-700">
-              <Plus className="w-4 h-4 mr-2" />
-              Create Meeting
-            </Button>
+                </button>
+              )}
+              <button 
+                onClick={() => router.push('/tutor/meeting/create-meeting')} 
+                className="bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold py-3 px-6 rounded-2xl shadow-[0_8px_30px_rgba(251,146,60,0.4)] hover:shadow-[0_12px_40px_rgba(251,146,60,0.5)] hover:scale-105 transition-all duration-300 flex items-center gap-2 drop-shadow-lg"
+              >
+                <Plus className="w-4 h-4" />
+                Create Meeting
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Join Requests Notifications */}
         {joinRequests.length > 0 && (
-          <Card className="bg-yellow-500/10 border-yellow-500/20 p-4 mb-6">
-            <h3 className="font-semibold mb-3 text-yellow-300">Pending Join Requests</h3>
-            <div className="space-y-2">
+          <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 mb-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
+            <h3 className="font-semibold mb-4 text-orange-800 text-lg">Pending Join Requests</h3>
+            <div className="space-y-3">
               {joinRequests.map((request) => {
                 const meeting = meetings.find(m => m.id === request.meetingId);
                 return (
-                  <div key={request.id} className="flex items-center justify-between bg-white/5 p-3 rounded-lg">
-                    <div>
-                      <span className="font-medium">{request.studentName}</span>
-                      <span className="text-sm text-gray-400 ml-2">
-                        wants to join "{meeting?.title}"
-                      </span>
-                      <div className="text-xs text-gray-500 mt-1">
-                        Requested: {formatTime(request.requestedAt)}
+                  <div key={request.id} className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="font-semibold text-orange-800">{request.studentName}</span>
+                        <span className="text-sm text-orange-600 ml-2">
+                          wants to join "{meeting?.title}"
+                        </span>
+                        <div className="text-xs text-orange-500 mt-1">
+                          Requested: {formatTime(request.requestedAt)}
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => respondToJoinRequest(request.id, 'APPROVED')}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Accept
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => respondToJoinRequest(request.id, 'REJECTED')}
-                        className="bg-red-600 hover:bg-red-700"
-                      >
-                        <XCircle className="w-3 h-3 mr-1" />
-                        Reject
-                      </Button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => respondToJoinRequest(request.id, 'APPROVED')}
+                          className="bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold py-2 px-4 rounded-xl shadow-[0_8px_30px_rgba(34,197,94,0.4)] hover:shadow-[0_12px_40px_rgba(34,197,94,0.5)] hover:scale-105 transition-all duration-300 flex items-center gap-1 text-sm"
+                        >
+                          <CheckCircle className="w-3 h-3" />
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => respondToJoinRequest(request.id, 'REJECTED')}
+                          className="bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold py-2 px-4 rounded-xl shadow-[0_8px_30px_rgba(239,68,68,0.4)] hover:shadow-[0_12px_40px_rgba(239,68,68,0.5)] hover:scale-105 transition-all duration-300 flex items-center gap-1 text-sm"
+                        >
+                          <XCircle className="w-3 h-3" />
+                          Reject
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
               })}
             </div>
-          </Card>
+          </div>
         )}
 
         {/* Search */}
         <div className="mb-6">
-          <Input
+          <input
             placeholder="Search meetings by title, subject, or join code..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+            className="w-full bg-white/80 backdrop-blur-xl rounded-2xl px-6 py-4 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all duration-300 text-orange-800 placeholder-orange-400"
           />
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card className="bg-white/5 border-white/10 p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                <Video className="w-5 h-5 text-blue-400" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(59,130,246,0.4)]">
+                <Video className="w-6 h-6 text-white" />
               </div>
               <div>
-                <p className="text-sm text-gray-400">Total Meetings</p>
-                <p className="text-xl font-bold">{meetings.length}</p>
+                <p className="text-sm text-orange-600 font-medium">Total Meetings</p>
+                <p className="text-2xl font-bold text-orange-800">{meetings.length}</p>
               </div>
             </div>
-          </Card>
+          </div>
           
-          <Card className="bg-white/5 border-white/10 p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
-                <Users className="w-5 h-5 text-green-400" />
+          <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(34,197,94,0.4)]">
+                <Users className="w-6 h-6 text-white" />
               </div>
               <div>
-                <p className="text-sm text-gray-400">Live Now</p>
-                <p className="text-xl font-bold">{meetings.filter(m => m.status === "LIVE").length}</p>
+                <p className="text-sm text-orange-600 font-medium">Live Now</p>
+                <p className="text-2xl font-bold text-orange-800">{meetings.filter(m => m.status === "LIVE").length}</p>
               </div>
             </div>
-          </Card>
+          </div>
           
-          <Card className="bg-white/5 border-white/10 p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                <Clock className="w-5 h-5 text-purple-400" />
+          <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-purple-600 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(147,51,234,0.4)]">
+                <Clock className="w-6 h-6 text-white" />
               </div>
               <div>
-                <p className="text-sm text-gray-400">Scheduled</p>
-                <p className="text-xl font-bold">{meetings.filter(m => m.status === "SCHEDULED").length}</p>
+                <p className="text-sm text-orange-600 font-medium">Scheduled</p>
+                <p className="text-2xl font-bold text-orange-800">{meetings.filter(m => m.status === "SCHEDULED").length}</p>
               </div>
             </div>
-          </Card>
+          </div>
           
-          <Card className="bg-white/5 border-white/10 p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-yellow-500/20 rounded-lg flex items-center justify-center">
-                <Eye className="w-5 h-5 text-yellow-400" />
+          <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(251,191,36,0.4)]">
+                <Eye className="w-6 h-6 text-white" />
               </div>
               <div>
-                <p className="text-sm text-gray-400">Pending Requests</p>
-                <p className="text-xl font-bold">{joinRequests.length}</p>
+                <p className="text-sm text-orange-600 font-medium">Pending Requests</p>
+                <p className="text-2xl font-bold text-orange-800">{joinRequests.length}</p>
               </div>
             </div>
-          </Card>
+          </div>
         </div>
 
         {/* Meetings Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredMeetings.map((meeting) => (
-            <Card key={meeting.id} className="bg-white/5 border-white/10 p-6 hover:bg-white/10 transition-colors">
+            <div key={meeting.id} className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:shadow-[0_25px_60px_rgba(251,146,60,0.4)] hover:scale-105 transition-all duration-300">
               <div className="space-y-4">
                 {/* Header */}
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <h3 className="font-semibold text-lg text-white mb-1 line-clamp-2">{meeting.title}</h3>
-                    <div className="flex flex-wrap gap-1 mb-2">
-                      <Badge variant="secondary" className="bg-purple-500/20 text-purple-300">
+                    <h3 className="font-semibold text-lg text-orange-800 mb-2 line-clamp-2">{meeting.title}</h3>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      <span className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-3 py-1 rounded-xl text-xs font-medium shadow-[0_4px_15px_rgba(147,51,234,0.3)]">
                         {meeting.subject}
-                      </Badge>
+                      </span>
                       {meeting.requireApproval && (
-                        <Badge variant="secondary" className="bg-orange-500/20 text-orange-300">
+                        <span className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-3 py-1 rounded-xl text-xs font-medium shadow-[0_4px_15px_rgba(251,146,60,0.3)]">
                           Approval Required
-                        </Badge>
+                        </span>
                       )}
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2">
-                    <Badge className={`${getStatusColor(meeting.status)} text-white`}>
+                    <span className={`px-3 py-1 rounded-xl text-white text-xs font-medium shadow-[0_4px_15px_rgba(0,0,0,0.2)] ${
+                      meeting.status === "LIVE" ? "bg-gradient-to-r from-green-500 to-green-600" :
+                      meeting.status === "SCHEDULED" ? "bg-gradient-to-r from-blue-500 to-blue-600" :
+                      "bg-gradient-to-r from-gray-500 to-gray-600"
+                    }`}>
                       {getStatusText(meeting.status)}
-                    </Badge>
+                    </span>
                     {meeting.status === "LIVE" && (
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1">
-                          {meeting.isLocked ? (
-                            <Lock className="w-3 h-3 text-red-400" />
-                          ) : (
-                            <Unlock className="w-3 h-3 text-green-400" />
-                          )}
-                          <span className="text-xs text-gray-400">
-                            {meeting.isLocked ? 'Locked' : 'Unlocked'}
-                          </span>
-                        </div>
+                      <div className="flex items-center gap-1">
+                        {meeting.isLocked ? (
+                          <Lock className="w-3 h-3 text-red-500" />
+                        ) : (
+                          <Unlock className="w-3 h-3 text-green-500" />
+                        )}
+                        <span className="text-xs text-orange-600 font-medium">
+                          {meeting.isLocked ? 'Locked' : 'Unlocked'}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -464,13 +469,13 @@ export default function TutorMeetingDashboard() {
 
                 {/* Description */}
                 {meeting.description && (
-                  <p className="text-sm text-gray-300 line-clamp-2">{meeting.description}</p>
+                  <p className="text-sm text-orange-600 line-clamp-2">{meeting.description}</p>
                 )}
 
                 {/* Details */}
-                <div className="space-y-2 text-sm text-gray-300">
+                <div className="space-y-2 text-sm text-orange-700">
                   <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
+                    <Clock className="w-4 h-4 text-orange-500" />
                     <span>
                       {meeting.status === "SCHEDULED" 
                         ? `Scheduled: ${formatTime(meeting.scheduledAt)}`
@@ -481,58 +486,57 @@ export default function TutorMeetingDashboard() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4" />
+                    <Users className="w-4 h-4 text-orange-500" />
                     <span>{meeting.participants} participants</span>
                   </div>
                 </div>
 
                 {/* Join Code */}
-                <div className="bg-white/5 p-3 rounded-lg">
-                  <p className="text-xs text-gray-400 mb-1">Join Code</p>
+                <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
+                  <p className="text-xs text-orange-600 font-medium mb-2">Join Code</p>
                   <div className="flex items-center justify-between">
-                    <code className="text-sm font-mono text-white">{meeting.joinCode}</code>
-                    <Button
-                      size="sm"
-                      variant="outline"
+                    <code className="text-sm font-mono text-orange-800 font-semibold">{meeting.joinCode}</code>
+                    <button
                       onClick={() => copyJoinCode(meeting.joinCode)}
-                      className="text-xs"
+                      className="bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold py-1 px-3 rounded-xl shadow-[0_4px_15px_rgba(251,146,60,0.3)] hover:shadow-[0_6px_20px_rgba(251,146,60,0.4)] hover:scale-105 transition-all duration-300 text-xs"
                     >
                       Copy
-                    </Button>
+                    </button>
                   </div>
                 </div>
 
                 {/* Actions */}
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-3">
                   <div className="flex gap-2">
                     {meeting.status === "LIVE" && (
-                      <Button
+                      <button
                         onClick={() => toggleMeetingLock(meeting.id, meeting.isLocked)}
-                        variant="outline"
-                        className="flex-1"
+                        className="flex-1 bg-white/80 backdrop-blur-xl rounded-2xl py-3 px-4 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:scale-105 transition-all duration-300 text-orange-700 font-medium flex items-center justify-center gap-2"
                       >
                         {meeting.isLocked ? (
                           <>
-                            <Unlock className="w-4 h-4 mr-2" />
+                            <Unlock className="w-4 h-4" />
                             Unlock
                           </>
                         ) : (
                           <>
-                            <Lock className="w-4 h-4 mr-2" />
+                            <Lock className="w-4 h-4" />
                             Lock
                           </>
                         )}
-                      </Button>
+                      </button>
                     )}
                     
-                    <Button
+                    <button
                       onClick={() => startOrJoinMeeting(meeting)}
-                      className={`flex-1 ${
-                        meeting.status === "LIVE" 
-                          ? "bg-green-600 hover:bg-green-700" 
-                          : "bg-blue-600 hover:bg-blue-700"
-                      }`}
                       disabled={meeting.status === "ENDED"}
+                      className={`flex-1 font-semibold py-3 px-4 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.3)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.4)] hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2 text-white drop-shadow-lg ${
+                        meeting.status === "LIVE" 
+                          ? "bg-gradient-to-r from-green-500 to-green-600" 
+                          : meeting.status === "SCHEDULED"
+                          ? "bg-gradient-to-r from-blue-500 to-blue-600"
+                          : "bg-gradient-to-r from-gray-400 to-gray-500 cursor-not-allowed"
+                      }`}
                     >
                       {meeting.status === "LIVE" 
                         ? "Join Live" 
@@ -540,61 +544,62 @@ export default function TutorMeetingDashboard() {
                         ? "Start Meeting"
                         : "Ended"
                       }
-                    </Button>
+                    </button>
 
                     {meeting.status === "LIVE" && (
-                      <Button 
-                        size="sm" 
-                        variant="destructive"
+                      <button 
                         onClick={() => endMeeting(meeting.id)}
+                        className="bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold py-3 px-4 rounded-2xl shadow-[0_8px_30px_rgba(239,68,68,0.4)] hover:shadow-[0_12px_40px_rgba(239,68,68,0.5)] hover:scale-105 transition-all duration-300"
                       >
                         End
-                      </Button>
+                      </button>
                     )}
                   </div>
 
                   {/* View Report Button for Ended Meetings */}
                   {meeting.status === "ENDED" && (
-                    <Button
+                    <button
                       onClick={() => router.push(`/tutor/meeting/${meeting.id}`)}
-                      variant="outline"
-                      className="w-full"
+                      className="w-full bg-white/80 backdrop-blur-xl rounded-2xl py-3 px-4 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:scale-105 transition-all duration-300 text-orange-700 font-medium flex items-center justify-center gap-2"
                     >
-                      <BarChart3 className="w-4 h-4 mr-2" />
+                      <BarChart3 className="w-4 h-4" />
                       View Full Report
-                    </Button>
+                    </button>
                   )}
                 </div>
 
                 {/* Proctoring Status */}
                 {meeting.status === "LIVE" && (
                   <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2 text-green-400">
+                    <div className="flex items-center gap-2 text-green-600 font-medium">
                       <Eye className="w-3 h-3" />
                       <span>AI Proctoring Active</span>
                     </div>
-                    <div className={`text-xs ${meeting.isLocked ? 'text-red-400' : 'text-green-400'}`}>
+                    <div className={`text-xs font-medium ${meeting.isLocked ? 'text-red-600' : 'text-green-600'}`}>
                       {meeting.isLocked ? 'New joins blocked' : 'Joins allowed'}
                     </div>
                   </div>
                 )}
               </div>
-            </Card>
+            </div>
           ))}
         </div>
 
         {filteredMeetings.length === 0 && !loading && (
-          <div className="text-center py-12">
-            <Video className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-            <h3 className="text-xl font-semibold mb-2">No meetings found</h3>
-            <p className="text-gray-400 mb-4">
+          <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-12 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 text-center">
+            <Video className="w-16 h-16 mx-auto mb-4 text-orange-400" />
+            <h3 className="text-xl font-semibold mb-2 text-orange-800">No meetings found</h3>
+            <p className="text-orange-600 mb-6">
               {searchTerm ? "Try adjusting your search terms" : "Create your first meeting to get started"}
             </p>
             {!searchTerm && (
-              <Button onClick={() => router.push('/tutor/meeting/create-meeting')} className="bg-green-600 hover:bg-green-700">
-                <Plus className="w-4 h-4 mr-2" />
+              <button 
+                onClick={() => router.push('/tutor/meeting/create-meeting')} 
+                className="bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold py-3 px-6 rounded-2xl shadow-[0_8px_30px_rgba(251,146,60,0.4)] hover:shadow-[0_12px_40px_rgba(251,146,60,0.5)] hover:scale-105 transition-all duration-300 flex items-center gap-2 mx-auto"
+              >
+                <Plus className="w-4 h-4" />
                 Create Meeting
-              </Button>
+              </button>
             )}
           </div>
         )}

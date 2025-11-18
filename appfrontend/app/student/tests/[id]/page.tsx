@@ -316,10 +316,10 @@ export default function TakeTestPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white flex items-center justify-center font-['Inter']">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-blue-600 font-medium">Loading test...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-orange-600 font-medium">Loading test...</p>
         </div>
       </div>
     );
@@ -328,33 +328,32 @@ export default function TakeTestPage() {
   // Show test already taken screen
   if (testAlreadyTaken) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white flex items-center justify-center p-4 font-['Inter']">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full border border-blue-200 text-center"
+          className="bg-white/60 backdrop-blur-3xl rounded-2xl shadow-xl shadow-orange-100/50 p-8 max-w-md w-full border border-orange-200/50 text-center"
         >
-          <div className="bg-yellow-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle2 className="h-8 w-8 text-yellow-600" />
+          <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-yellow-200/50">
+            <CheckCircle2 className="h-8 w-8 text-white drop-shadow-sm" />
           </div>
           <h1 className="text-2xl font-bold text-gray-800 mb-4">Test Already Completed</h1>
           <p className="text-gray-600 mb-6">
             You have already taken this test. You cannot attempt the same test again.
           </p>
           <div className="space-y-3">
-            <Button
+            <button
               onClick={() => router.push('/student/tests')}
-              className="w-full bg-blue-600 hover:bg-blue-700"
+              className="w-full px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium hover:scale-105 transition-all duration-300 shadow-lg shadow-orange-200/50"
             >
               Browse More Tests
-            </Button>
-            <Button
-              variant="outline"
+            </button>
+            <button
               onClick={() => router.push('/student/results')}
-              className="w-full border-blue-200 text-blue-600 hover:bg-blue-50"
+              className="w-full px-6 py-3 bg-white/60 backdrop-blur-xl border border-orange-200/50 text-orange-600 rounded-xl font-medium hover:bg-white/80 hover:scale-105 transition-all duration-300 shadow-lg shadow-orange-100/30"
             >
               View My Results
-            </Button>
+            </button>
           </div>
         </motion.div>
       </div>
@@ -363,11 +362,16 @@ export default function TakeTestPage() {
 
   if (!test) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white flex items-center justify-center font-['Inter']">
         <div className="text-center">
           <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Test Not Found</h2>
-          <Button onClick={() => router.push('/student/tests')}>Back to Tests</Button>
+          <button 
+            onClick={() => router.push('/student/tests')}
+            className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium hover:scale-105 transition-all duration-300 shadow-lg shadow-orange-200/50"
+          >
+            Back to Tests
+          </button>
         </div>
       </div>
     );
@@ -381,19 +385,19 @@ export default function TakeTestPage() {
   const isLastQuestion = currentQuestion === test.questions.length - 1;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white p-4 font-['Inter']">
       {/* Header with Timer and Progress */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-lg shadow-lg p-4 mb-6 border border-blue-200"
+        className="bg-white/60 backdrop-blur-3xl rounded-2xl shadow-xl shadow-orange-100/50 p-6 mb-6 border border-orange-200/50"
       >
         <div className="flex flex-col lg:flex-row justify-between items-center gap-4">
           <div className="flex items-center space-x-4">
-            <div className={`p-2 rounded-lg ${
-              timeLeft < 300 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'
+            <div className={`p-3 rounded-xl shadow-lg ${
+              timeLeft < 300 ? 'bg-gradient-to-r from-red-400 to-red-500 text-white shadow-red-200/50' : 'bg-gradient-to-r from-orange-400 to-orange-500 text-white shadow-orange-200/50'
             }`}>
-              <Clock className="h-6 w-6" />
+              <Clock className="h-6 w-6 drop-shadow-sm" />
             </div>
             <div>
               <div className={`text-2xl font-bold ${
@@ -412,26 +416,24 @@ export default function TakeTestPage() {
 
           <div className="flex items-center space-x-4">
             {violations > 0 && (
-              <Badge variant="destructive" className="flex items-center gap-1">
+              <span className="px-3 py-1 bg-red-100 text-red-700 border border-red-200 rounded-full text-xs font-medium flex items-center gap-1">
                 <AlertTriangle className="h-3 w-3" />
                 Violations: {violations}
-              </Badge>
+              </span>
             )}
-            <Button
-              variant="outline"
-              size="sm"
+            <button
               onClick={exitTest}
-              className="border-red-200 text-red-600 hover:bg-red-50"
+              className="px-4 py-2 bg-white/60 backdrop-blur-xl border border-red-200/50 text-red-600 rounded-xl font-medium hover:bg-white/80 hover:scale-105 transition-all duration-300 shadow-lg shadow-red-100/30"
             >
               Exit Test
-            </Button>
+            </button>
           </div>
         </div>
 
         {/* Progress Bar */}
-        <div className="mt-4 w-full bg-gray-200 rounded-full h-2">
+        <div className="mt-6 w-full bg-white/40 rounded-full h-3 shadow-inner">
           <div
-            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+            className="bg-gradient-to-r from-orange-500 to-orange-600 h-3 rounded-full transition-all duration-300 shadow-lg shadow-orange-200/50"
             style={{ width: `${((currentQuestion + 1) / test.questions.length) * 100}%` }}
           />
         </div>
@@ -439,38 +441,37 @@ export default function TakeTestPage() {
 
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Questions Navigation */}
-        <Card className="lg:col-span-1 border-blue-200">
-          <CardHeader>
-            <CardTitle className="text-lg">Questions</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div className="lg:col-span-1 bg-white/60 backdrop-blur-3xl border border-orange-200/50 rounded-2xl shadow-xl shadow-orange-100/50">
+          <div className="p-6 border-b border-orange-200/50">
+            <h3 className="text-lg font-semibold text-gray-800">Questions</h3>
+          </div>
+          <div className="p-6">
             <div className="grid grid-cols-5 lg:grid-cols-2 gap-2">
               {test.questions.map((q, index) => {
                 const isAnswered = answers.some(a => a.questionId === q.id);
                 const isCurrent = index === currentQuestion;
                 
                 return (
-                  <Button
+                  <button
                     key={q.id}
-                    variant={isCurrent ? "default" : isAnswered ? "secondary" : "outline"}
-                    size="sm"
-                    className={`h-10 ${
-                      isCurrent ? 'bg-blue-600 text-white' : 
-                      isAnswered ? 'bg-green-100 text-green-800 border-green-200' : ''
+                    className={`h-10 w-10 rounded-xl font-medium transition-all duration-300 shadow-lg ${
+                      isCurrent ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-orange-200/50 scale-105' : 
+                      isAnswered ? 'bg-green-100 text-green-800 border border-green-200 shadow-green-100/30 hover:scale-105' : 
+                      'bg-white/60 backdrop-blur-xl border border-orange-200/50 text-orange-600 hover:bg-white/80 hover:scale-105 shadow-orange-100/30'
                     }`}
                     onClick={() => setCurrentQuestion(index)}
                   >
                     {index + 1}
-                  </Button>
+                  </button>
                 );
               })}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Question Area */}
-        <Card className="lg:col-span-3 border-blue-200 shadow-lg">
-          <CardContent className="p-6">
+        <div className="lg:col-span-3 bg-white/60 backdrop-blur-3xl border border-orange-200/50 rounded-2xl shadow-xl shadow-orange-100/50">
+          <div className="p-8">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentQuestion}
@@ -482,17 +483,17 @@ export default function TakeTestPage() {
                 {/* Question Header */}
                 <div className="flex justify-between items-start mb-6">
                   <div>
-                    <Badge variant="secondary" className="mb-2 bg-blue-100 text-blue-800">
+                    <span className="inline-block px-3 py-1 bg-orange-100 text-orange-800 border border-orange-200 rounded-full text-sm font-medium mb-2">
                       {currentQ.type} • {currentQ.marks} mark{currentQ.marks !== 1 ? 's' : ''}
-                    </Badge>
+                    </span>
                     <h2 className="text-xl font-bold text-gray-800">
                       Question {currentQuestion + 1}
                     </h2>
                   </div>
-                  <Button variant="outline" size="sm" className="flex items-center gap-1">
+                  <button className="px-4 py-2 bg-white/60 backdrop-blur-xl border border-orange-200/50 text-orange-600 rounded-xl font-medium hover:bg-white/80 hover:scale-105 transition-all duration-300 shadow-lg shadow-orange-100/30 flex items-center gap-2">
                     <Flag className="h-4 w-4" />
                     Flag
-                  </Button>
+                  </button>
                 </div>
 
                 {/* Question Text */}
@@ -520,9 +521,9 @@ export default function TakeTestPage() {
                       className="space-y-3"
                     >
                       {currentQ.options.map((option, index) => (
-                        <div key={index} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
+                        <div key={index} className="flex items-center space-x-3 p-4 bg-white/40 backdrop-blur-xl border border-orange-200/30 rounded-xl hover:bg-white/60 hover:scale-[1.02] transition-all duration-300 shadow-lg shadow-orange-100/20">
                           <RadioGroupItem value={option} id={`option-${index}`} />
-                          <Label htmlFor={`option-${index}`} className="flex-1 cursor-pointer">
+                          <Label htmlFor={`option-${index}`} className="flex-1 cursor-pointer text-gray-700">
                             {option}
                           </Label>
                         </div>
@@ -536,24 +537,24 @@ export default function TakeTestPage() {
                       onValueChange={(value) => handleAnswerChange(currentQ.id, value)}
                       className="space-y-3"
                     >
-                      <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
+                      <div className="flex items-center space-x-3 p-4 bg-white/40 backdrop-blur-xl border border-orange-200/30 rounded-xl hover:bg-white/60 hover:scale-[1.02] transition-all duration-300 shadow-lg shadow-orange-100/20">
                         <RadioGroupItem value="true" id="true" />
-                        <Label htmlFor="true" className="cursor-pointer">True</Label>
+                        <Label htmlFor="true" className="cursor-pointer text-gray-700">True</Label>
                       </div>
-                      <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
+                      <div className="flex items-center space-x-3 p-4 bg-white/40 backdrop-blur-xl border border-orange-200/30 rounded-xl hover:bg-white/60 hover:scale-[1.02] transition-all duration-300 shadow-lg shadow-orange-100/20">
                         <RadioGroupItem value="false" id="false" />
-                        <Label htmlFor="false" className="cursor-pointer">False</Label>
+                        <Label htmlFor="false" className="cursor-pointer text-gray-700">False</Label>
                       </div>
                     </RadioGroup>
                   )}
 
                   {(currentQ.type === 'SHORT' || currentQ.type === 'ESSAY') && (
-                    <Textarea
+                    <textarea
                       ref={textareaRef}
                       value={getCurrentAnswer(currentQ.id) as string || ''}
                       onChange={(e) => handleAnswerChange(currentQ.id, e.target.value)}
                       placeholder={currentQ.type === 'SHORT' ? 'Enter your short answer...' : 'Write your essay answer...'}
-                      className="min-h-[120px] resize-none"
+                      className="w-full min-h-[120px] p-4 bg-white/40 backdrop-blur-xl border border-orange-200/30 rounded-xl focus:border-orange-400 focus:ring-2 focus:ring-orange-200/50 outline-none transition-all duration-300 shadow-lg shadow-orange-100/20 resize-none text-gray-700"
                       onCopy={(e) => {
                         e.preventDefault();
                         setViolations(prev => prev + 1);
@@ -569,20 +570,22 @@ export default function TakeTestPage() {
                 </div>
 
                 {/* Navigation Buttons */}
-                <div className="flex justify-between items-center mt-8 pt-6 border-t">
-                  <Button
-                    variant="outline"
+                <div className="flex justify-between items-center mt-8 pt-6 border-t border-orange-200/30">
+                  <button
                     onClick={handlePrevious}
                     disabled={currentQuestion === 0}
-                    className="flex items-center gap-2"
+                    className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-lg flex items-center gap-2 ${
+                      currentQuestion === 0 
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                        : 'bg-white/60 backdrop-blur-xl border border-orange-200/50 text-orange-600 hover:bg-white/80 hover:scale-105 shadow-orange-100/30'
+                    }`}
                   >
                     <ChevronLeft className="h-4 w-4" />
                     Previous
-                  </Button>
+                  </button>
 
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
+                  <div className="flex items-center gap-3">
+                    <button
                       onClick={() => {
                         const saveKey = `test_${testId}_progress`;
                         localStorage.setItem(saveKey, JSON.stringify({
@@ -593,36 +596,36 @@ export default function TakeTestPage() {
                         }));
                         alert('Progress saved!');
                       }}
-                      className="flex items-center gap-2"
+                      className="px-6 py-3 bg-white/60 backdrop-blur-xl border border-orange-200/50 text-orange-600 rounded-xl font-medium hover:bg-white/80 hover:scale-105 transition-all duration-300 shadow-lg shadow-orange-100/30 flex items-center gap-2"
                     >
                       <Save className="h-4 w-4" />
                       Save
-                    </Button>
+                    </button>
 
                     {isLastQuestion ? (
-                      <Button
+                      <button
                         onClick={submitTest}
                         disabled={submitting}
-                        className="bg-green-600 hover:bg-green-700 flex items-center gap-2"
+                        className="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-medium hover:scale-105 transition-all duration-300 shadow-lg shadow-green-200/50 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <CheckCircle className="h-4 w-4" />
                         {submitting ? 'Submitting...' : 'Submit Test'}
-                      </Button>
+                      </button>
                     ) : (
-                      <Button
+                      <button
                         onClick={handleNext}
-                        className="flex items-center gap-2"
+                        className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium hover:scale-105 transition-all duration-300 shadow-lg shadow-orange-200/50 flex items-center gap-2"
                       >
                         Next
                         <ChevronRight className="h-4 w-4" />
-                      </Button>
+                      </button>
                     )}
                   </div>
                 </div>
               </motion.div>
             </AnimatePresence>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
       {/* Warning Modal for Violations */}
@@ -633,7 +636,7 @@ export default function TakeTestPage() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-white rounded-lg p-6 max-w-md mx-4"
+              className="bg-white/60 backdrop-blur-3xl rounded-2xl p-6 max-w-md mx-4 shadow-xl shadow-orange-100/50 border border-orange-200/50"
             >
               <div className="text-center">
                 <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
@@ -643,12 +646,12 @@ export default function TakeTestPage() {
                     ? 'Multiple violations detected. Test will be auto-submitted.'
                     : 'Suspicious activity detected. Please focus on the test.'}
                 </p>
-                <Button
+                <button
                   onClick={() => setShowWarningModal(false)}
-                  className="bg-red-600 hover:bg-red-700"
+                  className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-medium hover:scale-105 transition-all duration-300 shadow-lg shadow-red-200/50"
                 >
                   I Understand
-                </Button>
+                </button>
               </div>
             </motion.div>
           </div>
@@ -661,15 +664,15 @@ export default function TakeTestPage() {
 // Instructions Component
 function TestInstructions({ test, onStart }: { test: Test; onStart: () => void }) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white flex items-center justify-center p-4 font-['Inter']">
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full border border-blue-200"
+        className="bg-white/60 backdrop-blur-3xl rounded-2xl shadow-xl shadow-orange-100/50 p-8 max-w-2xl w-full border border-orange-200/50"
       >
         <div className="text-center mb-8">
-          <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-            <AlertTriangle className="h-8 w-8 text-blue-600" />
+          <div className="bg-gradient-to-r from-orange-400 to-orange-500 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-orange-200/50">
+            <AlertTriangle className="h-8 w-8 text-white drop-shadow-sm" />
           </div>
           <h1 className="text-3xl font-bold text-gray-800 mb-2">{test.title}</h1>
           <p className="text-gray-600">Please read the instructions carefully before starting</p>
@@ -703,27 +706,27 @@ function TestInstructions({ test, onStart }: { test: Test; onStart: () => void }
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h4 className="font-semibold text-blue-800 mb-2">Duration</h4>
-              <p className="text-blue-700">{test.durationMinutes} minutes</p>
+            <div className="bg-white/40 backdrop-blur-xl p-4 rounded-xl border border-orange-200/30 shadow-lg shadow-orange-100/20">
+              <h4 className="font-semibold text-orange-800 mb-2">Duration</h4>
+              <p className="text-orange-700">{test.durationMinutes} minutes</p>
             </div>
-            <div className="bg-green-50 p-4 rounded-lg">
+            <div className="bg-white/40 backdrop-blur-xl p-4 rounded-xl border border-green-200/30 shadow-lg shadow-green-100/20">
               <h4 className="font-semibold text-green-800 mb-2">Questions</h4>
               <p className="text-green-700">{test.questions.length} questions</p>
             </div>
-            <div className="bg-purple-50 p-4 rounded-lg">
+            <div className="bg-white/40 backdrop-blur-xl p-4 rounded-xl border border-purple-200/30 shadow-lg shadow-purple-100/20">
               <h4 className="font-semibold text-purple-800 mb-2">Total Marks</h4>
               <p className="text-purple-700">{test.totalScore} marks</p>
             </div>
-            <div className="bg-orange-50 p-4 rounded-lg">
-              <h4 className="font-semibold text-orange-800 mb-2">Type</h4>
-              <p className="text-orange-700">Proctored Test</p>
+            <div className="bg-white/40 backdrop-blur-xl p-4 rounded-xl border border-blue-200/30 shadow-lg shadow-blue-100/20">
+              <h4 className="font-semibold text-blue-800 mb-2">Type</h4>
+              <p className="text-blue-700">Proctored Test</p>
             </div>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 className="font-semibold text-blue-800 mb-2">Allowed:</h4>
-            <ul className="text-blue-700 space-y-1">
+          <div className="bg-white/40 backdrop-blur-xl border border-orange-200/30 rounded-xl p-4 shadow-lg shadow-orange-100/20">
+            <h4 className="font-semibold text-orange-800 mb-2">Allowed:</h4>
+            <ul className="text-orange-700 space-y-1">
               <li>• Calculator usage (if needed)</li>
               <li>• Rough work on paper</li>
               <li>• Full-screen mode recommended</li>
@@ -733,13 +736,12 @@ function TestInstructions({ test, onStart }: { test: Test; onStart: () => void }
         </div>
 
         <div className="text-center">
-          <Button
+          <button
             onClick={onStart}
-            size="lg"
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-8 py-3 text-lg"
+            className="px-8 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-semibold text-lg hover:scale-105 transition-all duration-300 shadow-xl shadow-orange-200/50"
           >
             Start Test Now
-          </Button>
+          </button>
           <p className="text-sm text-gray-500 mt-3">
             Timer starts immediately after clicking "Start Test Now"
           </p>
