@@ -2,8 +2,6 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Pie, Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -15,6 +13,15 @@ import {
   LinearScale,
   BarElement,
 } from "chart.js";
+import { 
+  Users, 
+  CheckCircle, 
+  FileText, 
+  ArrowLeft, 
+  Eye,
+  TrendingUp,
+  BarChart3
+} from "lucide-react";
 
 ChartJS.register(
   Title,
@@ -89,114 +96,203 @@ export default function TestStatsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white text-gray-800 p-8" style={{ backdropFilter: 'blur(30px)' }}>
-      <div className="max-w-7xl mx-auto space-y-8">
-        <button 
-          onClick={() => router.back()}
-          className="mb-6 px-6 py-3 bg-white/60 backdrop-blur-3xl text-orange-600 font-bold rounded-xl shadow-2xl hover:shadow-white/80 hover:scale-110 transition-all duration-300 border border-orange-200/60"
-          style={{ 
-            fontFamily: 'Inter, system-ui, sans-serif',
-            boxShadow: '0 20px 40px rgba(255, 255, 255, 0.4), 0 5px 15px rgba(251, 146, 60, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
-          }}
-        >
-          Back
-        </button>
-        
-        <div className="flex justify-between items-center">
-          <h1 className="text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-orange-600 via-orange-500 to-orange-400 drop-shadow-2xl"
-              style={{ fontFamily: 'Inter, system-ui, sans-serif', textShadow: '0 8px 32px rgba(251, 146, 60, 0.3)' }}>
-            {test.title} – Analytics
-          </h1>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+      <div className="max-w-6xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-4">
+            <button 
+              onClick={() => router.back()}
+              className="flex items-center space-x-2 px-4 py-2 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow border border-gray-200 text-gray-600 hover:text-gray-800"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back</span>
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">{test.title}</h1>
+              <p className="text-gray-500">Test Analytics & Performance</p>
+            </div>
+          </div>
           <button
             onClick={() => router.push(`/tutor/tests/${id}/submission`)}
-            className="px-8 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-2xl shadow-2xl hover:shadow-orange-500/70 hover:scale-110 transition-all duration-300 backdrop-blur-3xl border border-white/30"
-            style={{ 
-              fontFamily: 'Inter, system-ui, sans-serif',
-              boxShadow: '0 30px 60px rgba(251, 146, 60, 0.6), 0 10px 30px rgba(251, 146, 60, 0.4), inset 0 2px 0 rgba(255, 255, 255, 0.3)',
-              filter: 'drop-shadow(0 20px 40px rgba(251, 146, 60, 0.3))'
-            }}
+            className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
           >
-            View Submissions
+            <Eye className="w-4 h-4" />
+            <span>View Submissions</span>
           </button>
         </div>
       
 
-        {/* Overview Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <div className="p-6 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl"
-               style={{ 
-                 boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
-                 filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
-               }}>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500 font-semibold" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Total Students</p>
-                <p className="text-3xl font-black text-orange-600" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>{test.totalStudents}</p>
+                <p className="text-sm font-medium text-gray-500">Total Students</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{test.totalStudents}</p>
               </div>
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 shadow-2xl" style={{ boxShadow: '0 15px 30px rgba(251, 146, 60, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3)' }}>
-                <div className="w-6 h-6 bg-white rounded opacity-80"></div>
-              </div>
-            </div>
-          </div>
-          
-
-
-
-          <div className="p-6 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl"
-               style={{ 
-                 boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
-                 filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
-               }}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 font-semibold" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Evaluated</p>
-                <p className="text-3xl font-black text-orange-600" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>{test.evaluated}</p>
-              </div>
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 shadow-2xl" style={{ boxShadow: '0 15px 30px rgba(251, 146, 60, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3)' }}>
-                <div className="w-6 h-6 bg-white rounded opacity-80"></div>
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <Users className="w-6 h-6 text-blue-600" />
               </div>
             </div>
           </div>
 
-          <div className="p-6 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl"
-               style={{ 
-                 boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
-                 filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
-               }}>
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500 font-semibold" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Questions</p>
-                <p className="text-3xl font-black text-orange-600" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>{test.perQuestionStats?.length ?? 0}</p>
+                <p className="text-sm font-medium text-gray-500">Evaluated</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{test.evaluated}</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {((test.evaluated / test.totalStudents) * 100).toFixed(1)}% complete
+                </p>
               </div>
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 shadow-2xl" style={{ boxShadow: '0 15px 30px rgba(251, 146, 60, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3)' }}>
-                <div className="w-6 h-6 bg-white rounded opacity-80"></div>
+              <div className="p-3 bg-green-100 rounded-lg">
+                <CheckCircle className="w-6 h-6 text-green-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Questions</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{test.perQuestionStats?.length ?? 0}</p>
+              </div>
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <FileText className="w-6 h-6 text-purple-600" />
               </div>
             </div>
           </div>
         </div>
 
         {/* Charts */}
-        <div className="grid md:grid-cols-2 gap-8">
-          <div className="p-8 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl"
-               style={{ 
-                 boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
-                 filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
-               }}>
-            <h3 className="text-xl font-black text-orange-600 mb-6" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Evaluation Progress</h3>
-            <Pie data={evaluationData} />
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+            <div className="flex items-center space-x-2 mb-6">
+              <TrendingUp className="w-5 h-5 text-gray-600" />
+              <h3 className="text-lg font-semibold text-gray-900">Evaluation Progress</h3>
+            </div>
+            <div className="h-64 flex items-center justify-center">
+              <Pie 
+                data={{
+                  ...evaluationData,
+                  datasets: [{
+                    ...evaluationData.datasets[0],
+                    backgroundColor: ["#10b981", "#e5e7eb"],
+                    borderWidth: 0
+                  }]
+                }}
+                options={{
+                  plugins: {
+                    legend: {
+                      position: 'bottom' as const,
+                      labels: {
+                        padding: 20,
+                        usePointStyle: true
+                      }
+                    }
+                  },
+                  maintainAspectRatio: false
+                }}
+              />
+            </div>
           </div>
+
+          {test.perQuestionStats && test.perQuestionStats.length > 0 && (
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+              <div className="flex items-center space-x-2 mb-6">
+                <BarChart3 className="w-5 h-5 text-gray-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Question Performance</h3>
+              </div>
+              <div className="h-64">
+                <Bar
+                  data={{
+                    labels: test.perQuestionStats.map((_, i) => `Q${i + 1}`),
+                    datasets: [{
+                      label: 'Average Score',
+                      data: test.perQuestionStats.map(q => q.marks),
+                      backgroundColor: '#3b82f6',
+                      borderRadius: 4,
+                      borderSkipped: false
+                    }]
+                  }}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: {
+                        display: false
+                      }
+                    },
+                    scales: {
+                      y: {
+                        beginAtZero: true,
+                        grid: {
+                          color: '#f3f4f6'
+                        }
+                      },
+                      x: {
+                        grid: {
+                          display: false
+                        }
+                      }
+                    }
+                  }}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Questions Overview */}
-        <div className="p-8 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl"
-             style={{ 
-               boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
-               filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
-             }}>
-          <h3 className="text-xl font-black text-orange-600 mb-6" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Questions Overview</h3>
-          <Bar
-            data={{
-              labels:
+        {/* Questions Table */}
+        {test.perQuestionStats && test.perQuestionStats.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Question Details</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Question
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Attempts
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Avg Score
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {test.perQuestionStats.map((question, index) => (
+                    <tr key={question.questionId} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            Question {index + 1}
+                          </div>
+                          <div className="text-sm text-gray-500 truncate max-w-xs">
+                            {question.questionText}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {question.attempts}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {question.marks.toFixed(1)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}abels:
                 test.perQuestionStats?.map((q) => q.questionText.slice(0, 30) + "...") ?? [],
               datasets: [
                 {

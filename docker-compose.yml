@@ -41,9 +41,6 @@ services:
     networks:
       - backend
 
-  # -------------------------------
-  # Redis for LiveKit (Signaling / PubSub)
-  # -------------------------------
   redis:
     image: redis:6-alpine
     container_name: livekit-redis
@@ -52,37 +49,28 @@ services:
       - "6379:6379"
     networks:
       - backend
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
-  # -------------------------------
-  # Coturn STUN/TURN Server
-  # -------------------------------
   coturn:
-    image: coturn/coturn:latest
+    image: coturn/coturn
     container_name: coturn-server
     restart: always
-    networks:
-      - backend
     ports:
       - "3478:3478/udp"
       - "5349:5349"
+      - "50000-50200:50000-50200/udp"
     command: >
-      -n --log-file=stdout
-      --min-port=49152 --max-port=65535
-      --lt-cred-mech --fingerprint
-      --no-multicast-peers --no-cli
-      --no-tlsv1 --no-tlsv1_2
-      --realm=localhost --server-name=localhost
+      turnserver
+      --log-file=stdout
+      --external-ip=$(curl -s ifconfig.me)
+      --realm=livekit
+      --use-auth-secret
       --static-auth-secret=mysecret
-      --user=test:test123
+      --fingerprint
+      --min-port=49152
+      --max-port=65535
+    networks:
+      - backend
 
-  # -------------------------------
-  # LiveKit Server
-  # -------------------------------
   livekit:
     image: livekit/livekit-server:latest
     container_name: livekit-server
@@ -93,23 +81,13 @@ services:
     ports:
       - "7880:7880"
       - "7881:7881"
-      - "50000-50010:50000-50010/udp"
+      - "50201-50220:50201-50220/udp"
     depends_on:
-      redis:
-        condition: service_healthy
-      coturn:
-        condition: service_started
+      - redis
+      - coturn
     networks:
       - backend
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7880"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
-# -------------------------------
-# Networks & Volumes
-# -------------------------------
 networks:
   backend:
 

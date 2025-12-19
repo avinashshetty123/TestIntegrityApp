@@ -85,6 +85,7 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
   const [liveAlerts, setLiveAlerts] = useState<ProctoringAlert[]>([]);
   const [isMeetingLocked, setIsMeetingLocked] = useState(false);
   const [unreadAlerts, setUnreadAlerts] = useState(0);
+  const [meetingFlags, setMeetingFlags] = useState<ProctoringAlert[]>([]);
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRefs = useRef<{ [key: string]: HTMLVideoElement }>({});
@@ -113,6 +114,15 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
     }
   }, [isTutor, isConnected, showJoinRequests]);
 
+  // Fetch meeting flags for tutor visibility
+  useEffect(() => {
+    if (isTutor && isConnected) {
+      fetchMeetingFlags();
+      const flagsInterval = setInterval(fetchMeetingFlags, 5000);
+      return () => clearInterval(flagsInterval);
+    }
+  }, [isTutor, isConnected, meetingId]);
+
   // REMOVED: Real-time alert polling - now using LiveKit data channels
 
   const fetchJoinRequests = async () => {
@@ -136,13 +146,27 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
     }
   };
 
+  const fetchMeetingFlags = async () => {
+    try {
+      const response = await fetch(`http://localhost:4000/proctoring/meeting/${meetingId}/flags`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const flags = await response.json();
+        setMeetingFlags(flags);
+      }
+    } catch (error) {
+      console.error('Failed to fetch meeting flags:', error);
+    }
+  };
+
   // Handle real-time proctoring alerts from LiveKit data channel
   const handleLiveProctoringAlert = (data: any, participant?: RemoteParticipant) => {
     const alert: ProctoringAlert = {
       id: `live-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       alertType: data.alertType,
       description: data.description,
-      confidence: data.confidence,
+      confidence: data.confidence || 0.5,
       detectedAt: new Date().toISOString(),
       participantId: data.participantId,
       severity: data.severity || 'MEDIUM',
@@ -158,18 +182,26 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
     };
 
     // Update alerts state
-    setProctoringAlerts(prev => [alert, ...prev]);
-    setLiveAlerts(prev => [alert, ...prev.slice(0, 9)]); // Keep only latest 10
+    setProctoringAlerts(prev => [alert, ...prev.slice(0, 49)]); // Keep latest 50
+    setLiveAlerts(prev => [alert, ...prev.slice(0, 19)]); // Keep latest 20
     setUnreadAlerts(prev => prev + 1);
 
     // Show immediate toast for high severity alerts
     if (alert.severity === 'HIGH' || alert.severity === 'CRITICAL') {
       const participantName = alert.participant?.name || alert.studentName || 'Unknown Participant';
       toast({
-        title: `🚨 Real-time ${alert.severity} Alert`,
+        title: `🚨 ${alert.severity} Alert`,
         description: `${participantName}: ${alert.description}`,
         variant: "destructive",
-        duration: 5000,
+        duration: 6000,
+      });
+    } else if (alert.severity === 'MEDIUM') {
+      // Show less intrusive notification for medium alerts
+      const participantName = alert.participant?.name || alert.studentName || 'Unknown Participant';
+      toast({
+        title: `⚠️ Monitoring Alert`,
+        description: `${participantName}: ${alert.description}`,
+        duration: 3000,
       });
     }
 
@@ -177,6 +209,14 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
     if (alert.participantId) {
       updateParticipantAfterAlert(alert.participantId, alert);
     }
+
+    // Log for debugging
+    console.log('🚨 Live proctoring alert processed:', {
+      alertType: alert.alertType,
+      severity: alert.severity,
+      participant: alert.studentName,
+      confidence: alert.confidence
+    });
   };
 
   const updateParticipantAfterAlert = (participantId: string, alert: ProctoringAlert) => {
@@ -350,6 +390,19 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
           } else if (data.type === 'DASHBOARD_UPDATE') {
             // Handle dashboard updates if needed
             console.log('📊 Dashboard update received:', data.data);
+          } else if (data.type === 'BROWSER_ACTIVITY') {
+            // Handle browser activity alerts
+            console.log('🌐 Browser activity received:', data.data);
+            if (data.data.suspicious) {
+              handleLiveProctoringAlert({
+                alertType: 'BROWSER_ACTIVITY',
+                description: `Suspicious browser activity: ${data.data.activity}`,
+                confidence: 0.7,
+                severity: 'MEDIUM',
+                participantId: participant?.identity,
+                studentName: participant?.name
+              }, participant);
+            }
           }
         } catch (error) {
           console.error('❌ Error parsing data message:', error);
@@ -772,7 +825,19 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
             {proctoringAlerts.length > 0 && (
               <Badge variant="destructive" className="flex items-center gap-1">
                 <AlertTriangle className="w-3 h-3" />
-                {proctoringAlerts.length} Total Alerts
+                {proctoringAlerts.length} Total
+              </Badge>
+            )}
+            {liveAlerts.length > 0 && (
+              <Badge className="bg-orange-500 text-white flex items-center gap-1">
+                <Bell className="w-3 h-3" />
+                {liveAlerts.length} Live
+              </Badge>
+            )}
+            {meetingFlags.length > 0 && (
+              <Badge variant="secondary" className="flex items-center gap-1 bg-purple-500 text-white">
+                <Flag className="w-3 h-3" />
+                {meetingFlags.length} Flags
               </Badge>
             )}
             {joinRequests.length > 0 && (
@@ -1083,50 +1148,69 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
                   Live Alerts ({liveAlerts.length})
                 </h3>
                 <p className="text-xs text-green-400 mt-1">
-                  📡 Connected via LiveKit (Real-time)
+                  📡 Real-time via LiveKit + AI Analysis
                 </p>
+                {unreadAlerts > 0 && (
+                  <p className="text-xs text-red-400 mt-1">
+                    {unreadAlerts} new alerts since last check
+                  </p>
+                )}
               </div>
               
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {liveAlerts.map((alert, index) => (
-                  <Card 
-                    key={`${alert.id}-${index}`} 
-                    className={`p-3 backdrop-blur-sm border ${
-                      alert.severity === 'CRITICAL' ? 'bg-red-500/20 border-red-400' :
-                      alert.severity === 'HIGH' ? 'bg-orange-500/20 border-orange-400' :
-                      alert.severity === 'MEDIUM' ? 'bg-yellow-500/20 border-yellow-400' :
-                      'bg-white/10 border-white/20'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Badge className={`${getAlertTypeColor(alert.alertType)} text-white text-xs`}>
-                            {alert.alertType.replace(/_/g, ' ')}
-                          </Badge>
-                          <Badge className={`${getSeverityColor(alert.severity)} text-white text-xs`}>
-                            {alert.severity}
-                          </Badge>
-                        </div>
-                        <p className="text-sm font-medium text-white mb-1">
-                          {alert.participant?.name || alert.studentName || alert.participantId || 'Unknown Participant'}
-                        </p>
-                        {alert.participant?.email && (
-                          <p className="text-xs text-gray-400 mb-1">
-                            {alert.participant.email}
+                {liveAlerts.map((alert, index) => {
+                  const isRecent = Date.now() - new Date(alert.timestamp).getTime() < 30000; // 30 seconds
+                  return (
+                    <Card 
+                      key={`${alert.id}-${index}`} 
+                      className={`p-3 backdrop-blur-sm border transition-all ${
+                        isRecent ? 'ring-2 ring-blue-400 ' : ''
+                      }${
+                        alert.severity === 'CRITICAL' ? 'bg-red-500/20 border-red-400' :
+                        alert.severity === 'HIGH' ? 'bg-orange-500/20 border-orange-400' :
+                        alert.severity === 'MEDIUM' ? 'bg-yellow-500/20 border-yellow-400' :
+                        'bg-white/10 border-white/20'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge className={`${getAlertTypeColor(alert.alertType)} text-white text-xs`}>
+                              {alert.alertType.replace(/_/g, ' ')}
+                            </Badge>
+                            <Badge className={`${getSeverityColor(alert.severity)} text-white text-xs`}>
+                              {alert.severity}
+                            </Badge>
+                            {isRecent && (
+                              <Badge className="bg-blue-500 text-white text-xs animate-pulse">
+                                NEW
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm font-medium text-white mb-1">
+                            {alert.participant?.name || alert.studentName || alert.participantId || 'Unknown Participant'}
                           </p>
-                        )}
-                        <p className="text-xs text-gray-300 mb-2">{alert.description}</p>
-                        <div className="flex items-center justify-between text-xs text-gray-400">
-                          <span>{Math.round(alert.confidence * 100)}% confidence</span>
-                          <span>{new Date(alert.timestamp).toLocaleTimeString()}</span>
+                          {alert.participant?.email && (
+                            <p className="text-xs text-gray-400 mb-1">
+                              {alert.participant.email}
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-300 mb-2">{alert.description}</p>
+                          <div className="flex items-center justify-between text-xs text-gray-400">
+                            <span>{Math.round(alert.confidence * 100)}% confidence</span>
+                            <span>{new Date(alert.timestamp).toLocaleTimeString()}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </Card>
-                ))}
+                    </Card>
+                  );
+                })}
                 {liveAlerts.length === 0 && (
-                  <p className="text-center text-gray-400 py-4">No alerts detected yet</p>
+                  <div className="text-center text-gray-400 py-8">
+                    <Eye className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p>No alerts detected yet</p>
+                    <p className="text-xs mt-1">AI monitoring is active</p>
+                  </div>
                 )}
               </div>
             </div>

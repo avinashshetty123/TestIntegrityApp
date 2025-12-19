@@ -1,69 +1,65 @@
-import { Controller, Post, Get, Body, Param, UseGuards, Query, Req } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, UseGuards } from '@nestjs/common';
 import { ProctoringService } from './proctoring.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { Roles } from '../auth/decorator/roles.decorator';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { UserRole } from '../user/entities/user.entity';
+import type { AnalyzeFrameDto } from './dto/analyze-frame.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('proctoring')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard)
 export class ProctoringController {
   constructor(private readonly proctoringService: ProctoringService) {}
 
-  // ===== SESSION MANAGEMENT =====
-  @Post('session/start')
-  @Roles(UserRole.STUDENT, UserRole.TUTOR)
-  async startSession(@Body() data: { meetingId: string; userId: string; participantId: string }) {
-    return this.proctoringService.startProctoringSession(data.meetingId, data.userId, data.participantId);
-  }
-
-  @Post('session/end')
-  @Roles(UserRole.STUDENT, UserRole.TUTOR)
-  async endSession(@Body() data: { meetingId: string; participantId: string }) {
-    return this.proctoringService.endProctoringSession(data.meetingId, data.participantId);
-  }
-
-  // ===== REAL-TIME ANALYSIS =====
   @Post('analyze-frame')
-  @Roles(UserRole.STUDENT)
-  async analyzeFrame(@Body() frameData: { 
-    meetingId: string; 
-    userId: string; 
-    participantId: string; 
-    detections?: {
-      faceCount?: number;
-      phoneDetected?: boolean;
-      phoneConfidence?: number;
-      objects?: string[];
-    };
-    browserData?: any;
-  }) {
-    return this.proctoringService.analyzeFrame(frameData);
+  async analyzeFrame(@Body() data: AnalyzeFrameDto) {
+    return this.proctoringService.analyzeFrame(data);
   }
 
   @Post('browser-activity')
-  @Roles(UserRole.STUDENT)
-  async recordBrowserActivity(@Body() data: { 
-    meetingId: string; 
-    userId: string; 
-    participantId: string; 
-    activityType: any; 
-    metadata?: any 
-  },@Req() req) {
-
-
-    return this.proctoringService.recordBrowserActivity(data);
+  async reportBrowserActivity(@Body() data: {
+    meetingId: string;
+    userId: string;
+    participantId: string;
+    activityType: string;
+    metadata?: any;
+  }) {
+    return this.proctoringService.analyzeFrame({
+      meetingId: data.meetingId,
+      userId: data.userId,
+      participantId: data.participantId,
+      detections: {
+        suspiciousBehavior: true
+      },
+      browserData: {
+        [data.activityType.toLowerCase()]: true
+      }
+    });
   }
 
-  // ===== ALERTS & MONITORING =====
-  @Get('alerts/:meetingId')
-  @Roles(UserRole.TUTOR)
-  async getAlerts(@Param('meetingId') meetingId: string) {
+  @Post('test-violation')
+  async reportTestViolation(@Body() data: {
+    testId: string;
+    violationType: string;
+    description: string;
+    timestamp: string;
+  }) {
+    return this.proctoringService.recordTestViolation(data);
+  }
+
+  @Get('meeting/:meetingId/flags')
+  async getMeetingFlags(@Param('meetingId') meetingId: string) {
+    return this.proctoringService.getMeetingFlags(meetingId);
+  }
+
+  @Get('test/:testId/flags')
+  async getTestFlags(@Param('testId') testId: string) {
+    return this.proctoringService.getTestFlags(testId);
+  }
+
+  @Get('session/:meetingId/alerts')
+  async getSessionAlerts(@Param('meetingId') meetingId: string) {
     return this.proctoringService.getSessionAlerts(meetingId);
   }
 
-  @Get('alerts/:meetingId/:participantId')
-  @Roles(UserRole.TUTOR)
+  @Get('session/:meetingId/participant/:participantId/alerts')
   async getParticipantAlerts(
     @Param('meetingId') meetingId: string,
     @Param('participantId') participantId: string
@@ -71,113 +67,36 @@ export class ProctoringController {
     return this.proctoringService.getSessionAlerts(meetingId, participantId);
   }
 
-  @Get('alerts-summary/:meetingId')
-  @Roles(UserRole.TUTOR)
-  async getAlertSummary(@Param('meetingId') meetingId: string) {
-    return this.proctoringService.getAlertSummary(meetingId);
-  }
-
-  // ===== FLAGS & RISK ASSESSMENT =====
-  @Get('flags/:meetingId')
-  @Roles(UserRole.TUTOR)
-  async getAllStudentFlags(@Param('meetingId') meetingId: string) {
-    return this.proctoringService.getMeetingFlags(meetingId);
-  }
-
-  @Get('flags/:meetingId/:userId')
-  @Roles(UserRole.TUTOR)
-  async getStudentFlags(
-    @Param('meetingId') meetingId: string,
-    @Param('userId') userId: string
-  ) {
-    return this.proctoringService.getStudentFlags(meetingId, userId);
-  }
-
-  // ===== COMPREHENSIVE REPORTS =====
-  @Get('report/:meetingId')
-  @Roles(UserRole.TUTOR)
-  async generateReport(@Param('meetingId') meetingId: string) {
-    return this.proctoringService.generateProctoringReport(meetingId);
+  @Get('meeting/:meetingId/stats')
+  async getMeetingStats(@Param('meetingId') meetingId: string) {
+    return this.proctoringService.getMeetingStats(meetingId);
   }
 
   @Get('detailed-report/:meetingId')
-  @Roles(UserRole.TUTOR)
-  async generateDetailedReport(@Param('meetingId') meetingId: string) {
-    return this.proctoringService.generateDetailedProctoringReport(meetingId);
+  async getDetailedReport(@Param('meetingId') meetingId: string) {
+    return this.proctoringService.generateDetailedReport(meetingId);
   }
 
-  @Get('participant-report/:meetingId/:userId')
-  @Roles(UserRole.TUTOR)
-  async getParticipantReport(
-    @Param('meetingId') meetingId: string,
-    @Param('userId') userId: string
-  ) {
-    return this.proctoringService.generateParticipantReport(meetingId, userId);
+  @Get('report/:meetingId')
+  async getReport(@Param('meetingId') meetingId: string) {
+    return this.proctoringService.generateProctoringReport(meetingId);
   }
 
-  // ===== STATISTICS & ANALYTICS =====
-  @Get('statistics/:meetingId')
-  @Roles(UserRole.TUTOR)
-  async getMeetingStatistics(@Param('meetingId') meetingId: string) {
-    return this.proctoringService.getMeetingStatistics(meetingId);
-  }
-
-  @Get('risk-analysis/:meetingId')
-  @Roles(UserRole.TUTOR)
-  async getRiskAnalysis(@Param('meetingId') meetingId: string) {
-    return this.proctoringService.getRiskAnalysis(meetingId);
-  }
-
-  // ===== REAL-TIME DASHBOARD DATA =====
-  @Get('dashboard/:meetingId')
-  @Roles(UserRole.TUTOR)
-  async getDashboardData(@Param('meetingId') meetingId: string) {
-    return this.proctoringService.getDashboardData(meetingId);
+  @Get('alerts/:meetingId')
+  async getAlerts(@Param('meetingId') meetingId: string) {
+    return this.proctoringService.getAlertsWithParticipantDetails(meetingId);
   }
 
   @Get('live-alerts/:meetingId')
-  @Roles(UserRole.TUTOR)
   async getLiveAlerts(@Param('meetingId') meetingId: string) {
     return this.proctoringService.getLiveAlerts(meetingId);
   }
 
-  @Get('alerts-with-participants/:meetingId')
-  @Roles(UserRole.TUTOR)
-  async getAlertsWithParticipants(@Param('meetingId') meetingId: string) {
-    return this.proctoringService.getAlertsWithParticipantDetails(meetingId);
-  }
-
-  @Post('test-alert')
-  @Roles(UserRole.TUTOR, UserRole.STUDENT)
-  async createTestAlert(@Body() data: {
-    meetingId: string;
-    userId: string;
-    alertType: string;
-    description?: string;
-  }) {
-    // Create a test alert for debugging
-    return this.proctoringService.analyzeFrame({
-      meetingId: data.meetingId,
-      userId: data.userId,
-      participantId: data.userId,
-      detections: {
-        faceCount: data.alertType === 'FACE_NOT_DETECTED' ? 0 : 
-                  data.alertType === 'MULTIPLE_FACES' ? 3 : 1,
-        phoneDetected: data.alertType === 'PHONE_DETECTED',
-        phoneConfidence: 0.9
-      }
-    });
-  }
-
-  @Post('enhanced-frame-analysis')
-  @Roles(UserRole.STUDENT)
-  async enhancedFrameAnalysis(@Body() data: {
-    meetingId: string;
-    userId: string;
-    participantId: string;
-    frameData: string; // base64 image
-    includeDeepfakeCheck?: boolean;
-  }) {
-    return this.proctoringService.enhancedFrameAnalysis(data);
+  @Get('participant/:meetingId/:participantId')
+  async getParticipantReport(
+    @Param('meetingId') meetingId: string,
+    @Param('participantId') participantId: string
+  ) {
+    return this.proctoringService.getParticipantDetailedReport(meetingId, participantId);
   }
 }

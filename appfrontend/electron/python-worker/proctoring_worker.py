@@ -39,6 +39,7 @@ class ProctoringAnalyzer:
         self.reference_face_encoding = None
         self.reference_image_url = None
         self.identity_verified = False
+        self.reference_user_id = None
         
         # Detection thresholds
         self.confidence_threshold = 0.5
@@ -329,23 +330,32 @@ class ProctoringAnalyzer:
             # Add face behavior alerts
             all_alerts.extend(face_alerts)
             
-            # Add basic face verification
-            if face_count > 0 and not any(alert['alertType'] == 'IDENTITY_VERIFIED' for alert in all_alerts):
-                all_alerts.append({
-                    'alertType': 'FACE_DETECTED',
-                    'description': 'Face detected in frame',
-                    'confidence': 0.8,
-                    'severity': 'LOW'
-                })
+            # Add basic face verification if face is detected
+            if face_count > 0:
+                if self.identity_verified and identity_matches > 0:
+                    all_alerts.append({
+                        'alertType': 'FACE_VERIFIED',
+                        'description': f'Face identity verified (matches: {identity_matches})',
+                        'confidence': 0.9,
+                        'severity': 'LOW'
+                    })
+                elif not any(alert['alertType'] in ['IDENTITY_VERIFIED', 'IDENTITY_MISMATCH'] for alert in all_alerts):
+                    all_alerts.append({
+                        'alertType': 'FACE_DETECTED',
+                        'description': f'Face detected in frame (count: {face_count})',
+                        'confidence': 0.8,
+                        'severity': 'LOW'
+                    })
             
             return {
                 'alerts': all_alerts,
                 'faceDetected': face_count > 0,
                 'faceCount': face_count,
-                'identityVerified': self.identity_verified,
+                'identityVerified': self.identity_verified and identity_matches > 0,
                 'identityMatches': identity_matches,
                 'objectsDetected': [obj['object'] for obj in object_alerts],
-                'timestamp': time.time()
+                'timestamp': time.time(),
+                'processingTime': time.time()
             }
             
         except Exception as e:
@@ -365,6 +375,14 @@ def main():
                     frame_data = data.get('data', {})
                     analysis_result = analyzer.analyze_frame(frame_data)
                     
+                    # Add metadata for better tracking
+                    analysis_result.update({
+                        'meetingId': frame_data.get('meetingId'),
+                        'userId': frame_data.get('userId'),
+                        'participantId': frame_data.get('participantId'),
+                        'frameTimestamp': frame_data.get('timestamp')
+                    })
+                    
                     # Send analysis result to Electron
                     print(json.dumps(analysis_result))
                     sys.stdout.flush()
@@ -376,25 +394,41 @@ def main():
                     print(json.dumps({
                         'status': 'REFERENCE_FACE_LOADED',
                         'success': success,
-                        'userId': user_id
+                        'userId': user_id,
+                        'timestamp': time.time()
                     }))
                     sys.stdout.flush()
                 
                 elif data.get('type') == 'START_PROCESSING':
-                    print(json.dumps({'status': 'PROCESSING_STARTED'}))
+                    session_data = data.get('sessionData', {})
+                    print(json.dumps({
+                        'status': 'PROCESSING_STARTED',
+                        'sessionData': session_data,
+                        'timestamp': time.time()
+                    }))
                     sys.stdout.flush()
                 
                 elif data.get('type') == 'STOP_PROCESSING':
-                    print(json.dumps({'status': 'PROCESSING_STOPPED'}))
+                    print(json.dumps({
+                        'status': 'PROCESSING_STOPPED',
+                        'timestamp': time.time()
+                    }))
                     sys.stdout.flush()
                     
             except json.JSONDecodeError as e:
-                print(f"JSON decode error: {e}")
+                print(f"JSON decode error: {e}", file=sys.stderr)
             except Exception as e:
-                print(f"Processing error: {e}")
+                print(f"Processing error: {e}", file=sys.stderr)
+                # Send error response
+                print(json.dumps({
+                    'status': 'ERROR',
+                    'error': str(e),
+                    'timestamp': time.time()
+                }))
+                sys.stdout.flush()
                 
     except KeyboardInterrupt:
-        print("Python worker shutting down...")
+        print("Python worker shutting down...", file=sys.stderr)
 
 if __name__ == "__main__":
     main()

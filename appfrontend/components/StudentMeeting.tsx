@@ -141,7 +141,7 @@ export default function EnhancedStudentMeetingRoom({
   console.log((userInfo?.id));
 
   const captureAndSendFrame = async () => {
-    if (!localVideoRef.current || !videoFrameCanvasRef.current) return;
+    if (!localVideoRef.current || !videoFrameCanvasRef.current || !isProctoringActive) return;
 
     const video = localVideoRef.current;
     const canvas = videoFrameCanvasRef.current;
@@ -149,53 +149,52 @@ export default function EnhancedStudentMeetingRoom({
 
     if (!ctx || video.videoWidth === 0 || video.videoHeight === 0) return;
 
-    // Set canvas dimensions to match video
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    try {
+      // Set canvas dimensions to match video
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
 
-    // Draw current video frame to canvas
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      // Draw current video frame to canvas
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Convert canvas to base64 with lower quality to reduce size
-    const base64Image = canvas.toDataURL('image/jpeg', 0.3);
+      // Convert canvas to base64 with lower quality to reduce size
+      const base64Image = canvas.toDataURL('image/jpeg', 0.4);
 
-    const frameData = {
-      imageData: base64Image,
-      meetingId,
-      userId: userInfo?.id,
-      participantId: userInfo?.id,
-      timestamp: Date.now()
-    };
+      const frameData = {
+        imageData: base64Image,
+        meetingId,
+        userId: userInfo?.id,
+        participantId: userInfo?.id,
+        timestamp: Date.now()
+      };
 
-    // Send frame to analysis
-    if (isElectron && window.electronAPI) {
-      try {
-        console.log('Sending frame to Electron API');
-        const result = await window.electronAPI.sendVideoFrame(frameData);
-        console.log('Electron frame analysis result:', result);
-      } catch (error) {
-        console.error('Failed to send frame to Electron:', error);
+      // Send frame to Electron API if available
+      if (isElectron && window.electronAPI) {
+        try {
+          await window.electronAPI.sendVideoFrame(frameData);
+        } catch (error) {
+          console.error('Electron frame analysis failed:', error);
+        }
       }
-    } else if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      console.log('Sending frame via WebSocket');
-      wsRef.current.send(JSON.stringify({
-        type: 'VIDEO_FRAME',
-        data: frameData
-      }));
-    } else {
-      console.log('No proctoring connection available (Electron or WebSocket)');
-    }
 
-    // Send to proctoring service for basic analysis
-    await sendFrameForAnalysis(frameData);
+      // Send frame to WebSocket if available
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({
+          type: 'VIDEO_FRAME',
+          data: frameData
+        }));
+      }
+
+      // Always send to backend proctoring service
+      await sendFrameForAnalysis(frameData);
+    } catch (error) {
+      console.error('Frame capture failed:', error);
+    }
   };
 
   const sendFrameForAnalysis = async (frameData: any) => {
     try {
-      // Use enhanced analysis every 5th frame (includes deepfake check)
-      const shouldIncludeDeepfake = deepfakeCheckCount % 5 === 0;
-      
-      const response = await fetch('http://localhost:4000/proctoring/enhanced-frame-analysis', {
+      const response = await fetch('http://localhost:4000/proctoring/analyze-frame', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -203,8 +202,15 @@ export default function EnhancedStudentMeetingRoom({
           meetingId,
           userId: userInfo?.id,
           participantId: userInfo?.id,
-          frameData: frameData.imageData,
-          includeDeepfakeCheck: shouldIncludeDeepfake
+          detections: {
+            faceCount: 1, // Will be updated by AI analysis
+            phoneDetected: false,
+            suspiciousBehavior: false
+          },
+          browserData: {
+            frameAnalysis: true,
+            timestamp: Date.now()
+          }
         })
       });
       
@@ -215,19 +221,14 @@ export default function EnhancedStudentMeetingRoom({
             handleProctoringAnalysis({ alerts: [alert] });
           });
         }
-        
-        if (result.deepfakeCheckPerformed) {
-          setDeepfakeCheckCount(prev => prev + 1);
-          setLastDeepfakeCheck(new Date());
-        }
       }
     } catch (error) {
-      console.error('Failed to send frame for analysis:', error);
+      console.error('Backend frame analysis failed:', error);
     }
   };
 
   const performDeepfakeCheck = async () => {
-    if (!localVideoRef.current || !videoFrameCanvasRef.current) return;
+    if (!localVideoRef.current || !videoFrameCanvasRef.current || !isProctoringActive) return;
 
     const video = localVideoRef.current;
     const canvas = videoFrameCanvasRef.current;
@@ -236,7 +237,7 @@ export default function EnhancedStudentMeetingRoom({
     if (!ctx || video.videoWidth === 0 || video.videoHeight === 0) return;
 
     try {
-      // Capture frame
+      // Capture frame for deepfake analysis
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -252,9 +253,8 @@ export default function EnhancedStudentMeetingRoom({
         formData.append('participantId', userInfo?.id || '');
 
         try {
-          const response = await fetch('http://localhost:4000/deepfake/check', {
+          const response = await fetch('http://localhost:8000/deepfake/check', {
             method: 'POST',
-            credentials: 'include',
             body: formData
           });
 
@@ -263,7 +263,19 @@ export default function EnhancedStudentMeetingRoom({
             setDeepfakeCheckCount(prev => prev + 1);
             setLastDeepfakeCheck(new Date());
             
-            // Update status based on result
+            // Create alert based on result
+            const alert = {
+              alertType: result.result?.label === 'fake' ? 'DEEPFAKE_DETECTED' : 'FACE_VERIFIED',
+              description: result.result?.label === 'fake' 
+                ? `Potential deepfake detected (${Math.round(result.result.confidence * 100)}% confidence)`
+                : `Face verified (${Math.round(result.result.confidence * 100)}% confidence)`,
+              confidence: result.result?.confidence || 0,
+              severity: result.result?.label === 'fake' ? 'CRITICAL' : 'LOW'
+            };
+
+            handleProctoringAnalysis({ alerts: [alert] });
+            
+            // Update status
             if (result.result?.label === 'fake') {
               setFaceDetectionStatus(`⚠️ Deepfake detected (${Math.round(result.result.confidence * 100)}%)`);
               toast({
@@ -278,39 +290,61 @@ export default function EnhancedStudentMeetingRoom({
           }
         } catch (error) {
           console.error('Deepfake check failed:', error);
+          // Just log the error, don't try backup as it may not be available
+          setFaceDetectionStatus('Basic monitoring active (deepfake check unavailable)');
         }
-      }, 'image/jpeg', 0.4);
+      }, 'image/jpeg', 0.6);
     } catch (error) {
       console.error('Failed to perform deepfake check:', error);
     }
   };
 
   const startProctoring = async () => {
-    if (!isVideoEnabled || !localVideoRef.current) return;
+    if (!isVideoEnabled || !localVideoRef.current || isProctoringActive) return;
 
     try {
+      // Start Electron proctoring if available
       if (isElectron && window.electronAPI) {
-        await window.electronAPI.startProctoring();
+        const sessionData = {
+          meetingId,
+          userId: userInfo?.id,
+          participantId: userInfo?.id,
+          userInfo
+        };
+        await window.electronAPI.startProctoring(sessionData);
       }
 
       setIsProctoringActive(true);
+      setFaceDetectionStatus('Proctoring active - Basic monitoring...');
       
-      // Start periodic frame analysis (every 5 seconds for regular checks)
+      // Start periodic frame analysis (every 5 seconds for basic mode)
       proctoringIntervalRef.current = setInterval(captureAndSendFrame, 5000);
       
-      // Start deepfake detection (every 45 seconds via direct API)
-      deepfakeIntervalRef.current = setInterval(performDeepfakeCheck, 45000);
+      // Only start deepfake if service is available
+      try {
+        const healthCheck = await fetch('http://localhost:8000/health', { timeout: 2000 });
+        if (healthCheck.ok) {
+          deepfakeIntervalRef.current = setInterval(performDeepfakeCheck, 45000);
+          setTimeout(performDeepfakeCheck, 10000);
+        }
+      } catch (error) {
+        console.log('Deepfake service not available, using basic monitoring only');
+      }
       
-      // Perform initial checks
+      // Perform initial check
       setTimeout(captureAndSendFrame, 2000);
-      setTimeout(performDeepfakeCheck, 5000);
 
       toast({
-        title: "Proctoring Started",
-        description: "AI proctoring with deepfake detection is now active",
+        title: "🛡️ Proctoring Started",
+        description: "Basic monitoring is now active",
       });
     } catch (error) {
       console.error('Failed to start proctoring:', error);
+      toast({
+        title: "Proctoring Error",
+        description: "Failed to start monitoring",
+        variant: "destructive",
+      });
     }
   };
 
@@ -337,8 +371,10 @@ export default function EnhancedStudentMeetingRoom({
     }
   };
 
- // Add this function to load reference face
+ // Load reference face for identity verification
 const loadReferenceFace = async () => {
+  if (!isElectron || !window.electronAPI) return;
+  
   try {
     // Fetch user profile to get image URL
     const response = await fetch('http://localhost:4000/user/profile', {
@@ -347,15 +383,17 @@ const loadReferenceFace = async () => {
     
     if (response.ok) {
       const profile = await response.json();
-      if (profile.profilePic) {
+      if (profile.profilePic && profile.id) {
         // Load reference face for identity verification
-        if (window.electronAPI) {
-          await window.electronAPI.loadReferenceFace(profile.profilePic, profile?.id);
+        const success = await window.electronAPI.loadReferenceFace(profile.profilePic, profile.id);
+        if (success) {
           toast({
-            title: "Face Recognition Enabled",
-            description: "Your face is being used for identity verification",
+            title: "🔐 Face Recognition Enabled",
+            description: "Your profile photo is loaded for identity verification",
           });
         }
+      } else {
+        console.warn('No profile picture available for face recognition');
       }
     }
   } catch (error) {
@@ -370,7 +408,7 @@ useEffect(() => {
   }
 }, [isConnected, userInfo]);
 
-// Update the proctoring analysis handler
+// Enhanced proctoring analysis handler
 const handleProctoringAnalysis = (analysis: any) => {
   if (analysis.alerts && analysis.alerts.length > 0) {
     analysis.alerts.forEach((alert: any) => {
@@ -378,7 +416,7 @@ const handleProctoringAnalysis = (analysis: any) => {
         id: `alert-${Date.now()}-${Math.random()}`,
         alertType: alert.alertType,
         description: alert.description,
-        confidence: alert.confidence,
+        confidence: alert.confidence || 0.5,
         detectedAt: new Date().toISOString(),
         participantId: userInfo?.id || '',
         severity: alert.severity || 'MEDIUM',
@@ -386,7 +424,28 @@ const handleProctoringAnalysis = (analysis: any) => {
         timestamp: new Date().toISOString()
       };
 
-      setProctoringAlerts(prev => [newAlert, ...prev.slice(0, 4)]);
+      setProctoringAlerts(prev => [newAlert, ...prev.slice(0, 9)]);
+
+      // Send alert to tutor via LiveKit if room is connected
+      if (room && room.isConnected) {
+        try {
+          const alertData = {
+            type: 'PROCTORING_ALERT',
+            data: {
+              ...newAlert,
+              participantId: userInfo?.id,
+              studentName: userInfo?.fullname,
+              studentEmail: userInfo?.email || 'Unknown'
+            }
+          };
+          
+          const encoder = new TextEncoder();
+          const data = encoder.encode(JSON.stringify(alertData));
+          room.localParticipant.publishData(data, { reliable: true });
+        } catch (error) {
+          console.error('Failed to send alert via LiveKit:', error);
+        }
+      }
 
       // Show toast for important alerts
       if (alert.severity === 'HIGH' || alert.severity === 'CRITICAL') {
@@ -394,34 +453,37 @@ const handleProctoringAnalysis = (analysis: any) => {
           title: "🚨 Proctoring Alert",
           description: alert.description,
           variant: "destructive",
-          duration: 3000,
+          duration: 4000,
         });
       }
 
-      // Send alert to backend
+      // Report to backend
       reportProctoringAlert(newAlert);
     });
   }
 
-  // Update face detection status with identity verification
+  // Update face detection status
   if (analysis.faceDetected !== undefined) {
     let status = analysis.faceDetected ? 
-      `Face detected ✅ (${analysis.faceCount || 0})` : 'No face detected ⚠️';
+      `Face detected ✅ (${analysis.faceCount || 1})` : 'No face detected ⚠️';
     
     if (analysis.identityVerified) {
       status += ' 👤 Verified';
+    } else if (analysis.faceDetected) {
+      status += ' ⚠️ Unverified';
     }
     
     if (analysis.objectsDetected && analysis.objectsDetected.length > 0) {
-      console.log('Objects detected:', analysis.objectsDetected);
+      status += ` | Objects: ${analysis.objectsDetected.join(', ')}`;
     }
+    
     setFaceDetectionStatus(status);
   }
 };
 
   const reportProctoringAlert = async (alert: ProctoringAlert) => {
     try {
-      await fetch('http://localhost:4000/proctoring/analyze-frame', {
+      const response = await fetch('http://localhost:4000/proctoring/analyze-frame', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -430,12 +492,21 @@ const handleProctoringAnalysis = (analysis: any) => {
           userId: userInfo?.id,
           participantId: userInfo?.id,
           detections: {
-            alertType: alert.alertType,
-            confidence: alert.confidence
+            [alert.alertType.toLowerCase()]: true,
+            confidence: alert.confidence,
+            alertType: alert.alertType
           },
-          browserData: { automatedDetection: true }
+          browserData: { 
+            automatedDetection: true,
+            alertSeverity: alert.severity,
+            timestamp: alert.timestamp
+          }
         })
       });
+      
+      if (!response.ok) {
+        console.warn('Alert reporting failed:', response.status);
+      }
     } catch (error) {
       console.error('Failed to report proctoring alert:', error);
     }
@@ -865,30 +936,33 @@ const handleProctoringAnalysis = (analysis: any) => {
 
   if (!isConnected) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white flex items-center justify-center font-['Inter']">
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center">
         <div className="text-center max-w-md">
-          <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_15px_35px_rgba(251,146,60,0.3)]">
-            <Video className="w-10 h-10 text-white" />
+          <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Video className="w-8 h-8 text-white" />
           </div>
           {connectionError ? (
-            <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 shadow-[0_20px_50px_rgba(251,146,60,0.15)] border border-orange-200/30">
-              <h1 className="text-2xl font-bold mb-4 bg-gradient-to-r from-red-600 to-red-800 bg-clip-text text-transparent">Connection Failed</h1>
-              <p className="text-gray-700 mb-6 font-medium">{connectionError}</p>
-              <div className="space-y-2 mb-6 text-sm text-gray-600 bg-orange-50 p-4 rounded-2xl">
+            <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-8 border border-orange-200/50 shadow-lg">
+              <h1 className="text-xl font-bold mb-4 text-red-600">Connection Failed</h1>
+              <p className="text-gray-700 mb-6">{connectionError}</p>
+              <div className="space-y-2 mb-6 text-sm text-gray-600 bg-orange-50 p-4 rounded-xl">
                 <p className="font-semibold text-orange-800">Debug Info:</p>
                 <p>Server URL: {serverUrl}</p>
                 <p>Token: {token ? 'Present' : 'Missing'}</p>
                 <p>Electron: {isElectron ? 'Yes' : 'No'}</p>
               </div>
-              <button onClick={() => connectToRoom()} className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-3 px-6 rounded-2xl shadow-[0_15px_35px_rgba(251,146,60,0.3)] hover:shadow-[0_20px_45px_rgba(251,146,60,0.4)] transform hover:scale-[1.02] transition-all duration-300">
+              <button 
+                onClick={() => connectToRoom()} 
+                className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold py-3 px-6 rounded-lg transition-all"
+              >
                 Retry Connection
               </button>
             </div>
           ) : (
-            <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 shadow-[0_20px_50px_rgba(251,146,60,0.15)] border border-orange-200/30">
-              <h1 className="text-2xl font-bold mb-6 bg-gradient-to-r from-orange-600 to-orange-800 bg-clip-text text-transparent">Connecting to Class...</h1>
-              <div className="w-12 h-12 border-4 border-orange-300 border-t-orange-600 rounded-full animate-spin mx-auto mb-6"></div>
-              <p className="text-gray-700 font-medium">Joining the classroom session...</p>
+            <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-8 border border-orange-200/50 shadow-lg">
+              <h1 className="text-xl font-bold mb-6 text-orange-600">Connecting to Class...</h1>
+              <div className="w-8 h-8 border-4 border-orange-300 border-t-orange-600 rounded-full animate-spin mx-auto mb-6"></div>
+              <p className="text-gray-700">Joining the classroom session...</p>
             </div>
           )}
         </div>
@@ -897,230 +971,206 @@ const handleProctoringAnalysis = (analysis: any) => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white flex font-['Inter']">
-      {/* Main Video Area */}
-      <div className="flex-1 flex flex-col">
-        {/* Header Bar */}
-        <div className="p-6 bg-white/60 backdrop-blur-3xl border-b border-orange-200/30 flex justify-between items-center shadow-[0_8px_25px_rgba(251,146,60,0.1)]">
-          <div className="flex items-center gap-4">
-            <h2 className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-orange-800 bg-clip-text text-transparent">Classroom Session</h2>
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-sm shadow-lg ${
-              isProctoringActive 
-                ? "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-green-500/30" 
-                : "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-gray-500/30"
-            }`}>
-              <Shield className="w-4 h-4" />
-              AI Proctoring {isProctoringActive ? 'Active' : 'Inactive'}
-            </div>
-            <div className={`px-4 py-2 rounded-full font-semibold text-sm shadow-lg ${
-              quizInProgress 
-                ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-red-500/30" 
-                : "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-blue-500/30"
-            }`}>
-              {quizInProgress ? "Quiz in Progress" : "Active"}
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex flex-col">
+      {/* Header Bar */}
+      <div className="p-4 bg-white/80 backdrop-blur-xl border-b border-orange-200/50 flex justify-between items-center shadow-sm">
+        <div className="flex items-center gap-4">
+          <h2 className="text-xl font-bold text-gray-800">Classroom Session</h2>
+          <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold ${
+            isProctoringActive 
+              ? "bg-green-100 text-green-700" 
+              : "bg-gray-100 text-gray-700"
+          }`}>
+            <Shield className="w-4 h-4" />
+            AI Proctoring {isProctoringActive ? 'Active' : 'Inactive'}
           </div>
-          <div className="flex gap-3">
-            {proctoringAlerts.length > 0 && (
-              <div className="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-full font-semibold text-sm shadow-lg shadow-red-500/30 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4" />
-                {proctoringAlerts.length} Alerts
-              </div>
-            )}
-            <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-full font-semibold text-sm shadow-lg shadow-orange-500/30 flex items-center gap-2">
-              <Eye className="w-4 h-4" />
-              {faceDetectionStatus}
+          {quizInProgress && (
+            <div className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-semibold">
+              Quiz in Progress
             </div>
-            {isElectron && (
-              <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-full font-semibold text-sm shadow-lg shadow-purple-500/30 flex items-center gap-2">
-                💻 Electron Mode
-              </div>
-            )}
-            {tutorParticipant && (
-              <div className="bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-full font-semibold text-sm shadow-lg shadow-green-500/30 flex items-center gap-2">
-                👥 Tutor Connected
-              </div>
-            )}
-          </div>
+          )}
         </div>
-
-        {/* Video Grid */}
-        <div className="flex-1 p-6">
-          <div className="grid grid-cols-2 gap-6 h-full">
-            {/* Tutor Video (Main) */}
-            <div className="relative bg-white/80 backdrop-blur-xl rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(251,146,60,0.15)] border border-orange-200/40 hover:shadow-[0_25px_60px_rgba(251,146,60,0.2)] transition-all duration-300">
-              {tutorParticipant ? (
-                <video
-                  ref={tutorVideoRef}
-                  className="w-full h-full object-cover"
-                  autoPlay
-                  playsInline
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-100 to-orange-200">
-                  <div className="text-center">
-                    <div className="p-6 bg-gradient-to-br from-orange-500 to-orange-600 rounded-3xl shadow-lg shadow-orange-500/30 mb-6 inline-block">
-                      <VideoOff className="w-16 h-16 text-white" />
-                    </div>
-                    <p className="text-gray-700 font-semibold text-lg">Tutor video will appear here</p>
-                  </div>
-                </div>
-              )}
-              
-              <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-xl text-gray-800 px-4 py-2 rounded-2xl flex items-center gap-3 shadow-[0_10px_25px_rgba(251,146,60,0.2)]">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
-                  <span className="text-sm font-bold text-white">T</span>
-                </div>
-                <span className="font-bold">Tutor</span>
-              </div>
+        <div className="flex gap-2">
+          {proctoringAlerts.length > 0 && (
+            <div className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
+              <AlertTriangle className="w-4 h-4" />
+              {proctoringAlerts.length}
             </div>
-
-            {/* Local Student Video */}
-            <div className="relative bg-white/80 backdrop-blur-xl rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(251,146,60,0.15)] border border-orange-200/40 hover:shadow-[0_25px_60px_rgba(251,146,60,0.2)] transition-all duration-300">
-              <video
-                ref={localVideoRef}
-                className="w-full h-full object-cover"
-                autoPlay
-                playsInline
-                muted
-              />
-              
-              <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-xl text-gray-800 px-4 py-2 rounded-2xl flex items-center gap-3 shadow-[0_10px_25px_rgba(251,146,60,0.2)]">
-                <img 
-                  src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${userInfo?.fullname || 'You'}`}
-                  alt="Profile"
-                  className="w-8 h-8 rounded-full border-2 border-orange-300"
-                />
-                <span className="font-bold">{userInfo?.fullname || 'You'} (You)</span>
-                {!isVideoEnabled && <VideoOff className="w-5 h-5 text-red-500" />}
-              </div>
-
-              {/* Proctoring Status Overlay */}
-              <div className="absolute top-4 right-4 flex flex-col gap-3 items-end">
-                <div className={`px-3 py-2 rounded-xl font-semibold text-xs text-white shadow-lg flex items-center gap-2 ${
-                  isProctoringActive ? 'bg-gradient-to-r from-green-500 to-green-600 shadow-green-500/30' : 'bg-gradient-to-r from-gray-500 to-gray-600 shadow-gray-500/30'
-                }`}>
-                  <Shield className="w-3 h-3" />
-                  {isProctoringActive ? 'Proctoring' : 'Inactive'}
-                </div>
-                <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-2 rounded-xl font-semibold text-xs shadow-lg shadow-blue-500/30">
-                  {faceDetectionStatus}
-                </div>
-                {deepfakeCheckCount > 0 && (
-                  <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-3 py-2 rounded-xl font-semibold text-xs shadow-lg shadow-purple-500/30">
-                    Deepfake checks: {deepfakeCheckCount}
-                  </div>
-                )}
-                {lastDeepfakeCheck && (
-                  <div className="bg-gradient-to-r from-gray-500 to-gray-600 text-white px-3 py-2 rounded-xl font-semibold text-xs shadow-lg shadow-gray-500/30">
-                    Last check: {lastDeepfakeCheck.toLocaleTimeString()}
-                  </div>
-                )}
-              </div>
-            </div>
+          )}
+          <div className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
+            <Eye className="w-4 h-4" />
+            {faceDetectionStatus}
           </div>
-        </div>
-
-        {/* Controls */}
-        <div className="p-6 bg-white/60 backdrop-blur-3xl border-t border-orange-200/30 flex justify-center items-center gap-6 shadow-[0_-8px_25px_rgba(251,146,60,0.1)]">
-          <button
-            onClick={toggleAudio}
-            className={`rounded-full w-16 h-16 p-0 transition-all duration-300 shadow-[0_10px_25px_rgba(0,0,0,0.15)] hover:shadow-[0_15px_35px_rgba(0,0,0,0.2)] transform hover:scale-110 ${
-              isAudioEnabled 
-                ? 'bg-white/80 backdrop-blur-xl border-2 border-orange-200/50 text-gray-700 hover:bg-white/90' 
-                : 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-red-500/30'
-            }`}
-          >
-            {isAudioEnabled ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
-          </button>
-          
-          <button
-            onClick={toggleVideo}
-            className={`rounded-full w-16 h-16 p-0 transition-all duration-300 shadow-[0_10px_25px_rgba(0,0,0,0.15)] hover:shadow-[0_15px_35px_rgba(0,0,0,0.2)] transform hover:scale-110 ${
-              isVideoEnabled 
-                ? 'bg-white/80 backdrop-blur-xl border-2 border-orange-200/50 text-gray-700 hover:bg-white/90' 
-                : 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-red-500/30'
-            }`}
-          >
-            {isVideoEnabled ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
-          </button>
-
-          <button
-            onClick={toggleScreenShare}
-            className={`rounded-full w-16 h-16 p-0 transition-all duration-300 shadow-[0_10px_25px_rgba(0,0,0,0.15)] hover:shadow-[0_15px_35px_rgba(0,0,0,0.2)] transform hover:scale-110 ${
-              isScreenSharing 
-                ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-blue-500/30' 
-                : 'bg-white/80 backdrop-blur-xl border-2 border-orange-200/50 text-gray-700 hover:bg-white/90'
-            }`}
-          >
-            <Monitor className="w-6 h-6" />
-          </button>
-
-          <button
-            onClick={() => setShowQuizPanel(!showQuizPanel)}
-            className={`rounded-full w-16 h-16 p-0 transition-all duration-300 shadow-[0_10px_25px_rgba(0,0,0,0.15)] hover:shadow-[0_15px_35px_rgba(0,0,0,0.2)] transform hover:scale-110 ${
-              quizInProgress 
-                ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white shadow-yellow-500/30' 
-                : 'bg-white/80 backdrop-blur-xl border-2 border-orange-200/50 text-gray-700 hover:bg-white/90'
-            }`}
-          >
-            <MessageSquare className="w-6 h-6" />
-          </button>
-
-          <button
-            onClick={() => {
-              if (room) {
-                room.disconnect();
-              }
-              onDisconnect?.();
-            }}
-            className="rounded-full w-16 h-16 p-0 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white transition-all duration-300 shadow-[0_10px_25px_rgba(239,68,68,0.3)] hover:shadow-[0_15px_35px_rgba(239,68,68,0.4)] transform hover:scale-110"
-          >
-            <PhoneOff className="w-6 h-6" />
-          </button>
+          {isElectron && (
+            <div className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-semibold">
+              Electron
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Side Panels */}
-      {/* Proctoring Alerts Panel */}
-      {proctoringAlerts.length > 0 && (
-        <div className="w-80 bg-white/60 backdrop-blur-3xl border-l border-orange-200/30 flex flex-col shadow-[0_0_50px_rgba(251,146,60,0.1)]">
-          <div className="p-6 border-b border-orange-200/30">
-            <h3 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-orange-800 bg-clip-text text-transparent flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg shadow-orange-500/30">
-                <Bell className="w-5 h-5 text-white" />
+      {/* Video Grid */}
+      <div className="flex-1 p-4">
+        <div className="grid grid-cols-2 gap-4 h-full">
+          {/* Tutor Video */}
+          <div className="relative bg-white/80 rounded-xl overflow-hidden border border-orange-200/50 shadow-sm">
+            {tutorParticipant ? (
+              <video
+                ref={tutorVideoRef}
+                className="w-full h-full object-cover"
+                autoPlay
+                playsInline
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-orange-50">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-orange-200 rounded-full flex items-center justify-center mb-4">
+                    <VideoOff className="w-8 h-8 text-orange-600" />
+                  </div>
+                  <p className="text-gray-600">Waiting for tutor...</p>
+                </div>
               </div>
-              Proctoring Alerts ({proctoringAlerts.length})
+            )}
+            
+            <div className="absolute bottom-3 left-3 bg-white/90 text-gray-800 px-3 py-1 rounded-lg">
+              <span className="font-semibold">Tutor</span>
+            </div>
+          </div>
+
+          {/* Student Video */}
+          <div className="relative bg-white/80 rounded-xl overflow-hidden border border-orange-200/50 shadow-sm">
+            <video
+              ref={localVideoRef}
+              className="w-full h-full object-cover"
+              autoPlay
+              playsInline
+              muted
+            />
+            
+            <div className="absolute bottom-3 left-3 bg-white/90 text-gray-800 px-3 py-1 rounded-lg flex items-center gap-2">
+              <img 
+                src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${userInfo?.fullname || 'You'}`}
+                alt="Profile"
+                className="w-6 h-6 rounded-full"
+              />
+              <span className="font-semibold">{userInfo?.fullname || 'You'} (You)</span>
+              {!isVideoEnabled && <VideoOff className="w-4 h-4 text-red-500" />}
+            </div>
+
+            {/* Proctoring Status */}
+            <div className="absolute top-3 right-3 flex flex-col gap-2">
+              <div className={`px-2 py-1 rounded-lg text-xs font-semibold text-white ${
+                isProctoringActive ? 'bg-green-500' : 'bg-gray-500'
+              }`}>
+                <Shield className="w-3 h-3 inline mr-1" />
+                {isProctoringActive ? 'Monitoring' : 'Inactive'}
+              </div>
+              {deepfakeCheckCount > 0 && (
+                <div className="bg-purple-500 text-white px-2 py-1 rounded-lg text-xs font-semibold">
+                  Checks: {deepfakeCheckCount}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div className="p-4 bg-white/80 backdrop-blur-xl border-t border-orange-200/50 flex justify-center gap-4">
+        <button
+          onClick={toggleAudio}
+          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+            isAudioEnabled 
+              ? 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50' 
+              : 'bg-red-500 hover:bg-red-600 text-white'
+          }`}
+        >
+          {isAudioEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+        </button>
+        
+        <button
+          onClick={toggleVideo}
+          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+            isVideoEnabled 
+              ? 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50' 
+              : 'bg-red-500 hover:bg-red-600 text-white'
+          }`}
+        >
+          {isVideoEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+        </button>
+
+        <button
+          onClick={toggleScreenShare}
+          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+            isScreenSharing 
+              ? 'bg-blue-500 hover:bg-blue-600 text-white' 
+              : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50'
+          }`}
+        >
+          <Monitor className="w-5 h-5" />
+        </button>
+
+        <button
+          onClick={() => setShowQuizPanel(!showQuizPanel)}
+          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+            quizInProgress 
+              ? 'bg-yellow-500 hover:bg-yellow-600 text-white' 
+              : 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50'
+          }`}
+        >
+          <MessageSquare className="w-5 h-5" />
+        </button>
+
+        <button
+          onClick={() => {
+            if (room) {
+              room.disconnect();
+            }
+            onDisconnect?.();
+          }}
+          className="w-12 h-12 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center transition-all"
+        >
+          <PhoneOff className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Alerts Panel */}
+      {proctoringAlerts.length > 0 && (
+        <div className="fixed right-4 top-20 w-80 bg-white/90 backdrop-blur-xl rounded-xl border border-orange-200/50 shadow-lg max-h-96 overflow-hidden">
+          <div className="p-4 border-b border-orange-200/50">
+            <h3 className="font-bold text-gray-800 flex items-center gap-2">
+              <Bell className="w-4 h-4 text-orange-600" />
+              Alerts ({proctoringAlerts.length})
             </h3>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-orange-300 scrollbar-track-orange-100">
+          <div className="overflow-y-auto p-4 space-y-3 max-h-80">
             {proctoringAlerts.map((alert, index) => (
               <div 
                 key={`${alert.id}-${index}`} 
-                className={`p-4 backdrop-blur-xl rounded-2xl border shadow-[0_10px_25px_rgba(0,0,0,0.1)] ${
-                  alert.severity === 'CRITICAL' ? 'bg-red-100/80 border-red-300' :
-                  alert.severity === 'HIGH' ? 'bg-orange-100/80 border-orange-300' :
-                  alert.severity === 'MEDIUM' ? 'bg-yellow-100/80 border-yellow-300' :
-                  'bg-white/80 border-orange-200/50'
+                className={`p-3 rounded-lg border ${
+                  alert.severity === 'CRITICAL' ? 'bg-red-50 border-red-200' :
+                  alert.severity === 'HIGH' ? 'bg-orange-50 border-orange-200' :
+                  alert.severity === 'MEDIUM' ? 'bg-yellow-50 border-yellow-200' :
+                  'bg-gray-50 border-gray-200'
                 }`}
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className={`px-3 py-1 rounded-lg text-white font-semibold text-xs shadow-lg ${getAlertTypeColor(alert.alertType)}`}>
-                        {alert.alertType.replace(/_/g, ' ')}
-                      </div>
-                      <div className={`px-3 py-1 rounded-lg text-white font-semibold text-xs shadow-lg ${getSeverityColor(alert.severity)}`}>
-                        {alert.severity}
-                      </div>
-                    </div>
-                    <p className="text-sm text-gray-700 mb-3 font-medium">{alert.description}</p>
-                    <div className="flex items-center justify-between text-xs text-gray-600">
-                      <span className="font-semibold">{Math.round(alert.confidence * 100)}% confidence</span>
-                      <span className="font-medium">{new Date(alert.timestamp).toLocaleTimeString()}</span>
-                    </div>
-                  </div>
+                <div className="flex justify-between items-start mb-2">
+                  <span className={`text-xs font-semibold px-2 py-1 rounded ${
+                    alert.severity === 'CRITICAL' ? 'bg-red-100 text-red-700' :
+                    alert.severity === 'HIGH' ? 'bg-orange-100 text-orange-700' :
+                    alert.severity === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-gray-100 text-gray-700'
+                  }`}>
+                    {alert.alertType.replace(/_/g, ' ')}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {new Date(alert.timestamp).toLocaleTimeString()}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-700 mb-2">{alert.description}</p>
+                <div className="text-xs text-gray-500">
+                  Confidence: {Math.round(alert.confidence * 100)}%
                 </div>
               </div>
             ))}
@@ -1130,11 +1180,13 @@ const handleProctoringAnalysis = (analysis: any) => {
 
       {/* Quiz Panel */}
       {showQuizPanel && (
-        <StudentQuizPanel
-        meetingId={meetingId}
-    isConnected={isConnected}
-    userInfo={userInfo}
-        />
+        <div className="fixed right-4 bottom-20 w-80 bg-white/90 backdrop-blur-xl rounded-xl border border-orange-200/50 shadow-lg">
+          <StudentQuizPanel
+            meetingId={meetingId}
+            isConnected={isConnected}
+            userInfo={userInfo}
+          />
+        </div>
       )}
 
       {/* Hidden canvas for frame capture */}

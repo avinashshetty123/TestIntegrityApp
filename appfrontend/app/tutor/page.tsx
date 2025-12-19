@@ -238,278 +238,178 @@ export default function TutorPage() {
   // }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white text-gray-800 px-6 md:px-12 py-10" style={{ backdropFilter: 'blur(30px)' }}>
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white text-gray-800 px-6 py-8">
       {/* HERO */}
       <section className="max-w-6xl mx-auto mb-10">
         <div className="flex flex-col md:flex-row items-center gap-8 justify-between">
           <div>
             <motion.h1
-              initial={{ opacity: 0, y: -18 }}
+              initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="text-4xl md:text-5xl font-black bg-clip-text text-transparent bg-gradient-to-r from-orange-600 via-orange-500 to-orange-400 drop-shadow-2xl"
-              style={{ fontFamily: 'Inter, system-ui, sans-serif', textShadow: '0 8px 32px rgba(251, 146, 60, 0.3)' }}
+              className="text-4xl md:text-5xl font-bold text-gray-800 mb-4"
             >
-              Tutor Console
+              Tutor Dashboard
             </motion.h1>
             <motion.p
-              initial={{ opacity: 0, y: 6 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
-              className="mt-4 text-gray-600 max-w-xl text-lg font-medium leading-relaxed"
-              style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
+              transition={{ delay: 0.1 }}
+              className="text-gray-600 text-lg mb-8 max-w-2xl"
             >
-              Create tests, start invigilation, review submissions, and monitor
-              class performance — all from a single secure dashboard.
+              Create tests, manage meetings, and monitor student performance with AI-powered proctoring.
             </motion.p>
 
-            <div className="mt-8 flex flex-wrap gap-4">
-              <button 
+            <div className="flex flex-wrap gap-4">
+              <Button 
                 onClick={handleCreateTest}
-                className="px-8 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-2xl shadow-2xl hover:shadow-orange-500/70 hover:scale-110 transition-all duration-300 backdrop-blur-3xl border border-white/30"
-                style={{ 
-                  fontFamily: 'Inter, system-ui, sans-serif',
-                  boxShadow: '0 30px 60px rgba(251, 146, 60, 0.6), 0 10px 30px rgba(251, 146, 60, 0.4), inset 0 2px 0 rgba(255, 255, 255, 0.3)',
-                  filter: 'drop-shadow(0 20px 40px rgba(251, 146, 60, 0.3))'
-                }}
+                className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-6 py-3 rounded-lg font-semibold"
               >
-                <FileText className="w-5 h-5 mr-2 inline" /> Create Test
-              </button>
-              <button 
+                <FileText className="w-4 h-4 mr-2" /> Create Test
+              </Button>
+              <Button 
                 onClick={handleStartMeeting}
-                className="px-8 py-4 bg-white/80 backdrop-blur-xl text-orange-600 font-bold rounded-2xl shadow-2xl hover:shadow-white/50 hover:scale-105 transition-all duration-300 border border-orange-200/50"
-                style={{ 
-                  fontFamily: 'Inter, system-ui, sans-serif',
-                  boxShadow: '0 20px 40px rgba(255, 255, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
-                }}
+                variant="outline"
+                className="border-orange-300 text-orange-600 hover:bg-orange-50 px-6 py-3 rounded-lg font-semibold"
               >
-                <Video className="w-5 h-5 mr-2 inline" /> Create Meeting
-              </button>
-              <button 
+                <Video className="w-4 h-4 mr-2" /> Create Meeting
+              </Button>
+              <Button 
                 onClick={handleManageMeetings}
-                className="px-8 py-4 bg-white/80 backdrop-blur-xl text-orange-600 font-bold rounded-2xl shadow-2xl hover:shadow-white/50 hover:scale-105 transition-all duration-300 border border-orange-200/50"
-                style={{ 
-                  fontFamily: 'Inter, system-ui, sans-serif',
-                  boxShadow: '0 20px 40px rgba(255, 255, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
-                }}
+                variant="outline"
+                className="border-orange-300 text-orange-600 hover:bg-orange-50 px-6 py-3 rounded-lg font-semibold"
               >
-                <Video className="w-5 h-5 mr-2 inline" /> Manage Meetings
-              </button>
-              <button 
+                <Video className="w-4 h-4 mr-2" /> Manage Meetings
+              </Button>
+              <Button 
                 onClick={() => router.push('/tutor/profile')}
-                className="px-8 py-4 bg-white/80 backdrop-blur-xl text-orange-600 font-bold rounded-2xl shadow-2xl hover:shadow-white/50 hover:scale-105 transition-all duration-300 border border-orange-200/50"
-                style={{ 
-                  fontFamily: 'Inter, system-ui, sans-serif',
-                  boxShadow: '0 20px 40px rgba(255, 255, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
-                }}
+                variant="outline"
+                className="border-orange-300 text-orange-600 hover:bg-orange-50 px-6 py-3 rounded-lg font-semibold"
               >
                 Edit Profile
-              </button>
+              </Button>
             </div>
           </div>
 
-          {/* Quick action tiles */}
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-2 gap-4">
             <motion.div
-              whileHover={{ scale: 1.05, rotateY: 5 }}
-              className="p-6 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl"
-              style={{ 
-                boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
-                transform: 'perspective(1000px)',
-                filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
-              }}
+              whileHover={{ scale: 1.02 }}
+              className="p-6 rounded-xl bg-white/80 backdrop-blur-xl border border-orange-200/50 shadow-lg"
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 shadow-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-orange-400 to-orange-600 flex items-center justify-center">
                     <Users className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <div className="text-sm text-gray-500 font-semibold" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Meetings Created</div>
-                    <div className="text-2xl font-black text-orange-600" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>{meetingcnt}</div>
+                    <div className="text-sm text-gray-600">Meetings Created</div>
+                    <div className="text-2xl font-bold text-gray-800">{meetingcnt}</div>
                   </div>
                 </div>
-                <button
+                <Button
+                  size="sm"
+                  variant="outline"
                   onClick={() => router.push("/tutor/meeting")}
-                  className="px-4 py-2 text-xs font-bold text-orange-600 bg-orange-100 rounded-xl hover:bg-orange-200 transition-all duration-200"
-                  style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
                 >
                   View
-                </button>
+                </Button>
               </div>
             </motion.div>
 
             <motion.div
-              whileHover={{ scale: 1.05, rotateY: -5 }}
-              className="p-6 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl"
-              style={{ 
-                boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
-                transform: 'perspective(1000px)',
-                filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
-              }}
+              whileHover={{ scale: 1.02 }}
+              className="p-6 rounded-xl bg-white/80 backdrop-blur-xl border border-orange-200/50 shadow-lg"
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 shadow-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-green-400 to-green-600 flex items-center justify-center">
                     <CalendarCheck className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <div className="text-sm text-gray-500 font-semibold" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Tests Conducted</div>
-                    <div className="text-2xl font-black text-orange-600" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>{stats.testsConducted}</div>
+                    <div className="text-sm text-gray-600">Tests Conducted</div>
+                    <div className="text-2xl font-bold text-gray-800">{stats.testsConducted}</div>
                   </div>
                 </div>
-                <button 
-                  onClick={() => router.push("/tutor/tests")} 
-                  className="px-4 py-2 text-xs font-bold text-orange-600 bg-orange-100 rounded-xl hover:bg-orange-200 transition-all duration-200"
-                  style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => router.push("/tutor/tests")}
                 >
                   Manage
-                </button>
+                </Button>
               </div>
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* STATS + CHARTS */}
-      <section className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="col-span-1 p-8 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl"
-          style={{ 
-            boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
-            filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
-          }}
-        >
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 shadow-lg">
-              <ClipboardCheck className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <div className="text-sm text-gray-500 font-semibold" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Papers Checked</div>
-              <div className="text-3xl font-black text-orange-600" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>{stats.papersChecked}</div>
-            </div>
-          </div>
-
-          <div className="mt-8">
-            <div className="text-sm text-gray-500 font-semibold mb-3" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Avg Attendance</div>
-            <div className="w-full bg-orange-100 rounded-full h-3 overflow-hidden shadow-inner">
-              <div 
-                style={{ width: `${stats.avgAttendance}%` }} 
-                className="h-3 bg-gradient-to-r from-orange-400 to-orange-600 rounded-full shadow-sm transition-all duration-500" 
-              />
-            </div>
-            <div className="mt-3 text-lg font-bold text-orange-600" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>{stats.avgAttendance}%</div>
-          </div>
-
-          <div className="mt-8 flex gap-3">
-            <button 
-              onClick={handleCheckPapers} 
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-xl shadow-lg hover:shadow-orange-500/25 hover:scale-105 transition-all duration-300"
-              style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
+      {/* Stats Overview */}
+      <section className="max-w-6xl mx-auto mb-12">
+        <h3 className="text-xl font-bold text-gray-800 mb-6">Overview</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          {[
+            { icon: <ClipboardCheck className="w-6 h-6" />, label: "Papers Checked", value: stats.papersChecked, color: "from-blue-500 to-blue-600" },
+            { icon: <Users className="w-6 h-6" />, label: "Students Joined", value: stats.studentsJoined, color: "from-green-500 to-green-600" },
+            { icon: <BarChart className="w-6 h-6" />, label: "Avg Attendance", value: `${stats.avgAttendance}%`, color: "from-purple-500 to-purple-600" },
+            { icon: <FileText className="w-6 h-6" />, label: "Tests Created", value: stats.testsConducted, color: "from-orange-500 to-orange-600" }
+          ].map((stat, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className="p-6 rounded-xl bg-white/80 backdrop-blur-xl border border-orange-200/50 shadow-lg hover:shadow-xl transition-all"
             >
-              Check Papers
-            </button>
-            <button 
-              onClick={handleViewPerformance} 
-              className="flex-1 px-4 py-3 bg-white/80 backdrop-blur-xl text-orange-600 font-bold rounded-xl shadow-lg hover:shadow-white/50 hover:scale-105 transition-all duration-300 border border-orange-200/50"
-              style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
-            >
-              Performance
-            </button>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="col-span-2 p-8 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl"
-          style={{ 
-            boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
-            filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
-          }}
-        >
-          <h3 className="text-xl font-black text-orange-600 mb-6" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Students Joined vs Attempted</h3>
-          <Bar data={barData} />
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="col-span-1 lg:col-span-1 p-8 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl"
-          style={{ 
-            boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
-            filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
-          }}
-        >
-          <h3 className="text-xl font-black text-orange-600 mb-6" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Result Distribution</h3>
-          <Doughnut data={donutData} />
-        </motion.div>
-
-        <motion.div 
-          className="col-span-1 lg:col-span-2 p-8 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl"
-          style={{ 
-            boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
-            filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
-          }}
-        >
-          <h3 className="text-xl font-black text-orange-600 mb-6" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Attendance Trend</h3>
-          <Line data={lineData} />
-        </motion.div>
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-r ${stat.color} flex items-center justify-center text-white mb-4`}>
+                {stat.icon}
+              </div>
+              <div className="text-2xl font-bold text-gray-800">{stat.value}</div>
+              <div className="text-sm text-gray-600">{stat.label}</div>
+            </motion.div>
+          ))}
+        </div>
       </section>
 
-      {/* ACTIVITY / TIMELINE */}
-      <section className="max-w-6xl mx-auto mb-10">
-        <h3 className="text-2xl font-black text-orange-600 mb-8" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Recent Activity</h3>
+      {/* Recent Activity */}
+      <section className="max-w-6xl mx-auto mb-12">
+        <h3 className="text-xl font-bold text-gray-800 mb-6">Recent Activity</h3>
         <div className="space-y-3">
           {recentActivity.length > 0 ? recentActivity.map((activity: string, i) => (
             <motion.div
               key={i}
               initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.08 }}
-              className="p-6 rounded-2xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl hover:shadow-2xl hover:scale-105 transition-all duration-300"
-              style={{ 
-                boxShadow: '0 25px 50px rgba(251, 146, 60, 0.2), 0 10px 25px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
-                filter: 'drop-shadow(0 15px 30px rgba(251, 146, 60, 0.15))'
-              }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className="p-4 rounded-xl bg-white/80 backdrop-blur-xl border border-orange-200/50 shadow-sm hover:shadow-md transition-all"
             >
               <div className="flex items-center justify-between">
-                <div className="text-sm font-medium text-gray-700" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>{activity}</div>
-                <div className="text-xs font-semibold text-orange-500 bg-orange-100 px-3 py-1 rounded-full" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Recent</div>
+                <div className="text-sm text-gray-700">{activity}</div>
+                <div className="text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded-full">Recent</div>
               </div>
             </motion.div>
           )) : (
-            <div className="text-gray-500 text-sm font-medium" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>No recent activity</div>
+            <div className="text-center py-8 text-gray-500">No recent activity</div>
           )}
         </div>
       </section>
 
-      {/* FOOTER ACTIONS */}
-      <section className="max-w-6xl mx-auto mt-12">
-        <div className="flex flex-col md:flex-row gap-6 justify-between items-center p-8 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/60 shadow-2xl"
-             style={{ 
-               boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
-               filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
-             }}>
-          <div className="text-gray-600 font-medium" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>Need help? Contact support@yourapp.com</div>
-          <div className="flex gap-4">
-            <button 
+      {/* Quick Actions */}
+      <section className="max-w-6xl mx-auto">
+        <div className="flex flex-col md:flex-row gap-4 justify-between items-center p-6 rounded-xl bg-white/80 backdrop-blur-xl border border-orange-200/50 shadow-lg">
+          <div className="text-gray-600">Need help? Contact support@testintegrity.com</div>
+          <div className="flex gap-3">
+            <Button 
               onClick={() => router.push("/tutor/reports")}
-              className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-xl shadow-lg hover:shadow-orange-500/25 hover:scale-105 transition-all duration-300"
-              style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
+              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700"
             >
               Export Reports
-            </button>
-            <button 
+            </Button>
+            <Button 
               onClick={handleAttendance}
-              className="px-6 py-3 bg-white/80 backdrop-blur-xl text-orange-600 font-bold rounded-xl shadow-lg hover:shadow-white/50 hover:scale-105 transition-all duration-300 border border-orange-200/50"
-              style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
+              variant="outline"
+              className="border-orange-300 text-orange-600 hover:bg-orange-50"
             >
               Attendance
-            </button>
+            </Button>
           </div>
         </div>
       </section>

@@ -341,10 +341,10 @@ async respondToJoinRequest(@Param('requestId') requestId: string, @Body() body: 
       summary: {
         totalStudents: participants.total,
         studentsJoined: participants.joined,
-        totalAlerts: proctoringReport.totalAlerts,
-        highRiskStudents: proctoringReport.overallSummary.highRiskParticipants,
-        averageRiskScore: proctoringReport.overallSummary.averageRiskScore,
-        mostCommonViolation: proctoringReport.overallSummary.mostCommonAlert,
+        totalAlerts: proctoringReport.summary.totalAlerts,
+        highRiskStudents: proctoringReport.summary.highRiskParticipants,
+        averageRiskScore: 0, // Calculate from sessions if needed
+        mostCommonViolation: Object.keys(proctoringReport.summary.alertsByType)[0] || 'None',
       },
     };
   }
@@ -415,7 +415,7 @@ async respondToJoinRequest(@Param('requestId') requestId: string, @Body() body: 
 
     // Calculate participant risk scores
     const participantRisks = participants.map(participant => {
-      const participantAlerts = alerts.filter(alert => alert.participant.id === participant.userId);
+      const participantAlerts = alerts.filter(alert => alert.participantId === participant.userId);
       const riskScore = this.calculateParticipantRiskScore(participantAlerts);
       
       return {

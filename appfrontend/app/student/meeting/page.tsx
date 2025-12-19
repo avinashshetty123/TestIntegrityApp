@@ -288,8 +288,7 @@ export default function StudentMeetingDashboard() {
 
   const checkRequestStatus = async (meetingId: string) => {
     try {
-      // In a real app, you might want to poll the backend for status
-      // For now, we'll rely on WebSocket updates
+      
       toast.info('Checking request status...');
     } catch (err) {
       console.error('Error checking request status:', err);

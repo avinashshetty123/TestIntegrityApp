@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import EnhancedStudentMeetingRoom from "@/components/StudentMeeting";
+import StreamlinedStudentMeeting from "@/components/StreamlinedStudentMeeting";
 
 export default function StudentMeetingJoinPage() {
   const params = useParams();
@@ -83,7 +83,7 @@ export default function StudentMeetingJoinPage() {
 
   return (
     <div className="h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white font-['Inter']">
-      <EnhancedStudentMeetingRoom
+      <StreamlinedStudentMeeting
         token={token}
         serverUrl={serverUrl}
         meetingId={meetingId}

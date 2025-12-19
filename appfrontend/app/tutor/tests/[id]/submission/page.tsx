@@ -448,8 +448,8 @@ export default function SubmissionsPage() {
                                 type="number"
                                 min="0"
                                 max={answer.question.marks}
-                                value={editingScores[answer.id] ?? answer.score}
-                                onChange={(e) => handleScoreChange(answer.id, parseFloat(e.target.value), answer.question.marks)}
+                                value={editingScores[answer.id] ?? answer.score ?? 0}
+                                onChange={(e) => handleScoreChange(answer.id, parseFloat(e.target.value) || 0, answer.question.marks)}
                                 className="w-full px-3 py-2 bg-white/80 border border-orange-200/50 rounded-lg shadow-lg focus:outline-none focus:ring-2 focus:ring-orange-500/50 font-medium"
                                 style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
                               />

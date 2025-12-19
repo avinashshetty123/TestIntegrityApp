@@ -1,5 +1,5 @@
 "use client";
-import { Brain, List } from "lucide-react";
+
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -20,6 +20,10 @@ import {
   AlertCircle,
   CheckCircle,
   XCircle,
+  Brain,
+  List,
+  FileText,
+  Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -31,12 +35,12 @@ interface Meeting {
   id: string;
   title: string;
   description: string;
-  scheduledAt: string;
+  scheduledAt?: string;
   startedAt?: string;
   endedAt?: string;
   status: "SCHEDULED" | "LIVE" | "ENDED";
   subject: string;
-  teacher: {
+  teacher?: {
     id: string;
     fullName: string;
     email: string;
@@ -149,64 +153,15 @@ export default function MeetingDetailPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [liveAlerts, setLiveAlerts] = useState<ProctoringAlert[]>([]);
 
-  const [quizResults, setQuizResults] = useState<any>(null);
-  const [showQuizResults, setShowQuizResults] = useState(false);
   const meetingId = params.id as string;
 
-  const [meetingQuizzes, setMeetingQuizzes] = useState<any[]>([]);
   useEffect(() => {
     fetchMeetingReport();
     if (report?.meeting.status === "LIVE") {
-      const interval = setInterval(fetchLiveAlerts, 10000); // Refresh every 10 seconds for live meetings
+      const interval = setInterval(fetchLiveAlerts, 10000);
       return () => clearInterval(interval);
     }
   }, [meetingId, report?.meeting.status]);
-
-  // Add these functions
-  const fetchMeetingQuizzes = async () => {
-    try {
-      const response = await fetch(
-        `http://localhost:4000/quiz/${meetingId}/quizes`,
-        {
-          credentials: "include",
-        }
-      );
-      if (response.ok) {
-        const quizzes = await response.json();
-        setMeetingQuizzes(Array.isArray(quizzes) ? quizzes : [quizzes]);
-      }
-    } catch (error) {
-      console.error("Error fetching meeting quizzes:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load meeting quizzes",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const fetchQuizResults = async (quizId: string) => {
-    try {
-      const response = await fetch(
-        `http://localhost:4000/quiz/results/${quizId}`,
-        {
-          credentials: "include",
-        }
-      );
-      if (response.ok) {
-        const results = await response.json();
-        setQuizResults(results);
-        setShowQuizResults(true);
-      }
-    } catch (error) {
-      console.error("Error fetching quiz results:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load quiz results",
-        variant: "destructive",
-      });
-    }
-  };
 
   const fetchMeetingReport = async () => {
     try {
@@ -246,7 +201,7 @@ export default function MeetingDetailPage() {
       );
       if (response.ok) {
         const alerts = await response.json();
-        setLiveAlerts(alerts.slice(0, 10)); // Get latest 10 alerts
+        setLiveAlerts(alerts.slice(0, 10));
       }
     } catch (error) {
       console.error("Error fetching live alerts:", error);
@@ -305,6 +260,7 @@ export default function MeetingDetailPage() {
   };
 
   const formatTime = (dateString: string) => {
+    if (!dateString) return "N/A";
     const date = new Date(dateString);
     return date.toLocaleString();
   };
@@ -321,72 +277,39 @@ export default function MeetingDetailPage() {
   const getRiskColor = (riskLevel: string) => {
     switch (riskLevel) {
       case "LOW":
-        return "bg-green-500";
+        return "text-green-600 bg-green-100";
       case "MEDIUM":
-        return "bg-yellow-500";
+        return "text-yellow-600 bg-yellow-100";
       case "HIGH":
-        return "bg-orange-500";
+        return "text-orange-600 bg-orange-100";
       case "CRITICAL":
-        return "bg-red-500";
+        return "text-red-600 bg-red-100";
       default:
-        return "bg-gray-500";
+        return "text-gray-600 bg-gray-100";
     }
   };
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case "LOW":
-        return "bg-green-500";
+        return "text-green-600 bg-green-100";
       case "MEDIUM":
-        return "bg-yellow-500";
+        return "text-yellow-600 bg-yellow-100";
       case "HIGH":
-        return "bg-orange-500";
+        return "text-orange-600 bg-orange-100";
       case "CRITICAL":
-        return "bg-red-500";
+        return "text-red-600 bg-red-100";
       default:
-        return "bg-gray-500";
+        return "text-gray-600 bg-gray-100";
     }
-  };
-
-  const getAlertTypeColor = (alertType: string) => {
-    const colors: Record<string, string> = {
-      FACE_NOT_DETECTED: "bg-orange-500",
-      MULTIPLE_FACES: "bg-red-500",
-      PHONE_DETECTED: "bg-purple-500",
-      TAB_SWITCH: "bg-blue-500",
-      SUSPICIOUS_BEHAVIOR: "bg-yellow-500",
-      COPY_PASTE: "bg-pink-500",
-      WINDOW_SWITCH: "bg-indigo-500",
-      NO_FACE: "bg-orange-400",
-      VOICE_DETECTED: "bg-green-400",
-      BACKGROUND_NOISE: "bg-gray-400",
-      EYE_GAZE_DEVIATION: "bg-amber-500",
-      FACE_VERIFIED: "bg-green-300",
-    };
-    return colors[alertType] || "bg-gray-500";
-  };
-
-  const getAlertTypeIcon = (alertType: string) => {
-    const icons: Record<string, any> = {
-      FACE_NOT_DETECTED: User,
-      MULTIPLE_FACES: Users,
-      PHONE_DETECTED: Activity,
-      TAB_SWITCH: Eye,
-      SUSPICIOUS_BEHAVIOR: AlertCircle,
-      COPY_PASTE: Flag,
-      WINDOW_SWITCH: Eye,
-      NO_FACE: User,
-      FACE_VERIFIED: CheckCircle,
-    };
-    return icons[alertType] || AlertTriangle;
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white font-['Inter'] p-6 flex items-center justify-center">
-        <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 text-center">
-          <div className="w-12 h-12 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-orange-800 font-medium">Loading meeting report...</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+        <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200 text-center">
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Loading meeting report...</p>
         </div>
       </div>
     );
@@ -394,726 +317,433 @@ export default function MeetingDetailPage() {
 
   if (!report) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white font-['Inter'] p-6 flex items-center justify-center">
-        <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 text-center">
-          <h2 className="text-xl font-semibold mb-4 text-orange-800">Meeting not found</h2>
-          <button 
-            onClick={() => router.push("/tutor/dashboard")}
-            className="bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold py-3 px-6 rounded-2xl shadow-[0_8px_30px_rgba(251,146,60,0.4)] hover:shadow-[0_12px_40px_rgba(251,146,60,0.5)] hover:scale-105 transition-all duration-300 drop-shadow-lg"
-          >
-            Return to Dashboard
-          </button>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+        <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200 text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Report Not Found</h2>
+          <p className="text-gray-600 mb-4">Unable to load the meeting report.</p>
+          <Button onClick={() => router.back()} variant="outline">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Go Back
+          </Button>
         </div>
       </div>
     );
   }
 
-  const allAlerts = report.proctoring.participantReports
-    .flatMap((report) =>
-      report.timeline.map((alert) => ({
-        ...alert,
-        studentName: report.studentInfo.name,
-        studentEmail: report.studentInfo.email,
-      }))
-    )
-    .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
-
-  const alertTypeCounts = allAlerts.reduce((acc, alert) => {
-    acc[alert.type] = (acc[alert.type] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white font-['Inter'] p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 mb-8 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => router.push("/tutor/meeting")}
-                className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 shadow-[0_8px_30px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:scale-105 transition-all duration-300 hover:shadow-[0_12px_40px_rgba(251,146,60,0.4)] group"
-              >
-                <ArrowLeft className="w-5 h-5 text-orange-600 group-hover:text-orange-700" />
-              </button>
-              <div>
-                <h1 className="text-3xl font-bold text-orange-800 drop-shadow-sm">{report.meeting.title}</h1>
-                <p className="text-orange-600">{report.meeting.description}</p>
-              </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Button
+              onClick={() => router.back()}
+              variant="outline"
+              size="sm"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {report.meeting.title}
+              </h1>
+              <p className="text-gray-500">Meeting Analytics & Proctoring Report</p>
             </div>
-            <div className="flex items-center gap-3">
-              <span className={`px-3 py-1 rounded-xl text-white text-sm font-medium shadow-[0_4px_15px_rgba(0,0,0,0.2)] ${
-                report.meeting.status === "LIVE"
-                  ? "bg-gradient-to-r from-green-500 to-green-600"
-                  : report.meeting.status === "SCHEDULED"
-                  ? "bg-gradient-to-r from-blue-500 to-blue-600"
-                  : "bg-gradient-to-r from-gray-500 to-gray-600"
-              }`}>
+          </div>
+          <div className="flex items-center space-x-3">
+            <Button
+              onClick={refreshData}
+              variant="outline"
+              size="sm"
+              disabled={refreshing}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            <Button onClick={exportReport} size="sm">
+              <Download className="w-4 h-4 mr-2" />
+              Export Report
+            </Button>
+          </div>
+        </div>
+
+        {/* Status Banner */}
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Badge
+                variant={report.meeting.status === "LIVE" ? "default" : "secondary"}
+                className="px-3 py-1"
+              >
                 {report.meeting.status}
-              </span>
-              <button
-                onClick={refreshData}
-                disabled={refreshing}
-                className="bg-white/80 backdrop-blur-xl rounded-2xl py-2 px-4 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:scale-105 transition-all duration-300 text-orange-700 font-medium flex items-center gap-2 disabled:opacity-50"
-              >
-                <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
-                Refresh
-              </button>
-              <button
-                onClick={exportReport}
-                className="bg-white/80 backdrop-blur-xl rounded-2xl py-2 px-4 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:scale-105 transition-all duration-300 text-orange-700 font-medium flex items-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                Export
-              </button>
-              <button
-                onClick={async () => {
-                  try {
-                    const response = await fetch(`http://localhost:4000/proctoring/test-alert`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      credentials: 'include',
-                      body: JSON.stringify({
-                        meetingId,
-                        userId: 'test-user-123',
-                        alertType: 'PHONE_DETECTED',
-                        description: 'Test alert for debugging'
-                      })
-                    });
-                    if (response.ok) {
-                      toast({ title: "Test Alert Created", description: "Check the alerts tab" });
-                      await fetchLiveAlerts();
-                    }
-                  } catch (error) {
-                    toast({ title: "Error", description: "Failed to create test alert", variant: "destructive" });
-                  }
-                }}
-                className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white font-semibold py-2 px-4 rounded-2xl shadow-[0_8px_30px_rgba(251,191,36,0.4)] hover:shadow-[0_12px_40px_rgba(251,191,36,0.5)] hover:scale-105 transition-all duration-300 flex items-center gap-2"
-              >
-                <AlertTriangle className="w-4 h-4" />
-                Test Alert
-              </button>
+              </Badge>
+              <div className="text-sm text-gray-600">
+                <span className="font-medium">Started:</span> {formatTime(report.meeting.startedAt || "")}
+              </div>
+              {report.meeting.endedAt && (
+                <div className="text-sm text-gray-600">
+                  <span className="font-medium">Ended:</span> {formatTime(report.meeting.endedAt)}
+                </div>
+              )}
+            </div>
+            <div className="text-sm text-gray-500">
+              Last updated: {formatTime(new Date().toISOString())}
             </div>
           </div>
         </div>
 
-        {/* Live Alerts Banner */}
-        {report.meeting.status === "LIVE" && liveAlerts.length > 0 && (
-          <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 mb-6 shadow-[0_20px_50px_rgba(239,68,68,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-red-200/50">
+        {/* Key Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="p-6">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-red-400 to-red-600 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(239,68,68,0.4)]">
-                  <AlertTriangle className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-red-800">Live Alerts</h3>
-                  <p className="text-sm text-red-600">
-                    {liveAlerts.length} new alert(s) in the last 5 minutes
-                  </p>
-                </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">Total Students</p>
+                <p className="text-3xl font-bold text-gray-900">{report.summary.totalStudents}</p>
               </div>
-              <button
-                onClick={() => setActiveTab("alerts")}
-                className="bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold py-2 px-4 rounded-2xl shadow-[0_8px_30px_rgba(239,68,68,0.4)] hover:shadow-[0_12px_40px_rgba(239,68,68,0.5)] hover:scale-105 transition-all duration-300"
-              >
-                View Alerts
-              </button>
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <Users className="w-6 h-6 text-blue-600" />
+              </div>
             </div>
-          </div>
-        )}
+          </Card>
 
-        {/* Navigation Tabs */}
-        <div className="space-y-6">
-          <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-2 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
-            <div className="grid w-full grid-cols-5 gap-2">
-              {[
-                { id: 'overview', icon: BarChart3, label: 'Overview' },
-                { id: 'participants', icon: Users, label: `Participants (${report.participants.total})` },
-                { id: 'alerts', icon: AlertTriangle, label: `Alerts (${report.summary.totalAlerts})` },
-                { id: 'analytics', icon: TrendingUp, label: 'Analytics' },
-                { id: 'quizzes', icon: Brain, label: 'Quizzes' }
-              ].map(({ id, icon: Icon, label }) => (
-                <button
-                  key={id}
-                  onClick={() => setActiveTab(id)}
-                  className={`flex items-center justify-center gap-2 py-3 px-4 rounded-2xl font-medium transition-all duration-300 ${
-                    activeTab === id
-                      ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-[0_8px_30px_rgba(251,146,60,0.4)] scale-105'
-                      : 'text-orange-700 hover:bg-white/50 hover:scale-105'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="text-sm">{label}</span>
-                </button>
-              ))}
+          <Card className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Total Alerts</p>
+                <p className="text-3xl font-bold text-gray-900">{report.summary.totalAlerts}</p>
+              </div>
+              <div className="p-3 bg-red-100 rounded-lg">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
             </div>
-          </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">High Risk Students</p>
+                <p className="text-3xl font-bold text-gray-900">{report.summary.highRiskStudents}</p>
+              </div>
+              <div className="p-3 bg-orange-100 rounded-lg">
+                <Shield className="w-6 h-6 text-orange-600" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Avg Risk Score</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {(report.summary.averageRiskScore * 100).toFixed(1)}%
+                </p>
+              </div>
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <TrendingUp className="w-6 h-6 text-purple-600" />
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="overview" className="flex items-center space-x-2">
+              <BarChart3 className="w-4 h-4" />
+              <span>Overview</span>
+            </TabsTrigger>
+            <TabsTrigger value="participants" className="flex items-center space-x-2">
+              <Users className="w-4 h-4" />
+              <span>Participants</span>
+            </TabsTrigger>
+            <TabsTrigger value="alerts" className="flex items-center space-x-2">
+              <AlertTriangle className="w-4 h-4" />
+              <span>Alerts</span>
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="flex items-center space-x-2">
+              <Brain className="w-4 h-4" />
+              <span>Analytics</span>
+            </TabsTrigger>
+          </TabsList>
 
           {/* Overview Tab */}
-          {activeTab === 'overview' && (
-            <div className="space-y-6">
-              {/* Summary Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:shadow-[0_25px_60px_rgba(251,146,60,0.4)] hover:scale-105 transition-all duration-300">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(59,130,246,0.4)]">
-                      <Users className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-orange-600 font-medium">Total Participants</p>
-                      <p className="text-2xl font-bold text-orange-800">
-                        {report.summary.totalStudents}
-                      </p>
-                    </div>
+          <TabsContent value="overview" className="space-y-6">
+            <div className="grid md:grid-cols-2 gap-6">
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Meeting Summary</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Subject:</span>
+                    <span className="font-medium">{report.meeting.subject}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Duration:</span>
+                    <span className="font-medium">
+                      {report.statistics ? formatDuration(report.statistics.averageSessionDuration) : "N/A"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Participation Rate:</span>
+                    <span className="font-medium">
+                      {report.statistics ? `${report.statistics.participationRate}%` : "N/A"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Most Common Violation:</span>
+                    <span className="font-medium">{report.summary.mostCommonViolation}</span>
                   </div>
                 </div>
+              </Card>
 
-                <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:shadow-[0_25px_60px_rgba(251,146,60,0.4)] hover:scale-105 transition-all duration-300">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(34,197,94,0.4)]">
-                      <User className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-orange-600 font-medium">Students Joined</p>
-                      <p className="text-2xl font-bold text-orange-800">
-                        {report.summary.studentsJoined}
-                      </p>
-                    </div>
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Risk Distribution</h3>
+                {report.statistics && (
+                  <div className="space-y-3">
+                    {Object.entries(report.statistics.riskDistribution).map(([level, count]) => (
+                      <div key={level} className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <div className={`w-3 h-3 rounded-full ${getRiskColor(level).split(' ')[1]}`}></div>
+                          <span className="text-sm font-medium">{level}</span>
+                        </div>
+                        <span className="text-sm text-gray-600">{count} students</span>
+                      </div>
+                    ))}
                   </div>
-                </div>
-
-                <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:shadow-[0_25px_60px_rgba(251,146,60,0.4)] hover:scale-105 transition-all duration-300">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-red-400 to-red-600 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(239,68,68,0.4)]">
-                      <AlertTriangle className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-orange-600 font-medium">Total Alerts</p>
-                      <p className="text-2xl font-bold text-orange-800">
-                        {report.summary.totalAlerts}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:shadow-[0_25px_60px_rgba(251,146,60,0.4)] hover:scale-105 transition-all duration-300">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(251,191,36,0.4)]">
-                      <Shield className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-orange-600 font-medium">High Risk Students</p>
-                      <p className="text-2xl font-bold text-orange-800">
-                        {report.summary.highRiskStudents}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Meeting Details */}
-                <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
-                  <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-orange-800">
-                    <Calendar className="w-5 h-5 text-orange-600" />
-                    Meeting Information
-                  </h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between py-2 border-b border-orange-200/30">
-                      <span className="text-orange-600 font-medium">Scheduled Time</span>
-                      <span className="text-orange-800">{formatTime(report.meeting.scheduledAt)}</span>
-                    </div>
-                    <div className="flex items-center justify-between py-2 border-b border-orange-200/30">
-                      <span className="text-orange-600 font-medium">Started At</span>
-                      <span className="text-orange-800">
-                        {report.meeting.startedAt
-                          ? formatTime(report.meeting.startedAt)
-                          : "Not started"}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between py-2 border-b border-orange-200/30">
-                      <span className="text-orange-600 font-medium">Ended At</span>
-                      <span className="text-orange-800">
-                        {report.meeting.endedAt
-                          ? formatTime(report.meeting.endedAt)
-                          : "Not ended"}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between py-2 border-b border-orange-200/30">
-                      <span className="text-orange-600 font-medium">Teacher</span>
-                      <span className="text-orange-800">{report.meeting.teacher.fullName}</span>
-                    </div>
-                    <div className="flex items-center justify-between py-2">
-                      <span className="text-orange-600 font-medium">Subject</span>
-                      <span className="text-orange-800">{report.meeting.subject}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Risk Summary */}
-                <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
-                  <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-orange-800">
-                    <Shield className="w-5 h-5 text-orange-600" />
-                    Risk Summary
-                  </h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-orange-600 font-medium">Average Risk Score</span>
-                      <span className={`px-3 py-1 rounded-xl text-white text-sm font-medium shadow-[0_4px_15px_rgba(0,0,0,0.2)] ${
-                        report.proctoring.overallSummary.averageRiskScore > 0.7
-                          ? "bg-gradient-to-r from-red-500 to-red-600"
-                          : report.proctoring.overallSummary.averageRiskScore > 0.4
-                          ? "bg-gradient-to-r from-yellow-500 to-yellow-600"
-                          : "bg-gradient-to-r from-green-500 to-green-600"
-                      }`}>
-                        {report.proctoring.overallSummary.averageRiskScore.toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-orange-600 font-medium">
-                        High Risk Participants
-                      </span>
-                      <span className="text-red-600 font-semibold">
-                        {report.proctoring.overallSummary.highRiskParticipants}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-orange-600 font-medium">Most Common Alert</span>
-                      <span className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-3 py-1 rounded-xl text-sm font-medium shadow-[0_4px_15px_rgba(251,146,60,0.3)] capitalize">
-                        {report.proctoring.overallSummary.mostCommonAlert
-                          .toLowerCase()
-                          .replace(/_/g, " ")}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                )}
+              </Card>
             </div>
-          )}
+
+            {/* Alert Types Distribution */}
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Alert Types Distribution</h3>
+              {report.statistics && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {Object.entries(report.statistics.alertTypeDistribution).map(([type, count]) => (
+                    <div key={type} className="text-center p-4 bg-gray-50 rounded-lg">
+                      <div className="text-2xl font-bold text-gray-900">{count}</div>
+                      <div className="text-sm text-gray-600 capitalize">{type.replace('_', ' ')}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </TabsContent>
 
           {/* Participants Tab */}
-          <TabsContent value="participants">
-            <Card className="bg-white/5 border-white/10">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-semibold">Participants</h3>
-                  <div className="flex gap-2">
-                    <Badge
-                      variant="secondary"
-                      className="bg-green-500/20 text-green-300"
-                    >
-                      Joined: {report.participants.joined}
-                    </Badge>
-                    <Badge
-                      variant="secondary"
-                      className="bg-gray-500/20 text-gray-300"
-                    >
-                      Left: {report.participants.left}
-                    </Badge>
-                  </div>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-white/10">
-                        <th className="text-left p-3">Student</th>
-                        <th className="text-left p-3">Status</th>
-                        <th className="text-left p-3">Joined At</th>
-                        <th className="text-left p-3">Duration</th>
-                        <th className="text-left p-3">Alerts</th>
-                        <th className="text-left p-3">Risk Level</th>
-                        <th className="text-left p-3">Risk Score</th>
+          <TabsContent value="participants" className="space-y-6">
+            <Card className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-gray-900">Participant Details</h3>
+                <Badge variant="outline">{report.participants.total} Total</Badge>
+              </div>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Student
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Duration
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Alerts
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Risk Level
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Last Alert
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {report.participants.participants.map((participant) => (
+                      <tr key={participant.userId} className="hover:bg-gray-50">
+                        <td className="px-6 py-4">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {participant.name}
+                            </div>
+                            <div className="text-sm text-gray-500">{participant.email}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <Badge
+                            variant={participant.status === "JOINED" ? "default" : "secondary"}
+                          >
+                            {participant.status}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {formatDuration(participant.duration)}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-medium text-gray-900">
+                              {participant.alertCount}
+                            </span>
+                            {participant.flags && (
+                              <div className="flex space-x-1">
+                                {participant.flags.critical > 0 && (
+                                  <Badge variant="destructive" className="text-xs">
+                                    {participant.flags.critical}C
+                                  </Badge>
+                                )}
+                                {participant.flags.high > 0 && (
+                                  <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-800">
+                                    {participant.flags.high}H
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <Badge className={getRiskColor(participant.riskLevel)}>
+                            {participant.riskLevel}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          {participant.lastAlert ? formatTime(participant.lastAlert) : "None"}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {report.participants.participants.map((participant) => (
-                        <tr
-                          key={participant.userId}
-                          className="border-b border-white/5 hover:bg-white/5 transition-colors"
-                        >
-                          <td className="p-3">
-                            <div>
-                              <p className="font-medium">{participant.name}</p>
-                              <p className="text-sm text-gray-400">
-                                {participant.email}
-                              </p>
-                            </div>
-                          </td>
-                          <td className="p-3">
-                            <Badge
-                              variant="secondary"
-                              className={
-                                participant.status === "JOINED"
-                                  ? "bg-green-500/20 text-green-300"
-                                  : participant.status === "LEFT"
-                                  ? "bg-gray-500/20 text-gray-300"
-                                  : "bg-yellow-500/20 text-yellow-300"
-                              }
-                            >
-                              {participant.status}
-                            </Badge>
-                          </td>
-                          <td className="p-3 text-sm">
-                            {formatTime(participant.joinedAt)}
-                          </td>
-                          <td className="p-3 text-sm">
-                            {formatDuration(participant.duration)}
-                          </td>
-                          <td className="p-3">
-                            <Badge
-                              variant="secondary"
-                              className={
-                                participant.alertCount === 0
-                                  ? "bg-green-500/20 text-green-300"
-                                  : participant.alertCount <= 3
-                                  ? "bg-yellow-500/20 text-yellow-300"
-                                  : "bg-red-500/20 text-red-300"
-                              }
-                            >
-                              {participant.alertCount} alerts
-                            </Badge>
-                          </td>
-                          <td className="p-3">
-                            <Badge
-                              className={`${getRiskColor(
-                                participant.riskLevel
-                              )} text-white`}
-                            >
-                              {participant.riskLevel}
-                            </Badge>
-                          </td>
-                          <td className="p-3">
-                            <div className="text-sm font-mono">
-                              {participant.riskScore.toFixed(2)}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </Card>
           </TabsContent>
 
           {/* Alerts Tab */}
           <TabsContent value="alerts" className="space-y-6">
-            {/* Alert Summary */}
-            <Card className="bg-white/5 border-white/10 p-6">
-              <h3 className="text-xl font-semibold mb-4">Alert Breakdown</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                {Object.entries(alertTypeCounts).map(([type, count]) => {
-                  const IconComponent = getAlertTypeIcon(type);
-                  return (
-                    <div
-                      key={type}
-                      className="text-center p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
-                    >
-                      <div className="w-8 h-8 mx-auto mb-2 rounded-full flex items-center justify-center">
-                        <IconComponent className="w-4 h-4 text-white" />
-                      </div>
-                      <Badge
-                        className={`${getAlertTypeColor(
-                          type
-                        )} text-white mb-2 text-xs`}
-                      >
-                        {type.replace(/_/g, " ")}
-                      </Badge>
-                      <div className="text-xl font-bold">{count}</div>
-                      <p className="text-xs text-gray-400">occurrences</p>
-                    </div>
-                  );
-                })}
+            <Card className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-gray-900">Recent Alerts</h3>
+                <Badge variant="outline">{report.summary.totalAlerts} Total</Badge>
               </div>
-            </Card>
 
-            {/* Detailed Alerts */}
-            <Card className="bg-white/5 border-white/10">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-semibold">All Alerts</h3>
-                  <Badge variant="secondary" className="bg-white/10">
-                    {allAlerts.length} total alerts
-                  </Badge>
-                </div>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {liveAlerts.map((alert, index) => (
+              <div className="space-y-4">
+                {report.proctoring.participantReports.map((participant) =>
+                  participant.timeline.slice(0, 5).map((alert, index) => (
                     <div
-                      key={index}
-                      className="flex items-center justify-between p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
+                      key={`${participant.userId}-${index}`}
+                      className="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg"
                     >
-                      <div className="flex items-center gap-4 flex-1">
-                        <div
-                          className={`w-3 h-3 rounded-full ${getAlertTypeColor(
-                            alert.alertType
-                          )}`}
-                        ></div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="font-medium">
-                              {alert.participant?.name || alert.user?.fullName || 'Unknown Participant'}
-                            </p>
-                            <Badge
-                              className={`${getSeverityColor(
-                                alert.severity
-                              )} text-white text-xs`}
-                            >
-                              {alert.severity}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-gray-400">
-                            {alert.description}
+                      <div className="flex-shrink-0">
+                        <div className={`w-3 h-3 rounded-full mt-2 ${getSeverityColor(alert.severity).split(' ')[1]}`}></div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium text-gray-900">
+                            {participant.studentInfo.name}
                           </p>
-                          <p className="text-xs text-gray-500">
-                            {alert.participant?.email || alert.user?.email || 'No email'}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {formatTime(alert.detectedAt)}
-                          </p>
+                          <Badge className={getSeverityColor(alert.severity)}>
+                            {alert.severity}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">{alert.description}</p>
+                        <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                          <span>{formatTime(alert.time)}</span>
+                          <span>Confidence: {(alert.confidence * 100).toFixed(0)}%</span>
+                          <span className="capitalize">{alert.type.replace('_', ' ')}</span>
                         </div>
                       </div>
-                      <Badge
-                        className={
-                          alert.confidence > 0.8
-                            ? "bg-red-500/20 text-red-300"
-                            : alert.confidence > 0.6
-                            ? "bg-yellow-500/20 text-yellow-300"
-                            : "bg-green-500/20 text-green-300"
-                        }
-                      >
-                        {Math.round(alert.confidence * 100)}% confidence
-                      </Badge>
                     </div>
-                  ))}
-                  {liveAlerts.length === 0 && (
-                    <div className="text-center py-8 text-gray-400">
-                      <CheckCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                      <p>No alerts detected in this meeting</p>
-                    </div>
-                  )}
-                </div>
+                  ))
+                )}
               </div>
             </Card>
           </TabsContent>
 
           {/* Analytics Tab */}
           <TabsContent value="analytics" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Risk Distribution */}
-              <Card className="bg-white/5 border-white/10 p-6">
-                <h3 className="text-xl font-semibold mb-4">
-                  Risk Distribution
-                </h3>
-                <div className="space-y-3">
-                  {(["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const).map(
-                    (level) => {
-                      const count = report.participants.participants.filter(
-                        (p) => p.riskLevel === level
-                      ).length;
-                      const percentage =
-                        (count / report.participants.participants.length) * 100;
-                      return (
-                        <div
-                          key={level}
-                          className="flex items-center justify-between"
-                        >
-                          <div className="flex items-center gap-2">
-                            <div
-                              className={`w-3 h-3 rounded-full ${getRiskColor(
-                                level
-                              )}`}
-                            ></div>
-                            <span className="capitalize">
-                              {level.toLowerCase()}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <div className="w-32 bg-gray-700 rounded-full h-2">
-                              <div
-                                className={`h-2 rounded-full ${getRiskColor(
-                                  level
-                                )}`}
-                                style={{ width: `${percentage}%` }}
-                              ></div>
-                            </div>
-                            <span className="text-sm w-12 text-right">
-                              {count}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    }
-                  )}
+            <div className="grid md:grid-cols-2 gap-6">
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance Metrics</h3>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Average Alerts per Student</span>
+                    <span className="font-medium">
+                      {report.statistics ? report.statistics.averageAlertsPerParticipant.toFixed(1) : "0"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Session Completion Rate</span>
+                    <span className="font-medium">
+                      {((report.participants.left / report.participants.total) * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Average Risk Score</span>
+                    <span className="font-medium">
+                      {(report.summary.averageRiskScore * 100).toFixed(1)}%
+                    </span>
+                  </div>
                 </div>
               </Card>
 
-              {/* Participation Stats */}
-              <Card className="bg-white/5 border-white/10 p-6">
-                <h3 className="text-xl font-semibold mb-4">
-                  Participation Statistics
-                </h3>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Total Participants</span>
-                    <span className="font-semibold">
-                      {report.participants.total}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Active Participants</span>
-                    <span className="font-semibold text-green-400">
-                      {report.participants.joined}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Left Early</span>
-                    <span className="font-semibold text-red-400">
-                      {report.participants.left}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Participation Rate</span>
-                    <span className="font-semibold">
-                      {(
-                        (report.participants.joined /
-                          report.participants.total) *
-                        100
-                      ).toFixed(1)}
-                      %
-                    </span>
-                  </div>
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Violations</h3>
+                <div className="space-y-3">
+                  {report.statistics && Object.entries(report.statistics.alertTypeDistribution)
+                    .sort(([,a], [,b]) => b - a)
+                    .slice(0, 5)
+                    .map(([type, count]) => (
+                      <div key={type} className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600 capitalize">
+                          {type.replace('_', ' ')}
+                        </span>
+                        <Badge variant="outline">{count}</Badge>
+                      </div>
+                    ))}
                 </div>
               </Card>
             </div>
 
-            {/* Alert Timeline */}
-            <Card className="bg-white/5 border-white/10 p-6">
-              <h3 className="text-xl font-semibold mb-4">Alert Timeline</h3>
-              <div className="space-y-3">
-                {allAlerts.slice(0, 10).map((alert, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-4 p-3 bg-white/5 rounded-lg"
-                  >
-                    <div
-                      className={`w-2 h-2 rounded-full ${getAlertTypeColor(
-                        alert.type
-                      )}`}
-                    ></div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">
-                          {alert.studentName}
-                        </span>
-                        <Badge
-                          className={`${getAlertTypeColor(
-                            alert.type
-                          )} text-white text-xs`}
-                        >
-                          {alert.type.replace(/_/g, " ")}
-                        </Badge>
+            {/* Detailed Participant Analysis */}
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Detailed Participant Analysis</h3>
+              <div className="space-y-4">
+                {report.proctoring.participantReports.map((participant) => (
+                  <div key={participant.userId} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h4 className="font-medium text-gray-900">{participant.studentInfo.name}</h4>
+                        <p className="text-sm text-gray-500">{participant.studentInfo.email}</p>
                       </div>
-                      <p className="text-xs text-gray-400 mt-1">
-                        {formatTime(alert.time)}
-                      </p>
+                      <div className="text-right">
+                        <div className="text-sm font-medium text-gray-900">
+                          Risk Score: {(participant.riskScore * 100).toFixed(1)}%
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {participant.totalAlerts} alerts
+                        </div>
+                      </div>
                     </div>
-                    <Badge
-                      className={`${getSeverityColor(
-                        alert.severity
-                      )} text-white`}
-                    >
-                      {alert.severity}
-                    </Badge>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {Object.entries(participant.alertsByType).map(([type, count]) => (
+                        <div key={type} className="text-center p-2 bg-gray-50 rounded">
+                          <div className="text-lg font-semibold text-gray-900">{count}</div>
+                          <div className="text-xs text-gray-600 capitalize">
+                            {type.replace('_', ' ')}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
             </Card>
           </TabsContent>
-
-          {/* Quizzes Tab */}
-          <TabsContent value="quizzes" className="space-y-6">
-            <Card className="bg-white/5 border-white/10 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-semibold flex items-center gap-2">
-                  <Brain className="w-5 h-5" />
-                  Meeting Quizzes
-                </h3>
-                <Button
-                  onClick={fetchMeetingQuizzes}
-                  variant="outline"
-                  className="border-white/20"
-                >
-                  <RefreshCw
-                    className={`w-4 h-4 mr-2 ${
-                      refreshing ? "animate-spin" : ""
-                    }`}
-                  />
-                  Refresh
-                </Button>
-              </div>
-
-              {meetingQuizzes.length > 0 ? (
-                <div className="space-y-4">
-                  {meetingQuizzes.map((quiz) => (
-                    <Card
-                      key={quiz.id}
-                      className="bg-white/5 border-white/20 p-4"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h4 className="text-white font-medium mb-2">
-                            {quiz.question}
-                          </h4>
-                          <div className="flex items-center gap-4 text-sm text-gray-400">
-                            <Badge
-                              variant="outline"
-                              className="border-blue-400 text-blue-400"
-                            >
-                              {quiz.type}
-                            </Badge>
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-4 h-4" />
-                              {quiz.timeLimit}s
-                            </span>
-                            <Badge
-                              className={
-                                quiz.status === "ACTIVE"
-                                  ? "bg-green-500"
-                                  : quiz.status === "COMPLETED"
-                                  ? "bg-blue-500"
-                                  : "bg-gray-500"
-                              }
-                            >
-                              {quiz.status}
-                            </Badge>
-                            <span>
-                              Created:{" "}
-                              {new Date(quiz.createdAt).toLocaleDateString()}
-                            </span>
-                          </div>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-white/20"
-                          onClick={() => fetchQuizResults(quiz.id)}
-                        >
-                          <List className="w-4 h-4 mr-2" />
-                          Results
-                        </Button>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-400">
-                  <Brain className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>No quizzes conducted in this meeting</p>
-                </div>
-              )}
-            </Card>
-          </TabsContent>
-        </div>
+        </Tabs>
       </div>
     </div>
   );

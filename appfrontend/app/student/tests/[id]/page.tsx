@@ -59,6 +59,7 @@ export default function TakeTestPage() {
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [existingSubmission, setExistingSubmission] = useState<Submission | null>(null);
   const [testAlreadyTaken, setTestAlreadyTaken] = useState(false);
+  const [mistakeCount, setMistakeCount] = useState(0);
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const startTimeRef = useRef<number>(0);
@@ -132,14 +133,9 @@ export default function TakeTestPage() {
     fetchTestQuestions();
   }, [testId]);
 
-  // Timer effect - FIXED
+  // Timer effect
   useEffect(() => {
     if (!testStarted || timeLeft <= 0) return;
-
-    // Clear any existing timer
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
 
     timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
@@ -156,7 +152,7 @@ export default function TakeTestPage() {
         clearInterval(timerRef.current);
       }
     };
-  }, [timeLeft, testStarted]);
+  }, [testStarted, timeLeft]);
 
   // Auto-save progress
   useEffect(() => {
@@ -208,7 +204,9 @@ export default function TakeTestPage() {
         setTimeLeft(Math.max(0, remaining));
         setTestStarted(true); // Resume test if progress exists
       } else {
-        setTimeLeft(data.durationMinutes * 60);
+        // Set timer: use provided duration or default to 2 hours (120 minutes)
+        const duration = data.durationMinutes || 120;
+        setTimeLeft(duration * 60); // Convert minutes to seconds
       }
     } catch (error) {
       console.error('Error fetching test questions:', error);
@@ -227,6 +225,12 @@ export default function TakeTestPage() {
   const startTest = () => {
     startTimeRef.current = Date.now();
     setTestStarted(true);
+    
+    // If no saved progress, set the timer based on test duration
+    if (!localStorage.getItem(`test_${testId}_progress`)) {
+      const duration = test?.durationMinutes || 120; // Default 2 hours
+      setTimeLeft(duration * 60); // Convert to seconds
+    }
   };
 
   const handleAnswerChange = (questionId: number, response: string | string[]) => {
@@ -263,11 +267,58 @@ export default function TakeTestPage() {
     if (submitting) return;
     
     setSubmitting(true);
-    await submitTest();
+    
+    // Clear timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+    
+    // Clear saved progress
+    localStorage.removeItem(`test_${testId}_progress`);
+    
+    await submitTest(reason);
     alert(`Test auto-submitted: ${reason}`);
+    
+    // Redirect to tests page
+    router.push('/student/tests');
   };
 
-  const submitTest = async () => {
+  const reportProctoringViolation = async (type: string, description: string) => {
+    try {
+      await fetch('http://localhost:4000/proctoring/test-violation', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          testId,
+          violationType: type,
+          description,
+          timestamp: new Date().toISOString()
+        })
+      });
+    } catch (error) {
+      console.error('Failed to report proctoring violation:', error);
+    }
+  };
+
+  const checkMistakes = async () => {
+    try {
+      const response = await fetch(`http://localhost:4000/tests/${testId}/mistakes`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setMistakeCount(data.mistakeCount);
+        if (data.mistakeCount >= 3) {
+          handleAutoSubmit('Three incorrect answers detected');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check mistakes:', error);
+    }
+  };
+
+  const submitTest = async (autoSubmitReason?: string) => {
     try {
       const response = await fetch(`http://localhost:4000/tests/${testId}/submit`, {
         method: 'POST',
@@ -280,7 +331,10 @@ export default function TakeTestPage() {
             questionId: answer.questionId,
             response: answer.response
           })),
-          violations: violations
+          violations: violations,
+          autoSubmitted: !!autoSubmitReason,
+          autoSubmitReason: autoSubmitReason || null,
+          mistakeCount
         }),
       });
 
@@ -303,8 +357,14 @@ export default function TakeTestPage() {
   };
 
   const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
+    if (!seconds || isNaN(seconds) || seconds < 0) return '00:00:00';
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
+    
+    if (hours > 0) {
+      return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
@@ -419,6 +479,16 @@ export default function TakeTestPage() {
               <span className="px-3 py-1 bg-red-100 text-red-700 border border-red-200 rounded-full text-xs font-medium flex items-center gap-1">
                 <AlertTriangle className="h-3 w-3" />
                 Violations: {violations}
+              </span>
+            )}
+            {mistakeCount > 0 && (
+              <span className={`px-3 py-1 border rounded-full text-xs font-medium flex items-center gap-1 ${
+                mistakeCount >= 3 ? 'bg-red-100 text-red-700 border-red-200' :
+                mistakeCount >= 2 ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                'bg-yellow-100 text-yellow-700 border-yellow-200'
+              }`}>
+                <XCircle className="h-3 w-3" />
+                Mistakes: {mistakeCount}/3
               </span>
             )}
             <button
@@ -604,7 +674,7 @@ export default function TakeTestPage() {
 
                     {isLastQuestion ? (
                       <button
-                        onClick={submitTest}
+                        onClick={() => submitTest()}
                         disabled={submitting}
                         className="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-medium hover:scale-105 transition-all duration-300 shadow-lg shadow-green-200/50 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >

@@ -21,7 +21,8 @@ import { Meeting } from './meetings/entity/meeting.entity';
 import { MeetingsModule } from './meetings/meetings.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { ProctoringModule } from './proctoring/proctoring.module';
-import { ProctoringAlert } from './meetings/entities/proctoring-alert.entity';
+import { ProctoringAlert } from './proctoring/entities/proctoring-alert.entity';
+import { ProctoringSession } from './proctoring/entities/proctoring-session.entity';
 // import { Test as MeetingTest } from './test/entities/test.entity';
 import { MeetingParticipant } from './meetings/entities/meeting-participant.entity';
 import { MeetingSession } from './meetings/entities/meeting-session.entity';
@@ -38,9 +39,9 @@ import { QuizResponse } from './quiz/entities/quiz-response.entity';
     username: process.env.DATABASE_USERNAME || 'admin',
     password: process.env.DATABASE_PASSWORD || 'admin123',
     database: process.env.DATABASE_NAME || 'TestIntegrityDb',
-    entities: [User,Submission,Question,Answer,Test,Result,Meeting,ProctoringAlert,MeetingSession,JoinRequest,LiveQuiz,QuizResponse,MeetingParticipant
+    entities: [User,Submission,Question,Answer,Test,Result,Meeting,ProctoringAlert,MeetingSession,JoinRequest,LiveQuiz,QuizResponse,MeetingParticipant,ProctoringSession
     ],
-    synchronize:true,
+    synchronize: true,
   }),
     ConfigModule.forRoot({
      isGlobal:true,

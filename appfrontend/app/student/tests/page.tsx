@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Search, Filter, Clock, Users, BookOpen, Award, Calendar, Play, FileText, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
 interface Test {
   id: number;
@@ -320,8 +321,10 @@ export default function StudentTestsPage() {
                   
                   <div className="flex gap-2">
                     {test.ispublished && (
-                      <button className="flex-1 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium hover:scale-105 transition-all duration-300 shadow-lg shadow-orange-200/50 flex items-center justify-center gap-2">
+                      <button className="flex-1 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium hover:scale-105 transition-all duration-300 shadow-lg shadow-orange-200/50 flex items-center justify-center gap-2"
+                      onClick={()=>router.push(`student/tests/${test.id}`)}>
                         <Play className="h-4 w-4" />
+                        
                         Start Test
                       </button>
                     )}

@@ -81,14 +81,31 @@ Before running TestIntegrity, ensure you have the following installed:
 
 ## 🚀 Quick Start Guide
 
-### 1. Clone the Repository
+### Option 1: Automated Startup (Recommended)
+
+**For Windows:**
+```cmd
+# Double-click or run in Command Prompt
+start_app.bat
+```
+
+**For Linux/Mac:**
+```bash
+# Make executable and run
+chmod +x start_app.py
+python3 start_app.py
+```
+
+### Option 2: Manual Setup
+
+#### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/TestIntegrityApp.git
+git clone https://github.com/avinashshetty123/TestIntegrityApp.git
 cd TestIntegrityApp
 ```
 
-### 2. Start All Services with Docker
+#### 2. Start All Services with Docker
 
 ```bash
 # Start all backend services (LiveKit, Redis, PostgreSQL, Backend API)
@@ -98,7 +115,16 @@ docker-compose -f fix-video-call.yml up -d
 docker ps
 ```
 
-### 3. Start the Frontend
+#### 3. Start Python Services
+
+```bash
+# Start deepfake detection service
+cd callserver_deepfakePy/python_deepfake
+pip install -r requirements.txt
+python -m uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+#### 4. Start the Frontend
 
 ```bash
 # Navigate to frontend directory
@@ -107,15 +133,19 @@ cd appfrontend
 # Install dependencies
 npm install
 
-# Start development server
+# For web development
 npm run dev
+
+# OR for Electron desktop app
+npm run electron:dev
 ```
 
-### 4. Access the Application
+#### 5. Access the Application
 
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:4000
 - **LiveKit Server**: http://localhost:7880
+- **Deepfake API**: http://localhost:8000
 - **PostgreSQL**: localhost:5433 (admin/admin123)
 
 ---
@@ -159,6 +189,14 @@ JWT_SECRET=JWT_SECRET
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
 ```
+
+### Electron Configuration
+
+The Electron app provides enhanced proctoring features:
+- **Window Lock**: Prevents minimization during proctoring
+- **AI Analysis**: Real-time face detection and behavior analysis
+- **Deepfake Detection**: Synthetic face detection using AI
+- **Secure Mode**: Kiosk mode for exam sessions
 
 ### LiveKit Configuration
 
@@ -230,11 +268,38 @@ npm run dev
 
 # Build for production
 npm run build
+
+# For Electron development
+npm run electron:dev
+```
+
+### Python Services Development
+
+```bash
+# Test all Python services
+python test_all_python.py
+
+# Test deepfake service only
+cd callserver_deepfakePy/python_deepfake
+python run_tests.py
+
+# Test proctoring worker
+python -c "import sys; sys.path.append('appfrontend/electron/python-worker'); import proctoring_worker; print('✅ Proctoring worker OK')"
 ```
 
 ---
 
 ## 🔍 Troubleshooting
+
+### Automated Diagnostics
+
+```bash
+# Run comprehensive tests
+python test_all_python.py
+
+# Test only specific services
+python start_app.py --test-only
+```
 
 ### Common Issues
 
@@ -263,13 +328,29 @@ docker-compose -f fix-video-call.yml down
 docker-compose -f fix-video-call.yml up -d
 ```
 
-#### 3. **Video Not Showing Between Participants**
-- Ensure both participants are in the same room
-- Check browser console for WebRTC errors
-- Verify firewall settings allow UDP traffic on ports 50000-50010
-- Try using different browsers or incognito mode
+#### 3. **Python Services Not Working**
+```bash
+# Check deepfake service
+curl http://localhost:8000/health
 
-#### 4. **Port Already in Use**
+# Test proctoring worker
+python -c "import sys; sys.path.append('appfrontend/electron/python-worker'); import proctoring_worker"
+
+# Install missing dependencies
+pip install ultralytics opencv-python dlib pillow
+```
+
+#### 4. **Electron App Issues**
+```bash
+# Rebuild Electron
+cd appfrontend
+npm run build:electron
+
+# Check Electron logs in DevTools
+# Press F12 in Electron app
+```
+
+#### 5. **Port Already in Use**
 ```bash
 # Check what's using the port
 netstat -ano | findstr :7880
@@ -295,6 +376,26 @@ docker-compose -f fix-video-call.yml restart
 # Clean restart (removes all data)
 docker-compose -f fix-video-call.yml down -v
 docker-compose -f fix-video-call.yml up -d
+```
+
+### Proctoring Debug Commands
+
+```bash
+# Test proctoring integration
+python test_proctoring_integration.py
+
+# Setup proctoring dependencies
+python setup_proctoring.py
+
+# Check AI services
+curl http://localhost:8000/health
+curl http://localhost:4000/proctoring/health
+
+# Test Electron proctoring (in Electron DevTools console)
+console.log(window.electronAPI)
+
+# Check WebSocket connection (in browser DevTools)
+# Look for WebSocket connection to ws://localhost:3002
 ```
 
 ---
@@ -359,13 +460,19 @@ If you encounter any issues:
 
 ## 🔮 Roadmap
 
-- [ ] AI-powered cheating detection
+- [x] AI-powered cheating detection
+- [x] Deepfake detection
+- [x] Real-time proctoring alerts
+- [x] Electron desktop app with window locking
+- [x] Comprehensive test suite
 - [ ] Eye tracking implementation
 - [ ] Mobile device detection
 - [ ] Session recording and playback
 - [ ] Advanced analytics dashboard
 - [ ] Multi-language support
 - [ ] Cloud deployment guides
+- [ ] Mobile app for students
+- [ ] Advanced AI behavior analysis
 
 ---
 

@@ -242,7 +242,6 @@ export default function CreateTestPage() {
                             <option value="MCQ">Multiple Choice</option>
                             <option value="TRUE_FALSE">True/False</option>
                             <option value="SHORT">Short Answer</option>
-                            <option value="LONG">Long Answer</option>
                           </select>
                         </div>
 
@@ -355,6 +354,19 @@ export default function CreateTestPage() {
           </button>
         </div>
       </div>
+
+      {/* Floating Add Question Button */}
+      <button 
+        onClick={addQuestion}
+        className="fixed bottom-8 right-8 w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-full shadow-2xl hover:shadow-orange-500/70 hover:scale-110 transition-all duration-300 flex items-center justify-center z-50"
+        style={{ 
+          fontFamily: 'Inter, system-ui, sans-serif',
+          boxShadow: '0 20px 40px rgba(251, 146, 60, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
+        }}
+        title="Add Question"
+      >
+        <Plus className="w-8 h-8" />
+      </button>
     </div>
   );
 }
