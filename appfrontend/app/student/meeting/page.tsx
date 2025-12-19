@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import ElectronLayout from '@/components/ElectronLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -441,19 +442,14 @@ export default function StudentMeetingDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white font-['Inter'] py-8">
+    <ElectronLayout 
+      title="Available Meetings" 
+      showBackButton={true}
+      backButtonPath="/student"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 mb-8 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
-          <div className="flex items-center justify-between mb-6">
-            <button 
-              onClick={() => router.back()}
-              className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:shadow-[0_12px_40px_rgba(251,146,60,0.3)] hover:scale-105 transition-all duration-300 flex items-center gap-2 text-orange-700 hover:text-orange-800"
-            >
-              <ArrowLeft className="h-5 w-5" />
-              <span className="font-medium">Back</span>
-            </button>
-          </div>
+        <div className="bg-white rounded-xl p-6 mb-6 shadow-sm border border-gray-200">
           <div className="text-center">
             <h1 className="text-4xl font-bold text-orange-800 drop-shadow-sm mb-4">
               Meeting Dashboard
@@ -641,6 +637,6 @@ export default function StudentMeetingDashboard() {
         {/* Waiting Room Modal */}
         {showWaitingRoom && <WaitingRoom meetingId={showWaitingRoom} />}
       </div>
-    </div>
+    </ElectronLayout>
   );
 }

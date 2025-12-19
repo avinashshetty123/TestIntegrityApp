@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import ElectronLayout from "@/components/ElectronLayout";
 import {
   ArrowLeft,
   Users,
@@ -332,19 +333,15 @@ export default function MeetingDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+    <ElectronLayout 
+      title={`${report.meeting.title} - Analytics`}
+      showBackButton={true}
+      backButtonPath="/tutor"
+    >
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <Button
-              onClick={() => router.back()}
-              variant="outline"
-              size="sm"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
-            </Button>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
                 {report.meeting.title}
@@ -745,6 +742,6 @@ export default function MeetingDetailPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </div>
+    </ElectronLayout>
   );
 }

@@ -8,6 +8,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   stopProctoring: () => ipcRenderer.invoke('stop-proctoring'),
   getProctoringStatus: () => ipcRenderer.invoke('get-proctoring-status'),
   setWindowMode: (mode) => ipcRenderer.invoke('set-window-mode', mode),
+  getWindowMode: () => ipcRenderer.invoke('get-window-mode'),
+  
+  // Navigation controls
+  navigateBack: () => ipcRenderer.invoke('navigate-back'),
+  canGoBack: () => ipcRenderer.invoke('can-go-back'),
   
   // Listen for analysis results
   onProctoringAnalysis: (callback) => {
@@ -20,7 +25,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   
   // Check if running in Electron
-  isElectron: true
+  isElectron: true,
+  
+  // Platform info
+  platform: process.platform
 });
 
 // Expose a global flag for React components

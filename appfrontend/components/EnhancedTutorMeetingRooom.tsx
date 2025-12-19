@@ -24,6 +24,9 @@ interface ParticipantData {
   riskScore: number;
   identity: string;
   name?: string;
+  videoEnabled?: boolean;
+  audioEnabled?: boolean;
+  screenSharing?: boolean;
 }
 
 interface JoinRequest {
@@ -114,12 +117,17 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
     }
   }, [isTutor, isConnected, showJoinRequests]);
 
-  // Fetch meeting flags for tutor visibility
+  // Fetch meeting flags and participants for tutor visibility
   useEffect(() => {
     if (isTutor && isConnected) {
       fetchMeetingFlags();
+      fetchSessionParticipants();
       const flagsInterval = setInterval(fetchMeetingFlags, 5000);
-      return () => clearInterval(flagsInterval);
+      const participantsInterval = setInterval(fetchSessionParticipants, 10000);
+      return () => {
+        clearInterval(flagsInterval);
+        clearInterval(participantsInterval);
+      };
     }
   }, [isTutor, isConnected, meetingId]);
 
@@ -157,6 +165,35 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
       }
     } catch (error) {
       console.error('Failed to fetch meeting flags:', error);
+    }
+  };
+
+  const fetchSessionParticipants = async () => {
+    try {
+      const response = await fetch(`http://localhost:4000/proctoring/session/${meetingId}/participants`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const sessionParticipants = await response.json();
+        console.log('👥 Session participants:', sessionParticipants);
+        
+        // Update participant data with session info
+        setParticipants(prev => prev.map(p => {
+          const sessionData = sessionParticipants.find(sp => sp.participantId === p.identity);
+          if (sessionData) {
+            return {
+              ...p,
+              sessionData,
+              totalAlerts: sessionData.totalAlerts,
+              joinedAt: sessionData.joinedAt,
+              lastActivity: sessionData.lastActivity
+            };
+          }
+          return p;
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch session participants:', error);
     }
   };
 
@@ -219,6 +256,21 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
     });
   };
 
+  const updateParticipantState = (stateData: any, participant?: RemoteParticipant) => {
+    setParticipants(prev => prev.map(p => {
+      if (p.identity === stateData.participantId || p.identity === participant?.identity) {
+        return {
+          ...p,
+          videoEnabled: stateData.videoEnabled !== undefined ? stateData.videoEnabled : p.videoEnabled,
+          audioEnabled: stateData.audioEnabled !== undefined ? stateData.audioEnabled : p.audioEnabled,
+          screenSharing: stateData.screenSharing !== undefined ? stateData.screenSharing : p.screenSharing,
+          lastActivity: Date.now()
+        };
+      }
+      return p;
+    }));
+  };
+
   const updateParticipantAfterAlert = (participantId: string, alert: ProctoringAlert) => {
     setParticipants(prev => prev.map(p => {
       if (p.identity === participantId) {
@@ -272,7 +324,20 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
         dynacast: true,
         videoCaptureDefaults: {
           resolution: { width: 1280, height: 720 },
+          facingMode: 'user'
         },
+        audioCaptureDefaults: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        },
+        publishDefaults: {
+          videoSimulcastLayers: [
+            { resolution: { width: 320, height: 240 }, encoding: { maxBitrate: 150000 } },
+            { resolution: { width: 640, height: 480 }, encoding: { maxBitrate: 500000 } },
+            { resolution: { width: 1280, height: 720 }, encoding: { maxBitrate: 1200000 } }
+          ]
+        }
       });
       setRoom(newRoom);
 
@@ -292,7 +357,10 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
           alerts: [],
           displayName: p.name || p.identity,
           identity: p.identity,
-          name: p.name
+          name: p.name,
+          videoEnabled: true,
+          audioEnabled: true,
+          screenSharing: false
         }));
         setParticipants(initialParticipants);
         
@@ -341,7 +409,10 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
           alerts: [],
           displayName: participant.name || participant.identity,
           identity: participant.identity,
-          name: participant.name
+          name: participant.name,
+          videoEnabled: true,
+          audioEnabled: true,
+          screenSharing: false
         };
         setParticipants(prev => [...prev, newParticipant]);
       });
@@ -387,6 +458,10 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
             // Handle real-time proctoring alerts from LiveKit
             console.log('🚨 Proctoring alert received via LiveKit:', data.data);
             handleLiveProctoringAlert(data.data, participant);
+          } else if (data.type === 'PARTICIPANT_STATE_UPDATE') {
+            // Handle participant state updates (audio/video/screen share)
+            console.log('👤 Participant state update:', data.data);
+            updateParticipantState(data.data, participant);
           } else if (data.type === 'DASHBOARD_UPDATE') {
             // Handle dashboard updates if needed
             console.log('📊 Dashboard update received:', data.data);
@@ -409,34 +484,89 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
         }
       });
 
-      // Fix server URL connection
+      // Fix server URL connection with better error handling
       let actualServerUrl = serverUrl;
       
+      // Normalize server URL
       if (!serverUrl.startsWith('ws://') && !serverUrl.startsWith('wss://')) {
         actualServerUrl = `ws://${serverUrl}`;
       }
       
+      // Default to localhost if URL is malformed
       if (actualServerUrl.includes('localhost') && !actualServerUrl.includes('7880')) {
         actualServerUrl = 'ws://localhost:7880';
       }
-
-      console.log('🔄 Connecting to LiveKit server:', actualServerUrl);
       
-      await newRoom.connect(actualServerUrl, token, {
-        autoSubscribe: true,
-        maxRetries: 5,
-        peerConnectionTimeout: 15000,
-      });
+      // Fallback URLs to try
+      const fallbackUrls = [
+        actualServerUrl,
+        'ws://localhost:7880',
+        'ws://127.0.0.1:7880'
+      ];
+
+      console.log('🔄 Attempting to connect to LiveKit server:', actualServerUrl);
+      
+      let connected = false;
+      let lastError = null;
+      
+      for (const url of fallbackUrls) {
+        try {
+          console.log(`Trying connection to: ${url}`);
+          
+          await newRoom.connect(url, token, {
+            autoSubscribe: true,
+            maxRetries: 3,
+            peerConnectionTimeout: 10000,
+            websocketTimeout: 5000,
+            rtcConfig: {
+              iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+              ],
+              iceCandidatePoolSize: 10
+            }
+          });
+          
+          connected = true;
+          console.log(`✅ Successfully connected to: ${url}`);
+          break;
+        } catch (error) {
+          console.warn(`❌ Failed to connect to ${url}:`, error.message);
+          lastError = error;
+          
+          // Disconnect and clean up before trying next URL
+          try {
+            await newRoom.disconnect();
+          } catch (e) {
+            // Ignore cleanup errors
+          }
+        }
+      }
+      
+      if (!connected) {
+        throw lastError || new Error('Failed to connect to any LiveKit server');
+      }
     } catch (error: any) {
       console.error("❌ Failed to connect to LiveKit:", error);
       setIsConnecting(false);
-      setConnectionError(
-        error.message || 'Failed to connect to meeting. Please check your connection and try again.'
-      );
+      
+      let errorMessage = 'Failed to connect to meeting. Please check your connection and try again.';
+      
+      if (error.message?.includes('WebSocket')) {
+        errorMessage = 'LiveKit server is not running. Please start the Docker services first.';
+      } else if (error.message?.includes('token')) {
+        errorMessage = 'Invalid meeting token. Please refresh and try again.';
+      } else if (error.message?.includes('timeout')) {
+        errorMessage = 'Connection timeout. Please check your network and try again.';
+      } else if (error.message?.includes('pc connection')) {
+        errorMessage = 'Peer connection failed. Please check firewall settings and try again.';
+      }
+      
+      setConnectionError(errorMessage);
       
       toast({
         title: "Connection Failed",
-        description: "Could not connect to the meeting room. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -773,28 +903,28 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
 
   if (!isConnected) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white flex items-center justify-center font-['Inter']">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center font-['Inter']">
         <div className="text-center max-w-md">
-          <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-xl shadow-orange-200/50">
+          <div className="w-16 h-16 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-xl">
             <Video className="w-8 h-8 text-white drop-shadow-sm" />
           </div>
           {connectionError ? (
-            <>
-              <h1 className="text-xl font-bold mb-4 text-red-600">Connection Failed</h1>
-              <p className="text-gray-600 mb-4 font-medium">{connectionError}</p>
+            <div className="bg-white/10 backdrop-blur-3xl rounded-3xl p-8 border border-white/20 shadow-2xl">
+              <h1 className="text-xl font-bold mb-4 text-red-400">Connection Failed</h1>
+              <p className="text-gray-300 mb-4 font-medium">{connectionError}</p>
               <button 
                 onClick={() => connectToRoom()}
-                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-semibold hover:scale-105 transition-all duration-300 shadow-xl shadow-orange-200/50"
+                className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-semibold hover:scale-105 transition-all duration-300 shadow-xl"
               >
                 Retry Connection
               </button>
-            </>
+            </div>
           ) : (
-            <>
-              <h1 className="text-xl font-bold mb-4 text-gray-800">Connecting to Meeting...</h1>
-              <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600 font-medium">Establishing connection to LiveKit server...</p>
-            </>
+            <div className="bg-white/10 backdrop-blur-3xl rounded-3xl p-8 border border-white/20 shadow-2xl">
+              <h1 className="text-xl font-bold mb-4 text-blue-300">Connecting to Meeting...</h1>
+              <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-300 font-medium">Establishing connection to LiveKit server...</p>
+            </div>
           )}
         </div>
       </div>
@@ -807,47 +937,47 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
     : sortedParticipants[0];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white flex font-['Inter']">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex font-['Inter']">
       {/* Main Video Area */}
       <div className="flex-1 flex flex-col">
         {/* Header Bar */}
-        <div className="p-4 bg-white/60 backdrop-blur-3xl border-b border-orange-200/50 shadow-lg shadow-orange-100/50 flex justify-between items-center">
+        <div className="p-4 bg-black/20 backdrop-blur-3xl border-b border-white/10 shadow-lg flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <h2 className="text-xl font-bold text-gray-800 drop-shadow-sm">Meeting Room</h2>
-            <Badge variant={isMeetingLocked ? "destructive" : "secondary"}>
+            <h2 className="text-xl font-bold text-white drop-shadow-sm">Tutor Meeting Room</h2>
+            <Badge className={`${isMeetingLocked ? "bg-red-400 text-black" : "bg-green-400 text-black"}`}>
               {isMeetingLocked ? "Locked" : "Unlocked"}
             </Badge>
-            <Badge variant="secondary">
+            <Badge className="bg-blue-400 text-black">
               {participants.length} Participants
             </Badge>
           </div>
           <div className="flex gap-2">
             {proctoringAlerts.length > 0 && (
-              <Badge variant="destructive" className="flex items-center gap-1">
+              <Badge className="bg-red-400 text-black flex items-center gap-1">
                 <AlertTriangle className="w-3 h-3" />
                 {proctoringAlerts.length} Total
               </Badge>
             )}
             {liveAlerts.length > 0 && (
-              <Badge className="bg-orange-500 text-white flex items-center gap-1">
+              <Badge className="bg-orange-400 text-black flex items-center gap-1">
                 <Bell className="w-3 h-3" />
                 {liveAlerts.length} Live
               </Badge>
             )}
             {meetingFlags.length > 0 && (
-              <Badge variant="secondary" className="flex items-center gap-1 bg-purple-500 text-white">
+              <Badge className="bg-purple-400 text-black flex items-center gap-1">
                 <Flag className="w-3 h-3" />
                 {meetingFlags.length} Flags
               </Badge>
             )}
             {joinRequests.length > 0 && (
-              <Badge variant="default" className="bg-yellow-500 flex items-center gap-1">
+              <Badge className="bg-yellow-400 text-black flex items-center gap-1">
                 <UserPlus className="w-3 h-3" />
                 {joinRequests.length} Requests
               </Badge>
             )}
             {unreadAlerts > 0 && (
-              <Badge variant="destructive" className="flex items-center gap-1 bg-red-600">
+              <Badge className="bg-red-500 text-white flex items-center gap-1">
                 <Bell className="w-3 h-3" />
                 {unreadAlerts} New
               </Badge>
@@ -899,12 +1029,12 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
         </div>
 
         {/* Controls */}
-        <div className="p-6 bg-white/60 backdrop-blur-3xl border-t border-orange-200/50 shadow-lg shadow-orange-100/50 flex justify-center items-center gap-4">
+        <div className="p-6 bg-black/20 backdrop-blur-3xl border-t border-white/10 shadow-lg flex justify-center items-center gap-4">
           <Button
             onClick={toggleAudio}
             variant={isAudioEnabled ? "outline" : "destructive"}
             size="lg"
-            className={`rounded-full w-14 h-14 p-0 transition-all ${isAudioEnabled ? 'bg-white/10 hover:bg-white/20 border-white/30 text-white backdrop-blur-sm' : 'bg-red-500 hover:bg-red-600 text-white'}`}
+            className={`rounded-full w-14 h-14 p-0 transition-all ${isAudioEnabled ? 'bg-white/20 hover:bg-white/30 text-white border-white/30' : 'bg-red-500 hover:bg-red-600 text-white'}`}
           >
             {isAudioEnabled ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
           </Button>
@@ -913,7 +1043,7 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
             onClick={toggleVideo}
             variant={isVideoEnabled ? "outline" : "destructive"}
             size="lg"
-            className={`rounded-full w-14 h-14 p-0 transition-all ${isVideoEnabled ? 'bg-white/10 hover:bg-white/20 border-white/30 text-white backdrop-blur-sm' : 'bg-red-500 hover:bg-red-600 text-white'}`}
+            className={`rounded-full w-14 h-14 p-0 transition-all ${isVideoEnabled ? 'bg-white/20 hover:bg-white/30 text-white border-white/30' : 'bg-red-500 hover:bg-red-600 text-white'}`}
           >
             {isVideoEnabled ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
           </Button>
@@ -922,7 +1052,7 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
             onClick={toggleScreenShare}
             variant="outline"
             size="lg"
-            className={`rounded-full w-14 h-14 p-0 transition-all ${isScreenSharing ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-white/10 hover:bg-white/20 border-white/30 text-white backdrop-blur-sm'}`}
+            className={`rounded-full w-14 h-14 p-0 transition-all ${isScreenSharing ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-white/20 hover:bg-white/30 text-white border-white/30'}`}
           >
             <Monitor className="w-6 h-6" />
           </Button>
@@ -933,7 +1063,7 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
                 onClick={() => setShowParticipants(!showParticipants)}
                 variant="outline"
                 size="lg"
-                className="rounded-full w-14 h-14 p-0 bg-white/10 hover:bg-white/20 border-white/30 text-white backdrop-blur-sm transition-all"
+                className={`rounded-full w-14 h-14 p-0 transition-all ${showParticipants ? 'bg-blue-500 text-white' : 'bg-white/20 hover:bg-white/30 text-white border-white/30'}`}
               >
                 <Users className="w-6 h-6" />
               </Button>
@@ -946,7 +1076,8 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
                 variant="outline"
                 size="lg"
                 className={`rounded-full w-14 h-14 p-0 transition-all ${
-                  joinRequests.length > 0 ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : 'bg-white/10 hover:bg-white/20 border-white/30 text-white backdrop-blur-sm'
+                  joinRequests.length > 0 ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : 
+                  showJoinRequests ? 'bg-blue-500 text-white' : 'bg-white/20 hover:bg-white/30 text-white border-white/30'
                 }`}
               >
                 <UserPlus className="w-6 h-6" />
@@ -956,12 +1087,13 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
                 onClick={() => {
                   setShowAlerts(!showAlerts);
                   if (showJoinRequests) setShowJoinRequests(false);
-                  setUnreadAlerts(0); // Mark as read when opening
+                  setUnreadAlerts(0);
                 }}
                 variant="outline"
                 size="lg"
                 className={`rounded-full w-14 h-14 p-0 transition-all ${
-                  unreadAlerts > 0 ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-white/10 hover:bg-white/20 border-white/30 text-white backdrop-blur-sm'
+                  unreadAlerts > 0 ? 'bg-red-500 hover:bg-red-600 text-white' : 
+                  showAlerts ? 'bg-blue-500 text-white' : 'bg-white/20 hover:bg-white/30 text-white border-white/30'
                 }`}
               >
                 <Bell className="w-6 h-6" />
@@ -972,7 +1104,7 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
                 variant="outline"
                 size="lg"
                 className={`rounded-full w-14 h-14 p-0 transition-all ${
-                  isMeetingLocked ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-white/10 hover:bg-white/20 border-white/30 text-white backdrop-blur-sm'
+                  isMeetingLocked ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'
                 }`}
               >
                 {isMeetingLocked ? <Lock className="w-6 h-6" /> : <Unlock className="w-6 h-6" />}
@@ -982,7 +1114,7 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
                 onClick={() => setShowQuizPanel(!showQuizPanel)}
                 variant="outline"
                 size="lg"
-                className="rounded-full w-14 h-14 p-0 bg-white/10 hover:bg-white/20 border-white/30 text-white backdrop-blur-sm transition-all"
+                className={`rounded-full w-14 h-14 p-0 transition-all ${showQuizPanel ? 'bg-green-500 text-white' : 'bg-white/20 hover:bg-white/30 text-white border-white/30'}`}
               >
                 <MessageSquare className="w-6 h-6" />
               </Button>
@@ -1010,7 +1142,7 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
         <>
           {/* Participants Panel */}
           {showParticipants && (
-            <div className="w-80 bg-black/70 backdrop-blur-sm border-l border-white/20 flex flex-col">
+            <div className="w-80 bg-black/40 backdrop-blur-sm border-l border-white/20 flex flex-col">
               <div className="p-4 border-b border-white/20">
                 <h3 className="text-lg font-semibold flex items-center gap-2 text-white">
                   <Users className="w-5 h-5" />
@@ -1041,12 +1173,29 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
                           <p className="text-sm font-medium text-white">
                             {participantData.displayName}
                           </p>
-                          {participantData.isSpeaking && (
-                            <p className="text-xs text-green-400 flex items-center gap-1">
-                              <Volume2 className="w-3 h-3" />
-                              Speaking
-                            </p>
-                          )}
+                          <div className="flex items-center gap-2 mt-1">
+                            {participantData.isSpeaking && (
+                              <p className="text-xs text-green-400 flex items-center gap-1">
+                                <Volume2 className="w-3 h-3" />
+                                Speaking
+                              </p>
+                            )}
+                            {participantData.videoEnabled === false && (
+                              <Badge className="bg-red-500 text-white text-xs">
+                                Video Off
+                              </Badge>
+                            )}
+                            {participantData.audioEnabled === false && (
+                              <Badge className="bg-red-500 text-white text-xs">
+                                Muted
+                              </Badge>
+                            )}
+                            {participantData.screenSharing && (
+                              <Badge className="bg-blue-400 text-black text-xs">
+                                Screen Share
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </div>
                       
@@ -1094,7 +1243,7 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
 
           {/* Join Requests Panel */}
           {showJoinRequests && (
-            <div className="w-80 bg-black/70 backdrop-blur-sm border-l border-white/20 flex flex-col">
+            <div className="w-80 bg-black/40 backdrop-blur-sm border-l border-white/20 flex flex-col">
               <div className="p-4 border-b border-white/20">
                 <h3 className="text-lg font-semibold flex items-center gap-2 text-white">
                   <UserPlus className="w-5 h-5" />
@@ -1141,7 +1290,7 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
 
           {/* Real-time Alerts Panel */}
           {showAlerts && (
-            <div className="w-80 bg-black/70 backdrop-blur-sm border-l border-white/20 flex flex-col">
+            <div className="w-80 bg-black/40 backdrop-blur-sm border-l border-white/20 flex flex-col">
               <div className="p-4 border-b border-white/20">
                 <h3 className="text-lg font-semibold flex items-center gap-2 text-white">
                   <Bell className="w-5 h-5" />

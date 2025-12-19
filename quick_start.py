@@ -97,9 +97,9 @@ def install_python_deps(path):
             print("[OK] Python dependencies installed with --user")
             return True
     
-    # Install basic dependencies manually
+    # Install basic dependencies manually (avoiding numpy conflicts)
     print("[FALLBACK] Installing basic dependencies...")
-    basic_deps = ["fastapi", "uvicorn", "opencv-python", "pillow", "numpy"]
+    basic_deps = ["fastapi==0.104.1", "uvicorn==0.24.0"]
     
     for dep in basic_deps:
         success, _, _ = run_command(f"pip install --user {dep}")
@@ -293,34 +293,13 @@ def main():
         time.sleep(5)
         check_service("http://localhost:4000", "Backend API")
     
-    # Start Deepfake Service
+    # Start AI Proctoring Service (minimal version)
     print("Starting AI Proctoring Service...")
     if deepfake_path.exists():
-        # Create simple main file if it doesn't exist
-        simple_main = deepfake_path / "simple_main.py"
-        if not simple_main.exists():
-            simple_content = '''from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-
-app = FastAPI(title="TestIntegrity AI Service")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-@app.get("/health")
-def health():
-    return {"status": "healthy", "service": "TestIntegrity AI"}
-
-@app.post("/analyze")
-def analyze_frame(data: dict):
-    return {"status": "analyzed", "alerts": [], "confidence": 0.8}
-'''
-            simple_main.write_text(simple_content)
+        # Check if numpy conflicts exist and try to fix
+        success, _, stderr = run_command("python -c \"import numpy\"")
+        if not success and "circular import" in stderr:
+            print("[WARN] Numpy conflict detected, using minimal service...")
         
         start_service("python -m uvicorn simple_main:app --host 0.0.0.0 --port 8000", 
                      deepfake_path, "AI Proctoring Service")
@@ -367,6 +346,11 @@ def analyze_frame(data: dict):
     print("3. Create/Join meetings for proctored sessions")
     print("\n🛑 To Stop: Close the command windows or press Ctrl+C")
     print("\n📚 Documentation: Check README.md for detailed usage")
+    if not all_running:
+        print("\n🔧 Troubleshooting:")
+        print("- If AI service fails: Run 'python fix_numpy_conflict.py'")
+        print("- If Docker fails: Restart Docker Desktop")
+        print("- If ports busy: Check running processes")
     print("=" * 50)
     
     print("\n✨ Setup Complete! Press Enter to exit this script...")

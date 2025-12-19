@@ -81,6 +81,66 @@ export class ProctoringService {
     });
   }
 
+  async createSession(data: {
+    meetingId: string;
+    participantId: string;
+    userId: string;
+    studentName?: string;
+    startedAt: string;
+  }) {
+    // Check if session already exists
+    let session = await this.sessionRepo.findOne({
+      where: { meetingId: data.meetingId, participantId: data.participantId }
+    });
+
+    if (!session) {
+      session = this.sessionRepo.create({
+        meetingId: data.meetingId,
+        participantId: data.participantId,
+        userId: data.userId,
+        studentName: data.studentName,
+        startedAt: new Date(data.startedAt),
+        totalAlerts: 0,
+        lastActivity: new Date(),
+        status: 'ACTIVE'
+      });
+      
+      await this.sessionRepo.save(session);
+      console.log(`✅ Created proctoring session for ${data.studentName || data.participantId}`);
+    } else {
+      session.lastActivity = new Date();
+      session.status = 'ACTIVE';
+      await this.sessionRepo.save(session);
+      console.log(`🔄 Updated existing session for ${data.studentName || data.participantId}`);
+    }
+
+    return {
+      sessionId: session.id,
+      status: 'created',
+      participantId: data.participantId,
+      meetingId: data.meetingId
+    };
+  }
+
+  async getSessionParticipants(meetingId: string) {
+    const sessions = await this.sessionRepo.find({
+      where: { meetingId },
+      order: { startedAt: 'DESC' }
+    });
+
+    return sessions.map(session => ({
+      participantId: session.participantId,
+      userId: session.userId,
+      studentName: session.studentName,
+      joinedAt: session.startedAt,
+      lastActivity: session.lastActivity,
+      totalAlerts: session.totalAlerts || 0,
+      status: session.status || 'ACTIVE',
+      duration: session.lastActivity ? 
+        Math.floor((session.lastActivity.getTime() - session.startedAt.getTime()) / 1000) : 0
+    }));
+  }
+
   async updateSession(meetingId: string, participantId: string, newAlerts: number) {
     let session = await this.sessionRepo.findOne({
       where: { meetingId, participantId }
@@ -92,7 +152,8 @@ export class ProctoringService {
         participantId,
         startedAt: new Date(),
         totalAlerts: newAlerts,
-        lastActivity: new Date()
+        lastActivity: new Date(),
+        status: 'ACTIVE'
       });
     } else {
       session.totalAlerts = (session.totalAlerts || 0) + newAlerts;

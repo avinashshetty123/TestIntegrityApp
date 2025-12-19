@@ -292,20 +292,7 @@ export default function TestStatsPage() {
               </table>
             </div>
           </div>
-        )}abels:
-                test.perQuestionStats?.map((q) => q.questionText.slice(0, 30) + "...") ?? [],
-              datasets: [
-                {
-                  label: "Marks",
-                  data: test.perQuestionStats?.map((q) => q.marks) ?? [],
-                  backgroundColor: "rgba(251, 146, 60, 0.8)",
-                  borderColor: "rgba(251, 146, 60, 1)",
-                  borderWidth: 2,
-                },
-              ],
-            }}
-          />
-        </div>
+        )}
       </div>
     </div>
   );

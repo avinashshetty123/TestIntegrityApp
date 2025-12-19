@@ -11,6 +11,12 @@ export class ProctoringSession {
   @Column()
   participantId: string;
 
+  @Column({ nullable: true })
+  userId: string;
+
+  @Column({ nullable: true })
+  studentName: string;
+
   @CreateDateColumn()
   startedAt: Date;
 
@@ -22,6 +28,9 @@ export class ProctoringSession {
 
   @Column({ default: false })
   flagged: boolean;
+
+  @Column({ default: 'ACTIVE' })
+  status: string;
 
   @Column({ type: 'jsonb', nullable: true })
   sessionData: any;

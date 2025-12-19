@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Room, RoomEvent, RemoteParticipant } from "livekit-client";
 import { 
-  Video, VideoOff, Mic, MicOff, PhoneOff, Monitor, MessageSquare,
+  Video, VideoOff, Mic, MicOff, PhoneOff, MessageSquare,
   AlertTriangle, Bell, Eye, Shield
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
@@ -115,6 +115,25 @@ export default function StreamlinedStudentMeeting({
           });
         }
 
+        // Send alert to tutor via LiveKit data channel
+        if (room) {
+          const encoder = new TextEncoder();
+          const data = encoder.encode(JSON.stringify({
+            type: 'PROCTORING_ALERT',
+            data: {
+              alertType: alert.alertType,
+              description: alert.description,
+              confidence: alert.confidence,
+              severity: alert.severity,
+              participantId: userInfo?.id,
+              studentName: userInfo?.fullname,
+              timestamp: new Date().toISOString()
+            }
+          }));
+          
+          room.localParticipant.publishData(data, { reliable: true });
+        }
+
         // Report to backend
         reportProctoringAlert(newAlert);
       });
@@ -125,7 +144,7 @@ export default function StreamlinedStudentMeeting({
         `Face detected ✅` : 'No face detected ⚠️';
       setFaceDetectionStatus(status);
     }
-  }, [toast]);
+  }, [room, userInfo, toast]);
 
   const reportProctoringAlert = async (alert: ProctoringAlert) => {
     try {
@@ -151,7 +170,43 @@ export default function StreamlinedStudentMeeting({
 
   const startProctoring = useCallback(async () => {
     if (!isElectron || !window.electronAPI) {
-      console.log('Not in Electron environment, skipping proctoring');
+      console.log('Not in Electron environment, starting browser proctoring');
+      setIsProctoringActive(true);
+      setFaceDetectionStatus('Browser monitoring active');
+      
+      // Start browser-based frame capture
+      const captureFrame = () => {
+        if (!localVideoRef.current || !isProctoringActive) return;
+        
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const video = localVideoRef.current;
+        
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        if (ctx && video.videoWidth > 0) {
+          ctx.drawImage(video, 0, 0);
+          const imageData = canvas.toDataURL('image/jpeg', 0.8);
+          
+          // Send to backend for analysis
+          fetch('http://localhost:4000/proctoring/analyze-frame', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              meetingId,
+              userId: userInfo?.id,
+              participantId: userInfo?.id,
+              detections: { frameAnalysis: true },
+              browserData: { imageData, timestamp: Date.now() }
+            })
+          }).catch(error => console.error('Frame analysis failed:', error));
+        }
+      };
+      
+      // Capture frames every 3 seconds
+      proctoringIntervalRef.current = setInterval(captureFrame, 3000);
       return;
     }
 
@@ -218,23 +273,24 @@ export default function StreamlinedStudentMeeting({
   }, [isElectron, userInfo, isProctoringActive, meetingId, toast]);
 
   const stopProctoring = useCallback(async () => {
-    if (!isElectron || !window.electronAPI) return;
+    setIsProctoringActive(false);
     
-    try {
-      setIsProctoringActive(false);
-      
-      if (proctoringIntervalRef.current) {
-        clearInterval(proctoringIntervalRef.current);
-        proctoringIntervalRef.current = null;
+    if (proctoringIntervalRef.current) {
+      clearInterval(proctoringIntervalRef.current);
+      proctoringIntervalRef.current = null;
+    }
+    
+    if (isElectron && window.electronAPI) {
+      try {
+        // Reset window mode
+        await window.electronAPI.setWindowMode('normal');
+        await window.electronAPI.stopProctoring();
+        setFaceDetectionStatus('Proctoring stopped - Window unlocked');
+      } catch (error) {
+        console.error('Failed to stop proctoring:', error);
       }
-      
-      // Reset window mode
-      await window.electronAPI.setWindowMode('normal');
-      await window.electronAPI.stopProctoring();
-      setFaceDetectionStatus('Proctoring stopped - Window unlocked');
-      
-    } catch (error) {
-      console.error('Failed to stop proctoring:', error);
+    } else {
+      setFaceDetectionStatus('Browser monitoring stopped');
     }
   }, [isElectron]);
 
@@ -398,26 +454,26 @@ export default function StreamlinedStudentMeeting({
 
   if (!isConnected) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-blue-100 to-white flex items-center justify-center">
         <div className="text-center max-w-md">
-          <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-6">
+          <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
             <Video className="w-10 h-10 text-white" />
           </div>
           {connectionError ? (
-            <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 border border-orange-200/30">
+            <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 border border-blue-200/30">
               <h1 className="text-2xl font-bold mb-4 text-red-600">Connection Failed</h1>
               <p className="text-gray-700 mb-6">{connectionError}</p>
               <button 
                 onClick={() => connectToRoom()}
-                className="bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold py-3 px-6 rounded-2xl"
+                className="bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold py-3 px-6 rounded-2xl"
               >
                 Retry Connection
               </button>
             </div>
           ) : (
-            <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 border border-orange-200/30">
-              <h1 className="text-2xl font-bold mb-6 text-orange-600">Connecting to Class...</h1>
-              <div className="w-12 h-12 border-4 border-orange-300 border-t-orange-600 rounded-full animate-spin mx-auto mb-6"></div>
+            <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 border border-blue-200/30">
+              <h1 className="text-2xl font-bold mb-6 text-blue-600">Connecting to Class...</h1>
+              <div className="w-12 h-12 border-4 border-blue-300 border-t-blue-600 rounded-full animate-spin mx-auto mb-6"></div>
               <p className="text-gray-700">Joining the classroom session...</p>
             </div>
           )}
@@ -427,11 +483,11 @@ export default function StreamlinedStudentMeeting({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-blue-100 to-white flex flex-col">
       {/* Header */}
-      <div className="p-4 bg-white/60 backdrop-blur-3xl border-b border-orange-200/30 flex justify-between items-center">
+      <div className="p-4 bg-white/60 backdrop-blur-3xl border-b border-blue-200/30 flex justify-between items-center">
         <div className="flex items-center gap-4">
-          <h2 className="text-xl font-bold text-orange-600">Classroom Session</h2>
+          <h2 className="text-xl font-bold text-blue-600">Student Session</h2>
           <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold ${
             isProctoringActive 
               ? "bg-green-500 text-white" 
@@ -453,7 +509,7 @@ export default function StreamlinedStudentMeeting({
               {proctoringAlerts.length} Alerts
             </div>
           )}
-          <div className="bg-orange-500 text-white px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
+          <div className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
             <Eye className="w-4 h-4" />
             {faceDetectionStatus}
           </div>
@@ -464,7 +520,7 @@ export default function StreamlinedStudentMeeting({
       <div className="flex-1 p-4">
         <div className="grid grid-cols-2 gap-4 h-full">
           {/* Tutor Video */}
-          <div className="relative bg-white/80 rounded-2xl overflow-hidden border border-orange-200/40">
+          <div className="relative bg-white/80 rounded-2xl overflow-hidden border border-blue-200/40">
             {tutorParticipant ? (
               <video
                 ref={tutorVideoRef}
@@ -473,7 +529,7 @@ export default function StreamlinedStudentMeeting({
                 playsInline
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-orange-100">
+              <div className="w-full h-full flex items-center justify-center bg-blue-100">
                 <div className="text-center">
                   <VideoOff className="w-16 h-16 text-gray-500 mx-auto mb-4" />
                   <p className="text-gray-600">Waiting for tutor...</p>
@@ -486,7 +542,7 @@ export default function StreamlinedStudentMeeting({
           </div>
 
           {/* Student Video */}
-          <div className="relative bg-white/80 rounded-2xl overflow-hidden border border-orange-200/40">
+          <div className="relative bg-white/80 rounded-2xl overflow-hidden border border-blue-200/40">
             <video
               ref={localVideoRef}
               className="w-full h-full object-cover"
@@ -509,7 +565,7 @@ export default function StreamlinedStudentMeeting({
       </div>
 
       {/* Controls */}
-      <div className="p-4 bg-white/60 backdrop-blur-3xl border-t border-orange-200/30 flex justify-center gap-4">
+      <div className="p-4 bg-white/60 backdrop-blur-3xl border-t border-blue-200/30 flex justify-center gap-4">
         <button
           onClick={toggleAudio}
           className={`rounded-full w-12 h-12 flex items-center justify-center transition-all ${
@@ -547,8 +603,8 @@ export default function StreamlinedStudentMeeting({
 
       {/* Alerts Panel */}
       {proctoringAlerts.length > 0 && (
-        <div className="fixed right-4 top-20 w-80 bg-white/90 backdrop-blur-xl rounded-2xl border border-orange-200/50 p-4 max-h-96 overflow-y-auto">
-          <h3 className="font-bold text-orange-600 mb-3 flex items-center gap-2">
+        <div className="fixed right-4 top-20 w-80 bg-white/90 backdrop-blur-xl rounded-2xl border border-blue-200/50 p-4 max-h-96 overflow-y-auto">
+          <h3 className="font-bold text-blue-600 mb-3 flex items-center gap-2">
             <Bell className="w-4 h-4" />
             Recent Alerts ({proctoringAlerts.length})
           </h3>
