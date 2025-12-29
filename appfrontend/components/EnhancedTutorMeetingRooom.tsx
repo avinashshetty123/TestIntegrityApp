@@ -73,8 +73,8 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
   const [room, setRoom] = useState<Room | null>(null);
   const [participants, setParticipants] = useState<ParticipantData[]>([]);
   const [isConnected, setIsConnected] = useState(false);
-  const [isVideoEnabled, setIsVideoEnabled] = useState(true);
-  const [isAudioEnabled, setIsAudioEnabled] = useState(true);
+  const [isVideoEnabled, setIsVideoEnabled] = useState(false);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [showParticipants, setShowParticipants] = useState(false);
   const [showJoinRequests, setShowJoinRequests] = useState(false);
@@ -117,16 +117,19 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
     }
   }, [isTutor, isConnected, showJoinRequests]);
 
-  // Fetch meeting flags and participants for tutor visibility
+  // Fetch meeting status on connection
   useEffect(() => {
     if (isTutor && isConnected) {
+      fetchMeetingStatus();
       fetchMeetingFlags();
       fetchSessionParticipants();
       const flagsInterval = setInterval(fetchMeetingFlags, 5000);
       const participantsInterval = setInterval(fetchSessionParticipants, 10000);
+      const statusInterval = setInterval(fetchMeetingStatus, 30000); // Check status every 30s
       return () => {
         clearInterval(flagsInterval);
         clearInterval(participantsInterval);
+        clearInterval(statusInterval);
       };
     }
   }, [isTutor, isConnected, meetingId]);
@@ -151,6 +154,20 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
       }
     } catch (error) {
       console.error('Failed to fetch join requests:', error);
+    }
+  };
+
+  const fetchMeetingStatus = async () => {
+    try {
+      const response = await fetch(`http://localhost:4000/meetings/${meetingId}`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const meeting = await response.json();
+        setIsMeetingLocked(meeting.isLocked || false);
+      }
+    } catch (error) {
+      console.error('Failed to fetch meeting status:', error);
     }
   };
 
@@ -330,14 +347,8 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true
-        },
-        publishDefaults: {
-          videoSimulcastLayers: [
-            { resolution: { width: 320, height: 240 }, encoding: { maxBitrate: 150000 } },
-            { resolution: { width: 640, height: 480 }, encoding: { maxBitrate: 500000 } },
-            { resolution: { width: 1280, height: 720 }, encoding: { maxBitrate: 1200000 } }
-          ]
         }
+        // Removed publishDefaults to fix "non-finite double value" error
       });
       setRoom(newRoom);
 
@@ -364,26 +375,13 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
         }));
         setParticipants(initialParticipants);
         
-        // Enable camera and microphone
+        // Enable camera and microphone only if user wants them
         try {
-          if (isVideoEnabled) {
-            await newRoom.localParticipant.setCameraEnabled(true);
-          }
-          if (isAudioEnabled) {
-            await newRoom.localParticipant.setMicrophoneEnabled(true);
-          }
-          
-          // Attach local video after a brief delay
-          setTimeout(() => {
-            if (localVideoRef.current) {
-              const videoTrack = Array.from(newRoom.localParticipant.videoTrackPublications.values())[0]?.track;
-              if (videoTrack) {
-                videoTrack.attach(localVideoRef.current);
-              }
-            }
-          }, 1000);
+          // Start with both disabled - user must manually enable
+          await newRoom.localParticipant.setCameraEnabled(false);
+          await newRoom.localParticipant.setMicrophoneEnabled(false);
         } catch (error) {
-          console.error("Failed to enable camera/microphone:", error);
+          console.error("Failed to set initial media state:", error);
         }
       });
 
@@ -391,14 +389,29 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
         console.log("❌ Disconnected from room");
         setIsConnected(false);
         setIsConnecting(false);
+        
+        // Properly stop all media tracks
+        if (newRoom.localParticipant) {
+          newRoom.localParticipant.videoTrackPublications.forEach(pub => {
+            if (pub.track) {
+              pub.track.stop();
+            }
+          });
+          newRoom.localParticipant.audioTrackPublications.forEach(pub => {
+            if (pub.track) {
+              pub.track.stop();
+            }
+          });
+        }
+        
         // Clean up intervals
         if (joinRequestIntervalRef.current) {
           clearInterval(joinRequestIntervalRef.current);
         }
       });
 
-      newRoom.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
-        console.log("Participant connected:", participant.identity);
+      newRoom.on(RoomEvent.ParticipantConnected, async (participant: RemoteParticipant) => {
+        console.log("✅ Participant connected:", participant.identity, participant.name);
         const newParticipant: ParticipantData = {
           participant: participant,
           flagCount: 0,
@@ -415,11 +428,59 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
           screenSharing: false
         };
         setParticipants(prev => [...prev, newParticipant]);
+        
+        // Create backend session for new participant
+        try {
+          await fetch('http://localhost:4000/proctoring/session/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              meetingId,
+              participantId: participant.identity,
+              userId: participant.identity,
+              studentName: participant.name || participant.identity,
+              startedAt: new Date().toISOString()
+            })
+          });
+          console.log(`📝 Created session for ${participant.name || participant.identity}`);
+        } catch (error) {
+          console.error('Failed to create session:', error);
+        }
+        
+        toast({
+          title: "Student Joined",
+          description: `${participant.name || participant.identity} joined the meeting`,
+        });
       });
 
-      newRoom.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
-        console.log("Participant disconnected:", participant.identity);
+      newRoom.on(RoomEvent.ParticipantDisconnected, async (participant: RemoteParticipant) => {
+        console.log("❌ Participant disconnected:", participant.identity, participant.name);
         setParticipants(prev => prev.filter(p => p.identity !== participant.identity));
+        
+        // Update backend session status
+        try {
+          await fetch(`http://localhost:4000/proctoring/analyze-frame`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              meetingId,
+              participantId: participant.identity,
+              userId: participant.identity,
+              detections: {},
+              browserData: { participantLeft: true }
+            })
+          });
+          console.log(`📝 Updated session for leaving participant ${participant.name || participant.identity}`);
+        } catch (error) {
+          console.error('Failed to update session:', error);
+        }
+        
+        toast({
+          title: "Student Left",
+          description: `${participant.name || participant.identity} left the meeting`,
+        });
       });
 
       newRoom.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
@@ -517,14 +578,7 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
             autoSubscribe: true,
             maxRetries: 3,
             peerConnectionTimeout: 10000,
-            websocketTimeout: 5000,
-            rtcConfig: {
-              iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' }
-              ],
-              iceCandidatePoolSize: 10
-            }
+            websocketTimeout: 5000
           });
           
           connected = true;
@@ -573,34 +627,66 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
   };
 
   const toggleVideo = async () => {
-    if (room?.localParticipant) {
-      try {
-        await room.localParticipant.setCameraEnabled(!isVideoEnabled);
-        setIsVideoEnabled(!isVideoEnabled);
-      } catch (error) {
-        console.error("Failed to toggle video:", error);
-        toast({
-          title: "Error",
-          description: "Failed to toggle video",
-          variant: "destructive",
-        });
+    if (!room?.localParticipant) {
+      toast({
+        title: "Error",
+        description: "Not connected to meeting",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      const newVideoState = !isVideoEnabled;
+      await room.localParticipant.setCameraEnabled(newVideoState);
+      setIsVideoEnabled(newVideoState);
+      
+      // Handle video element display
+      if (localVideoRef.current && !newVideoState) {
+        localVideoRef.current.style.backgroundColor = '#000';
+        localVideoRef.current.srcObject = null;
       }
+      
+      toast({
+        title: newVideoState ? "Camera On" : "Camera Off",
+        description: newVideoState ? "Your camera is now enabled" : "Your camera is now disabled",
+      });
+    } catch (error) {
+      console.error("Failed to toggle video:", error);
+      toast({
+        title: "Error",
+        description: "Failed to toggle camera",
+        variant: "destructive",
+      });
     }
   };
 
   const toggleAudio = async () => {
-    if (room?.localParticipant) {
-      try {
-        await room.localParticipant.setMicrophoneEnabled(!isAudioEnabled);
-        setIsAudioEnabled(!isAudioEnabled);
-      } catch (error) {
-        console.error("Failed to toggle audio:", error);
-        toast({
-          title: "Error",
-          description: "Failed to toggle audio",
-          variant: "destructive",
-        });
-      }
+    if (!room?.localParticipant) {
+      toast({
+        title: "Error",
+        description: "Not connected to meeting",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      const newAudioState = !isAudioEnabled;
+      await room.localParticipant.setMicrophoneEnabled(newAudioState);
+      setIsAudioEnabled(newAudioState);
+      
+      toast({
+        title: newAudioState ? "Microphone On" : "Microphone Off",
+        description: newAudioState ? "Your microphone is now enabled" : "Your microphone is now muted",
+      });
+    } catch (error) {
+      console.error("Failed to toggle audio:", error);
+      toast({
+        title: "Error",
+        description: "Failed to toggle microphone",
+        variant: "destructive",
+      });
     }
   };
 
@@ -1123,6 +1209,20 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
 
           <Button
             onClick={() => {
+              // Stop all media tracks before disconnecting
+              if (room?.localParticipant) {
+                room.localParticipant.videoTrackPublications.forEach(pub => {
+                  if (pub.track) {
+                    pub.track.stop();
+                  }
+                });
+                room.localParticipant.audioTrackPublications.forEach(pub => {
+                  if (pub.track) {
+                    pub.track.stop();
+                  }
+                });
+              }
+              
               if (room) {
                 room.disconnect();
               }

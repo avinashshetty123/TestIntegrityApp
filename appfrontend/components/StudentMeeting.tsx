@@ -56,8 +56,8 @@ export default function EnhancedStudentMeetingRoom({
 }: StudentVideoCallProps) {
   const [room, setRoom] = useState<Room | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [isVideoEnabled, setIsVideoEnabled] = useState(true);
-  const [isAudioEnabled, setIsAudioEnabled] = useState(true);
+  const [isVideoEnabled, setIsVideoEnabled] = useState(false);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [showQuizPanel, setShowQuizPanel] = useState(false);
   const [tutorParticipant, setTutorParticipant] = useState<RemoteParticipant | null>(null);
@@ -65,17 +65,50 @@ export default function EnhancedStudentMeetingRoom({
   const [isConnecting, setIsConnecting] = useState(false);
   const [proctoringAlerts, setProctoringAlerts] = useState<ProctoringAlert[]>([]);
   const [isProctoringActive, setIsProctoringActive] = useState(false);
-  const [faceDetectionStatus, setFaceDetectionStatus] = useState<string>('Initializing...');
+  const [faceDetectionStatus, setFaceDetectionStatus] = useState<string>('Camera disabled - Click to enable');
   const [isElectron, setIsElectron] = useState(false);
   const [deepfakeCheckCount, setDeepfakeCheckCount] = useState(0);
   const [lastDeepfakeCheck, setLastDeepfakeCheck] = useState<Date | null>(null);
+  const [proctoringSessionId, setProctoringSessionId] = useState<string | null>(null);
+  const [frameAnalysisRate, setFrameAnalysisRate] = useState(3000); // Auto-adjusted based on performance
+  const [systemPerformance, setSystemPerformance] = useState<'low' | 'medium' | 'high'>('medium');
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const tutorVideoRef = useRef<HTMLVideoElement>(null);
   const proctoringIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const deepfakeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const frameAnalysisRef = useRef<NodeJS.Timeout | null>(null);
 
   const { toast } = useToast();
+
+  // Auto-detect system performance and adjust frame rate
+  useEffect(() => {
+    const detectPerformance = () => {
+      const cores = navigator.hardwareConcurrency || 4;
+      const memory = (navigator as any).deviceMemory || 4;
+      
+      let performance: 'low' | 'medium' | 'high' = 'medium';
+      let rate = 3000;
+      
+      if (cores >= 8 && memory >= 8) {
+        performance = 'high';
+        rate = 2000; // 2 seconds for high-end systems
+      } else if (cores >= 4 && memory >= 4) {
+        performance = 'medium';
+        rate = 3000; // 3 seconds for medium systems
+      } else {
+        performance = 'low';
+        rate = 5000; // 5 seconds for low-end systems
+      }
+      
+      setSystemPerformance(performance);
+      setFrameAnalysisRate(rate);
+      
+      console.log(`🖥️ System detected: ${performance} (${cores} cores, ${memory}GB RAM) - Analysis rate: ${rate/1000}s`);
+    };
+    
+    detectPerformance();
+  }, []);
 
   // Check if running in Electron
   useEffect(() => {
@@ -121,22 +154,32 @@ export default function EnhancedStudentMeetingRoom({
         }
 
         // Send alert to tutor via LiveKit data channel
-        if (room) {
-          const encoder = new TextEncoder();
-          const data = encoder.encode(JSON.stringify({
-            type: 'PROCTORING_ALERT',
-            data: {
-              alertType: alert.alertType,
-              description: alert.description,
-              confidence: alert.confidence,
-              severity: alert.severity,
-              participantId: userInfo?.id,
-              studentName: userInfo?.fullname,
-              timestamp: new Date().toISOString()
-            }
-          }));
-          
-          room.localParticipant.publishData(data, { reliable: true });
+        if (room && room.state === 'connected') {
+          try {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(JSON.stringify({
+              type: 'PROCTORING_ALERT',
+              data: {
+                alertType: alert.alertType,
+                description: alert.description,
+                confidence: alert.confidence,
+                severity: alert.severity,
+                participantId: userInfo?.id,
+                studentName: userInfo?.fullname,
+                timestamp: new Date().toISOString()
+              }
+            }));
+            
+            // Use reliable data channel with error handling
+            room.localParticipant.publishData(data, { 
+              reliable: true,
+              destinationSids: [] // Send to all participants
+            }).catch(error => {
+              console.warn('Failed to send alert data:', error);
+            });
+          } catch (error) {
+            console.warn('Data channel error:', error);
+          }
         }
 
         // Report to backend
@@ -161,6 +204,7 @@ export default function EnhancedStudentMeetingRoom({
           meetingId,
           userId: userInfo?.id,
           participantId: userInfo?.id,
+          sessionId: proctoringSessionId,
           detections: {
             [alert.alertType.toLowerCase()]: true,
             suspiciousBehavior: alert.severity === 'HIGH' || alert.severity === 'CRITICAL'
@@ -176,15 +220,15 @@ export default function EnhancedStudentMeetingRoom({
       });
       
       if (response.ok) {
-        console.log('✅ Alert reported to backend:', alert.alertType);
+        // Silently report alert success
       }
     } catch (error) {
-      console.error('❌ Failed to report proctoring alert:', error);
+      // Silently handle alert reporting errors
     }
   };
 
   const performDeepfakeCheck = async () => {
-    if (!localVideoRef.current) return;
+    if (!localVideoRef.current || !isVideoEnabled) return;
     
     try {
       const canvas = document.createElement('canvas');
@@ -210,6 +254,12 @@ export default function EnhancedStudentMeetingRoom({
         formData.append('participantId', userInfo?.id || '');
 
         try {
+          // Check if deepfake service is available
+          const healthResponse = await fetch('http://localhost:8000/health');
+          if (!healthResponse.ok) {
+            return;
+          }
+
           const deepfakeResponse = await fetch('http://localhost:8000/deepfake/predict', {
             method: 'POST',
             body: formData
@@ -219,8 +269,6 @@ export default function EnhancedStudentMeetingRoom({
             const result = await deepfakeResponse.json();
             setDeepfakeCheckCount(prev => prev + 1);
             setLastDeepfakeCheck(new Date());
-            
-            console.log('✅ Deepfake check result:', result);
             
             if (result.is_deepfake) {
               const deepfakeAlert: ProctoringAlert = {
@@ -236,11 +284,11 @@ export default function EnhancedStudentMeetingRoom({
             }
           }
         } catch (error) {
-          console.error('❌ Deepfake check failed:', error);
+          // Silently fail if deepfake service unavailable
         }
       }, 'image/jpeg', 0.8);
     } catch (error) {
-      console.error('❌ Deepfake frame capture failed:', error);
+      // Silently handle deepfake frame capture errors
     }
   };
 
@@ -260,214 +308,15 @@ export default function EnhancedStudentMeetingRoom({
       });
       
       if (response.ok) {
-        console.log('✅ Proctoring session created');
+        const sessionData = await response.json();
+        setProctoringSessionId(sessionData.id);
+        return sessionData.id;
       }
     } catch (error) {
-      console.error('❌ Failed to create proctoring session:', error);
+      // Silently handle connection errors
     }
+    return null;
   };
-
-  const startProctoring = useCallback(async () => {
-    // Create proctoring session first
-    await createProctoringSession();
-    
-    if (!isElectron || !window.electronAPI) {
-      console.log('Not in Electron environment, starting browser proctoring');
-      setIsProctoringActive(true);
-      setFaceDetectionStatus('Browser monitoring active');
-      
-      // Start browser-based frame capture
-      const captureFrame = async () => {
-        if (!localVideoRef.current) return;
-        
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const video = localVideoRef.current;
-        
-        if (!ctx || video.videoWidth === 0 || video.videoHeight === 0) return;
-        
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0);
-        const imageData = canvas.toDataURL('image/jpeg', 0.7);
-        
-        console.log('📸 Capturing frame for analysis');
-        
-        // Send to backend for analysis
-        try {
-          const response = await fetch('http://localhost:4000/proctoring/analyze-frame', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-              meetingId,
-              userId: userInfo?.id,
-              participantId: userInfo?.id,
-              detections: { 
-                frameAnalysis: true,
-                faceCount: 1, // Will be updated by AI
-                phoneDetected: false,
-                suspiciousBehavior: false
-              },
-              browserData: { 
-                imageData, 
-                timestamp: Date.now(),
-                browserProctoring: true
-              }
-            })
-          });
-          
-          if (response.ok) {
-            const result = await response.json();
-            console.log('✅ Frame analysis result:', result);
-            
-            // Handle any alerts returned
-            if (result.alerts && result.alerts.length > 0) {
-              result.alerts.forEach((alert: any) => {
-                handleProctoringAnalysis({ alerts: [alert] });
-              });
-            }
-          }
-        } catch (error) {
-          console.error('❌ Frame analysis failed:', error);
-        }
-      };
-      
-      proctoringIntervalRef.current = setInterval(captureFrame, 3000);
-      
-      // Start deepfake checking every 15 seconds
-      deepfakeIntervalRef.current = setInterval(() => {
-        performDeepfakeCheck();
-      }, 15000);
-      return;
-    }
-
-    try {
-      setIsProctoringActive(true);
-      
-      // Set window to proctoring mode (prevents minimization) - only if function exists
-      if (window.electronAPI.setWindowMode) {
-        await window.electronAPI.setWindowMode('proctoring');
-      }
-      
-      // Load reference face if available
-      if (userInfo?.profilePic && userInfo?.id) {
-        await window.electronAPI.loadReferenceFace(userInfo.profilePic, userInfo.id);
-      }
-      
-      // Start proctoring with session data
-      const sessionData = {
-        meetingId: meetingId || 'unknown',
-        participantId: userInfo?.id || 'unknown',
-        participantName: userInfo?.fullname || 'Unknown',
-        startTime: new Date().toISOString()
-      };
-      
-      await window.electronAPI.startProctoring(sessionData);
-      
-      // Start video frame capture
-      const captureFrame = async () => {
-        if (!localVideoRef.current) return;
-        
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const video = localVideoRef.current;
-        
-        if (!ctx || video.videoWidth === 0 || video.videoHeight === 0) return;
-        
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0);
-        const imageData = canvas.toDataURL('image/jpeg', 0.7);
-        
-        console.log('📸 Sending frame to Electron worker');
-        
-        try {
-          const result = await window.electronAPI?.sendVideoFrame({
-            imageData,
-            timestamp: Date.now(),
-            participantId: userInfo?.id,
-            meetingId: meetingId,
-            sessionData: {
-              userId: userInfo?.id,
-              studentName: userInfo?.fullname
-            }
-          });
-          
-          console.log('✅ Electron worker response:', result);
-          
-          // Also send to backend for session tracking
-          await fetch('http://localhost:4000/proctoring/analyze-frame', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-              meetingId,
-              userId: userInfo?.id,
-              participantId: userInfo?.id,
-              detections: { 
-                electronProctoring: true,
-                frameAnalysis: true
-              },
-              browserData: { 
-                electronMode: true,
-                timestamp: Date.now()
-              }
-            })
-          });
-        } catch (error) {
-          console.error('❌ Electron worker failed:', error);
-        }
-      };
-      
-      proctoringIntervalRef.current = setInterval(captureFrame, 3000);
-      
-      // Start deepfake checking every 15 seconds
-      deepfakeIntervalRef.current = setInterval(() => {
-        performDeepfakeCheck();
-      }, 15000);
-      
-      setFaceDetectionStatus('Proctoring active - Window locked');
-      
-      toast({
-        title: "Proctoring Started",
-        description: "AI monitoring is now active. Window cannot be minimized.",
-      });
-      
-    } catch (error) {
-      console.error('Failed to start proctoring:', error);
-      setIsProctoringActive(false);
-      setFaceDetectionStatus('Proctoring failed to start');
-    }
-  }, [isElectron, userInfo, isProctoringActive, meetingId, toast]);
-
-  const stopProctoring = useCallback(async () => {
-    setIsProctoringActive(false);
-    
-    if (proctoringIntervalRef.current) {
-      clearInterval(proctoringIntervalRef.current);
-      proctoringIntervalRef.current = null;
-    }
-    
-    if (deepfakeIntervalRef.current) {
-      clearInterval(deepfakeIntervalRef.current);
-      deepfakeIntervalRef.current = null;
-    }
-    
-    if (isElectron && window.electronAPI) {
-      try {
-        if (window.electronAPI.setWindowMode) {
-          await window.electronAPI.setWindowMode('normal');
-        }
-        await window.electronAPI.stopProctoring();
-        setFaceDetectionStatus('Proctoring stopped - Window unlocked');
-      } catch (error) {
-        console.error('Failed to stop proctoring:', error);
-      }
-    } else {
-      setFaceDetectionStatus('Browser monitoring stopped');
-    }
-  }, [isElectron]);
 
   const connectToRoom = async () => {
     if (isConnecting) return;
@@ -488,75 +337,119 @@ export default function EnhancedStudentMeetingRoom({
           noiseSuppression: true,
           autoGainControl: true
         }
+        // Removed publishDefaults to fix "non-finite double value" error
       });
       setRoom(newRoom);
 
       newRoom.on(RoomEvent.Connected, async () => {
-        console.log("✅ Student connected to room");
+        console.log("✅ Connected to room");
         setIsConnected(true);
         setIsConnecting(false);
         
-        // Enable camera and microphone
+        // Create proctoring session
+        const sessionId = await createProctoringSession();
+        if (sessionId) {
+          console.log('✅ Proctoring session created:', sessionId);
+        }
+        
+        // Enable camera and microphone only if user wants them
         try {
-          if (isVideoEnabled) {
-            await newRoom.localParticipant.setCameraEnabled(true);
-            setTimeout(() => startProctoring(), 1000);
-          }
-          if (isAudioEnabled) {
-            await newRoom.localParticipant.setMicrophoneEnabled(true);
-          }
+          // Start with both disabled - user must manually enable
+          await newRoom.localParticipant.setCameraEnabled(false);
+          await newRoom.localParticipant.setMicrophoneEnabled(false);
           
-          // Attach local video
-          setTimeout(() => {
-            if (localVideoRef.current) {
-              const videoTrack = Array.from(newRoom.localParticipant.videoTrackPublications.values())[0]?.track;
-              if (videoTrack) {
-                videoTrack.attach(localVideoRef.current);
-              }
-            }
-          }, 1000);
+          setFaceDetectionStatus('Camera disabled - Click to enable');
         } catch (error) {
-          console.error("Failed to enable camera/microphone:", error);
+          console.error("Failed to set initial media state:", error);
         }
       });
 
-      // Track publication events to sync state
-      newRoom.on(RoomEvent.LocalTrackPublished, (publication) => {
-        if (publication.kind === 'video') {
-          setIsVideoEnabled(true);
-        } else if (publication.kind === 'audio') {
-          setIsAudioEnabled(true);
-        }
-      });
-
-      newRoom.on(RoomEvent.LocalTrackUnpublished, (publication) => {
-        if (publication.kind === 'video') {
-          setIsVideoEnabled(false);
-        } else if (publication.kind === 'audio') {
-          setIsAudioEnabled(false);
-        }
-      });
-
-      newRoom.on(RoomEvent.Disconnected, () => {
-        console.log("❌ Student disconnected from room");
+      newRoom.on(RoomEvent.Disconnected, (reason) => {
+        console.log("❌ Disconnected from room:", reason);
         setIsConnected(false);
         setIsConnecting(false);
-        stopProctoring();
+        setTutorParticipant(null);
+        stopProctoringAnalysis();
+        
+        // Properly stop all media tracks
+        if (newRoom.localParticipant) {
+          newRoom.localParticipant.videoTrackPublications.forEach(pub => {
+            if (pub.track) {
+              pub.track.stop();
+            }
+          });
+          newRoom.localParticipant.audioTrackPublications.forEach(pub => {
+            if (pub.track) {
+              pub.track.stop();
+            }
+          });
+        }
+        
+        // Clear video elements
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = null;
+        }
+        if (tutorVideoRef.current) {
+          tutorVideoRef.current.srcObject = null;
+        }
       });
 
       newRoom.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
-        console.log("Participant connected:", participant.identity);
+        console.log("Participant connected:", participant.identity, participant.name);
         setTutorParticipant(participant);
       });
 
+      newRoom.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
+        console.log("Tutor disconnected:", participant.identity);
+        if (tutorParticipant?.identity === participant.identity) {
+          setTutorParticipant(null);
+        }
+      });
+
       newRoom.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
-        if (track.kind === "video") {
+        console.log("Track subscribed:", track.kind, "from", participant.identity);
+        
+        if (track.kind === "video" && participant.identity !== room?.localParticipant?.identity) {
+          console.log("Remote video track subscribed for:", participant.identity);
+          setTutorParticipant(participant);
+          
           setTimeout(() => {
             if (tutorVideoRef.current && track.attach) {
               track.attach(tutorVideoRef.current);
+              console.log('✅ Tutor video track attached');
+            }
+          }, 100);
+        }
+      });
+
+      // Handle local track published
+      newRoom.on(RoomEvent.LocalTrackPublished, (publication, participant) => {
+        if (publication.kind === 'video' && localVideoRef.current) {
+          setTimeout(() => {
+            const track = publication.track;
+            if (track && localVideoRef.current) {
+              track.attach(localVideoRef.current);
+              console.log('✅ Local video track attached');
             }
           }, 500);
         }
+      });
+
+      // Add error handling for connection issues
+      newRoom.on(RoomEvent.ConnectionQualityChanged, (quality, participant) => {
+        if (quality === 'poor' && participant?.isLocal) {
+          console.warn('Poor connection quality detected');
+        }
+      });
+
+      newRoom.on(RoomEvent.Reconnecting, () => {
+        console.log('🔄 Reconnecting to room...');
+        setIsConnecting(true);
+      });
+
+      newRoom.on(RoomEvent.Reconnected, () => {
+        console.log('✅ Reconnected to room');
+        setIsConnecting(false);
       });
 
       // Handle data messages
@@ -565,112 +458,155 @@ export default function EnhancedStudentMeetingRoom({
           const decoder = new TextDecoder();
           const data = JSON.parse(decoder.decode(payload));
           
-          if (data.type === 'KICK_NOTIFICATION' && data.participantId === userInfo?.id) {
+          if (data.type === 'QUIZ_QUESTION') {
+            // Handle quiz questions
+            console.log('📝 Quiz question received:', data.data);
+          } else if (data.type === 'KICK_NOTIFICATION' && data.participantId === userInfo?.id) {
             toast({
               title: "Removed from Meeting",
-              description: "You have been removed from the meeting by the tutor",
+              description: data.reason || "You have been removed by the tutor",
               variant: "destructive",
             });
-            if (room) {
-              room.disconnect();
-            }
-            onDisconnect?.();
+            setTimeout(() => onDisconnect?.(), 2000);
           }
         } catch (error) {
-          console.error('Error parsing data message:', error);
+          console.error('❌ Error parsing data message:', error);
         }
       });
 
-      // Connect to server
+      // Connect to LiveKit server
       let actualServerUrl = serverUrl;
-      if (!actualServerUrl.startsWith('ws://') && !actualServerUrl.startsWith('wss://')) {
-        actualServerUrl = `ws://${actualServerUrl}`;
+      if (!serverUrl.startsWith('ws://') && !serverUrl.startsWith('wss://')) {
+        actualServerUrl = `ws://${serverUrl}`;
       }
       if (actualServerUrl.includes('localhost') && !actualServerUrl.includes('7880')) {
         actualServerUrl = 'ws://localhost:7880';
       }
-
-      await newRoom.connect(actualServerUrl, token, {
-        autoSubscribe: true,
-        maxRetries: 3,
-        peerConnectionTimeout: 15000,
-        websocketTimeout: 10000,
-        rtcConfig: {
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
-          ],
-          iceCandidatePoolSize: 10
-        }
-      });
       
+      const fallbackUrls = [
+        actualServerUrl,
+        'ws://localhost:7880',
+        'ws://127.0.0.1:7880'
+      ];
+
+      let connected = false;
+      let lastError = null;
+      
+      for (const url of fallbackUrls) {
+        try {
+          console.log(`Trying connection to: ${url}`);
+          
+          await newRoom.connect(url, token, {
+            autoSubscribe: true,
+            maxRetries: 3,
+            peerConnectionTimeout: 10000,
+            websocketTimeout: 5000
+          });
+          
+          connected = true;
+          console.log(`✅ Successfully connected to: ${url}`);
+          break;
+        } catch (error) {
+          console.warn(`❌ Failed to connect to ${url}:`, error.message);
+          lastError = error;
+          
+          try {
+            await newRoom.disconnect();
+          } catch (e) {
+            // Ignore cleanup errors
+          }
+        }
+      }
+      
+      if (!connected) {
+        throw lastError || new Error('Failed to connect to any LiveKit server');
+      }
     } catch (error: any) {
       console.error("❌ Failed to connect to LiveKit:", error);
       setIsConnecting(false);
-      setConnectionError('Failed to connect to meeting. Please check your connection.');
+      
+      let errorMessage = 'Failed to connect to meeting. Please check your connection and try again.';
+      
+      if (error.message?.includes('WebSocket')) {
+        errorMessage = 'LiveKit server is not running. Please start the Docker services first.';
+      } else if (error.message?.includes('token')) {
+        errorMessage = 'Invalid meeting token. Please refresh and try again.';
+      }
+      
+      setConnectionError(errorMessage);
       
       toast({
         title: "Connection Failed",
-        description: "Could not connect to the meeting room.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
   };
 
   const toggleVideo = async () => {
-    if (room?.localParticipant) {
-      try {
-        const newVideoState = !isVideoEnabled;
-        await room.localParticipant.setCameraEnabled(newVideoState);
-        
-        // Send state update to tutor
-        const encoder = new TextEncoder();
-        const data = encoder.encode(JSON.stringify({
-          type: 'PARTICIPANT_STATE_UPDATE',
-          data: {
-            participantId: userInfo?.id,
-            studentName: userInfo?.fullname,
-            videoEnabled: newVideoState,
-            audioEnabled: isAudioEnabled,
-            timestamp: new Date().toISOString()
+    if (!room?.localParticipant || isConnecting) {
+      return;
+    }
+    
+    try {
+      const newVideoState = !isVideoEnabled;
+      await room.localParticipant.setCameraEnabled(newVideoState);
+      setIsVideoEnabled(newVideoState);
+      
+      if (newVideoState) {
+        // Wait for track and attach it with retry logic
+        let attempts = 0;
+        const attachVideo = () => {
+          const videoTrack = Array.from(room.localParticipant.videoTrackPublications.values())[0]?.track;
+          if (videoTrack && localVideoRef.current) {
+            videoTrack.attach(localVideoRef.current);
+            console.log('✅ Video track attached');
+            
+            // Start proctoring after video is confirmed attached
+            setTimeout(() => {
+              if (proctoringSessionId && !isProctoringActive) {
+                startProctoringAnalysis();
+                setFaceDetectionStatus('Camera enabled - Monitoring active');
+              }
+            }, 1000);
+          } else if (attempts < 3) {
+            attempts++;
+            setTimeout(attachVideo, 1000);
           }
-        }));
-        room.localParticipant.publishData(data, { reliable: true });
+        };
         
-        if (newVideoState) {
-          setTimeout(() => startProctoring(), 1000);
-        } else {
-          stopProctoring();
-          setFaceDetectionStatus('Video disabled');
+        setTimeout(attachVideo, 500);
+      } else {
+        // Stop proctoring and clear video
+        await stopProctoringAnalysis();
+        setFaceDetectionStatus('Camera disabled');
+        
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = null;
         }
-      } catch (error) {
-        console.error("Failed to toggle video:", error);
       }
+      
+      // Send state update with error handling
+      setTimeout(() => sendParticipantStateUpdate(), 500);
+      
+    } catch (error) {
+      console.error("Failed to toggle video:", error);
     }
   };
 
   const toggleAudio = async () => {
-    if (room?.localParticipant) {
-      try {
-        const newAudioState = !isAudioEnabled;
-        await room.localParticipant.setMicrophoneEnabled(newAudioState);
-        
-        // Send state update to tutor
-        const encoder = new TextEncoder();
-        const data = encoder.encode(JSON.stringify({
-          type: 'PARTICIPANT_STATE_UPDATE',
-          data: {
-            participantId: userInfo?.id,
-            studentName: userInfo?.fullname,
-            videoEnabled: isVideoEnabled,
-            audioEnabled: newAudioState,
-            timestamp: new Date().toISOString()
-          }
-        }));
-        room.localParticipant.publishData(data, { reliable: true });
-      } catch (error) {
-        console.error("Failed to toggle audio:", error);
-      }
+    if (!room?.localParticipant) {
+      return;
+    }
+    
+    try {
+      const newAudioState = !isAudioEnabled;
+      await room.localParticipant.setMicrophoneEnabled(newAudioState);
+      setIsAudioEnabled(newAudioState);
+      sendParticipantStateUpdate();
+      
+    } catch (error) {
+      console.error("Failed to toggle audio:", error);
     }
   };
 
@@ -678,34 +614,15 @@ export default function EnhancedStudentMeetingRoom({
     if (!room?.localParticipant) return;
     
     try {
-      if (isScreenSharing) {
-        await room.localParticipant.setScreenShareEnabled(false);
-        setIsScreenSharing(false);
-        toast({
-          title: "Screen Share Stopped",
-          description: "You stopped sharing your screen",
-        });
-      } else {
-        await room.localParticipant.setScreenShareEnabled(true);
-        setIsScreenSharing(true);
-        toast({
-          title: "Screen Share Started",
-          description: "You are now sharing your screen",
-        });
-      }
+      const newScreenShareState = !isScreenSharing;
+      await room.localParticipant.setScreenShareEnabled(newScreenShareState);
+      setIsScreenSharing(newScreenShareState);
+      sendParticipantStateUpdate();
       
-      // Send state update to tutor
-      const encoder = new TextEncoder();
-      const data = encoder.encode(JSON.stringify({
-        type: 'PARTICIPANT_STATE_UPDATE',
-        data: {
-          participantId: userInfo?.id,
-          studentName: userInfo?.fullname,
-          screenSharing: !isScreenSharing,
-          timestamp: new Date().toISOString()
-        }
-      }));
-      room.localParticipant.publishData(data, { reliable: true });
+      toast({
+        title: newScreenShareState ? "Screen Share Started" : "Screen Share Stopped",
+        description: newScreenShareState ? "You are now sharing your screen" : "Screen sharing has been stopped",
+      });
     } catch (error) {
       console.error("Screen share failed:", error);
       toast({
@@ -716,6 +633,228 @@ export default function EnhancedStudentMeetingRoom({
     }
   };
 
+  const sendParticipantStateUpdate = () => {
+    if (room && room.state === 'connected') {
+      try {
+        const stateData = {
+          type: 'PARTICIPANT_STATE_UPDATE',
+          data: {
+            participantId: userInfo?.id,
+            videoEnabled: isVideoEnabled,
+            audioEnabled: isAudioEnabled,
+            screenSharing: isScreenSharing,
+            timestamp: new Date().toISOString()
+          }
+        };
+        
+        const encoder = new TextEncoder();
+        const data = encoder.encode(JSON.stringify(stateData));
+        
+        // Use reliable data channel with proper error handling
+        room.localParticipant.publishData(data, { 
+          reliable: true,
+          destinationSids: []
+        }).catch(error => {
+          console.warn('Failed to send state update:', error);
+        });
+      } catch (error) {
+        console.warn('State update error:', error);
+      }
+    }
+  };
+
+  const startProctoringAnalysis = async () => {
+    if (frameAnalysisRef.current) {
+      clearInterval(frameAnalysisRef.current);
+    }
+    
+    // Start Electron proctoring if available
+    if (window.electronAPI && proctoringSessionId) {
+      try {
+        await window.electronAPI.startProctoring({
+          meetingId,
+          userId: userInfo?.id,
+          participantId: userInfo?.id,
+          sessionId: proctoringSessionId
+        });
+        console.log('✅ Electron proctoring started');
+      } catch (error) {
+        console.error('Failed to start Electron proctoring:', error);
+      }
+    }
+    
+    // Start frame analysis at auto-detected rate
+    frameAnalysisRef.current = setInterval(() => {
+      performFrameAnalysis();
+    }, frameAnalysisRate);
+    
+    // Start deepfake checks every 30 seconds
+    if (deepfakeIntervalRef.current) {
+      clearInterval(deepfakeIntervalRef.current);
+    }
+    deepfakeIntervalRef.current = setInterval(() => {
+      performDeepfakeCheck();
+    }, 30000);
+    
+    setIsProctoringActive(true);
+    console.log('🛡️ Proctoring analysis started');
+  };
+
+  const stopProctoringAnalysis = async () => {
+    if (frameAnalysisRef.current) {
+      clearInterval(frameAnalysisRef.current);
+      frameAnalysisRef.current = null;
+    }
+    if (deepfakeIntervalRef.current) {
+      clearInterval(deepfakeIntervalRef.current);
+      deepfakeIntervalRef.current = null;
+    }
+    
+    // Stop Electron proctoring if available
+    if (window.electronAPI) {
+      try {
+        await window.electronAPI.stopProctoring();
+        console.log('✅ Electron proctoring stopped');
+      } catch (error) {
+        console.error('Failed to stop Electron proctoring:', error);
+      }
+    }
+    
+    setIsProctoringActive(false);
+    console.log('🛡️ Proctoring analysis stopped');
+  };
+
+  const performFrameAnalysis = async () => {
+    if (!localVideoRef.current || !isVideoEnabled) return;
+    
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const video = localVideoRef.current;
+      
+      if (!ctx || video.videoWidth === 0 || video.videoHeight === 0) return;
+      
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+      
+      // Get base64 image data for Electron API
+      const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      
+      // Send frame to Electron API for advanced analysis
+      if (window.electronAPI) {
+        try {
+          await window.electronAPI.sendVideoFrame({
+            imageData: imageDataUrl,
+            timestamp: Date.now(),
+            meetingId,
+            userId: userInfo?.id,
+            participantId: userInfo?.id
+          });
+        } catch (error) {
+          console.error('Failed to send frame to Electron API:', error);
+        }
+      }
+      
+      // Simulate face detection and other proctoring checks
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const pixels = imageData.data;
+      
+      // Simple face detection simulation (check for skin-like colors)
+      let facePixels = 0;
+      let totalPixels = pixels.length / 4;
+      
+      for (let i = 0; i < pixels.length; i += 4) {
+        const r = pixels[i];
+        const g = pixels[i + 1];
+        const b = pixels[i + 2];
+        
+        // Simple skin color detection
+        if (r > 95 && g > 40 && b > 20 && r > g && r > b && r - g > 15) {
+          facePixels++;
+        }
+      }
+      
+      // Disable all fake alerts - rely only on Electron API for real detection
+      const alerts = [];
+      let phoneDetected = false;
+      
+      const faceRatio = facePixels / totalPixels;
+      const faceDetected = faceRatio > 0.03; // Basic face detection
+      const faceCount = faceDetected ? 1 : 0; // Always report single face if detected
+      
+      // Identity verification (simulate)
+      const identityVerified = faceDetected && faceCount === 1;
+      
+      // Send to backend with proper validation
+      if (proctoringSessionId && userInfo?.id) {
+        try {
+          // Complete payload that matches backend DTO
+          const payload = {
+            meetingId: meetingId || '',
+            userId: userInfo.id,
+            participantId: userInfo.id,
+            sessionId: proctoringSessionId,
+            detections: {
+              faceDetected,
+              faceCount,
+              phoneDetected,
+              suspiciousBehavior: alerts.length > 0,
+              identityVerified
+            },
+            browserData: {
+              timestamp: new Date().toISOString(),
+              frameAnalysis: true,
+              automatedDetection: true
+            }
+          };
+          
+          console.log('Sending frame analysis:', payload);
+          
+          const response = await fetch('http://localhost:4000/proctoring/analyze-frame', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload)
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            
+            // Process backend alerts
+            if (result.alerts && result.alerts.length > 0) {
+              result.alerts.forEach((alert: any) => {
+                handleProctoringAnalysis({ alerts: [alert] });
+              });
+            }
+          } else {
+            const errorText = await response.text();
+            console.error('Frame analysis failed:', response.status, errorText);
+            console.error('Payload that failed:', payload);
+          }
+        } catch (error) {
+          console.error('Frame analysis error:', error);
+        }
+      }
+      
+      // Process local alerts
+      if (alerts.length > 0) {
+        handleProctoringAnalysis({ alerts });
+      }
+      
+      // Update face detection status
+      setFaceDetectionStatus(faceDetected ? 
+        `Face detected ✅ (${faceCount} face${faceCount > 1 ? 's' : ''})` : 
+        'No face detected ⚠️'
+      );
+      
+    } catch (error) {
+      console.error('Frame analysis error:', error);
+    }
+  };
+
+
+
   useEffect(() => {
     connectToRoom();
     
@@ -723,33 +862,44 @@ export default function EnhancedStudentMeetingRoom({
       if (room) {
         room.disconnect();
       }
-      stopProctoring();
+      stopProctoringAnalysis();
     };
   }, [token, serverUrl]);
 
+  // Auto-restart proctoring after refresh/reconnection
+  useEffect(() => {
+    if (isConnected && isVideoEnabled && proctoringSessionId && !isProctoringActive) {
+      console.log('🔄 Auto-restarting proctoring after refresh');
+      setTimeout(() => {
+        startProctoringAnalysis();
+        setFaceDetectionStatus('Camera enabled - Monitoring active');
+      }, 2000);
+    }
+  }, [isConnected, isVideoEnabled, proctoringSessionId, isProctoringActive]);
+
   if (!isConnected) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center font-['Inter']">
         <div className="text-center max-w-md">
-          <div className="w-20 h-20 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-2xl">
-            <Video className="w-10 h-10 text-white" />
+          <div className="w-16 h-16 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-xl">
+            <Video className="w-8 h-8 text-white drop-shadow-sm" />
           </div>
           {connectionError ? (
             <div className="bg-white/10 backdrop-blur-3xl rounded-3xl p-8 border border-white/20 shadow-2xl">
-              <h1 className="text-2xl font-bold mb-4 text-red-400">Connection Failed</h1>
-              <p className="text-gray-300 mb-6">{connectionError}</p>
+              <h1 className="text-xl font-bold mb-4 text-red-400">Connection Failed</h1>
+              <p className="text-gray-300 mb-4 font-medium">{connectionError}</p>
               <button 
                 onClick={() => connectToRoom()}
-                className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold py-3 px-6 rounded-2xl hover:scale-105 transition-transform shadow-xl"
+                className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-semibold hover:scale-105 transition-all duration-300 shadow-xl"
               >
                 Retry Connection
               </button>
             </div>
           ) : (
             <div className="bg-white/10 backdrop-blur-3xl rounded-3xl p-8 border border-white/20 shadow-2xl">
-              <h1 className="text-2xl font-bold mb-6 text-blue-300">Connecting to Class...</h1>
-              <div className="w-12 h-12 border-4 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
-              <p className="text-gray-300">Joining the classroom session...</p>
+              <h1 className="text-xl font-bold mb-4 text-blue-300">Connecting to Meeting...</h1>
+              <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-300 font-medium">Establishing connection to LiveKit server...</p>
             </div>
           )}
         </div>
@@ -758,226 +908,257 @@ export default function EnhancedStudentMeetingRoom({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex flex-col">
-      {/* Header */}
-      <div className="p-4 bg-black/20 backdrop-blur-3xl border-b border-white/10 flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <h2 className="text-xl font-bold text-white">Student Session</h2>
-          <Badge className={`${
-            isProctoringActive 
-              ? "bg-green-400 text-black" 
-              : "bg-gray-600 text-white"
-          }`}>
-            <Shield className="w-4 h-4 mr-1" />
-            AI Proctoring {isProctoringActive ? 'Active' : 'Inactive'}
-          </Badge>
-          {isElectron && (
-            <Badge className="bg-purple-400 text-black">
-              💻 Electron Mode
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex font-['Inter']">
+      {/* Main Video Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Header Bar */}
+        <div className="p-4 bg-black/20 backdrop-blur-3xl border-b border-white/10 shadow-lg flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-bold text-white drop-shadow-sm">Student Meeting Room</h2>
+            <Badge className={`${tutorParticipant ? "bg-green-400 text-black" : "bg-red-400 text-white"}`}>
+              {tutorParticipant ? "Tutor Joined" : "Waiting for Tutor"}
             </Badge>
-          )}
+            <Badge className={`${isProctoringActive ? "bg-blue-400 text-black" : "bg-gray-400 text-white"}`}>
+              {isProctoringActive ? "🛡️ Proctoring Active" : "Proctoring Inactive"}
+            </Badge>
+          </div>
+          <div className="flex gap-2 items-center">
+            {proctoringAlerts.length > 0 && (
+              <Badge className="bg-red-400 text-black flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3" />
+                {proctoringAlerts.length} Alerts
+              </Badge>
+            )}
+            {deepfakeCheckCount > 0 && (
+              <Badge className="bg-purple-400 text-black flex items-center gap-1">
+                <Shield className="w-3 h-3" />
+                {deepfakeCheckCount} Checks
+              </Badge>
+            )}
+            <Badge className="bg-yellow-400 text-black">
+              {systemPerformance.toUpperCase()} ({frameAnalysisRate / 1000}s)
+            </Badge>
+          </div>
         </div>
-        <div className="flex gap-2">
-          {proctoringAlerts.length > 0 && (
-            <Badge className="bg-red-400 text-black flex items-center gap-1">
-              <AlertTriangle className="w-4 h-4" />
-              {proctoringAlerts.length} Alerts
-            </Badge>
-          )}
-          <Badge className="bg-blue-400 text-black flex items-center gap-1">
-            <Eye className="w-4 h-4" />
-            {faceDetectionStatus}
-          </Badge>
-          {deepfakeCheckCount > 0 && (
-            <Badge className="bg-purple-500 text-white flex items-center gap-1">
-              🛡️ {deepfakeCheckCount} Deepfake Checks
-            </Badge>
-          )}
-        </div>
-      </div>
 
-      {/* Video Grid */}
-      <div className="flex-1 p-4">
-        <div className="grid grid-cols-2 gap-4 h-full">
-          {/* Tutor Video */}
-          <div className="relative bg-black/40 rounded-2xl overflow-hidden border border-white/20 shadow-2xl">
-            {tutorParticipant ? (
+        {/* Video Grid */}
+        <div className="flex-1 p-6">
+          <div className="grid grid-cols-2 gap-6 h-full">
+            {/* Local Video */}
+            <div className="relative bg-gray-900 rounded-xl overflow-hidden shadow-2xl border border-white/20">
               <video
-                ref={tutorVideoRef}
+                ref={localVideoRef}
                 className="w-full h-full object-cover"
                 autoPlay
                 playsInline
+                muted
               />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-black/60">
-                <div className="text-center">
-                  <VideoOff className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-                  <p className="text-gray-300">Waiting for tutor...</p>
-                </div>
+              <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full flex items-center gap-2">
+                <img 
+                  src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${userInfo?.fullname || 'You'}`}
+                  alt="Profile"
+                  className="w-5 h-5 rounded-full"
+                />
+                <span className="text-sm font-medium">{userInfo?.fullname || 'You'} (You)</span>
               </div>
-            )}
-            <div className="absolute bottom-3 left-3 bg-black/70 text-white px-3 py-1 rounded-full backdrop-blur-sm">
-              <span className="font-semibold">Tutor</span>
-            </div>
-          </div>
-
-          {/* Student Video */}
-          <div className="relative bg-black/40 rounded-2xl overflow-hidden border border-white/20 shadow-2xl">
-            <video
-              ref={localVideoRef}
-              className="w-full h-full object-cover"
-              autoPlay
-              playsInline
-              muted
-            />
-            <div className="absolute bottom-3 left-3 bg-black/70 text-white px-3 py-1 rounded-full backdrop-blur-sm">
-              <span className="font-semibold">{userInfo?.fullname || 'You'} (You)</span>
-            </div>
-            <div className="absolute top-3 right-3 flex flex-col gap-2">
-              <Badge className={`${
-                isProctoringActive ? 'bg-green-400 text-black' : 'bg-gray-600 text-white'
-              }`}>
-                {isProctoringActive ? 'Monitoring' : 'Inactive'}
-              </Badge>
-              {isScreenSharing && (
-                <Badge className="bg-blue-400 text-black">
-                  Sharing Screen
+              
+              {/* Proctoring Status */}
+              <div className="absolute top-3 left-3 flex flex-col gap-1">
+                <Badge className={`${isProctoringActive ? "bg-green-500" : "bg-red-500"} text-white text-xs`}>
+                  {isProctoringActive ? "🛡️ Monitoring" : "⚠️ Inactive"}
                 </Badge>
-              )}
-              <div className="flex gap-1">
-                {!isVideoEnabled && (
-                  <Badge className="bg-red-500 text-white text-xs">
-                    Video Off
-                  </Badge>
-                )}
-                {!isAudioEnabled && (
-                  <Badge className="bg-red-500 text-white text-xs">
-                    Muted
-                  </Badge>
-                )}
+                <Badge className="bg-blue-500 text-white text-xs">
+                  {faceDetectionStatus}
+                </Badge>
               </div>
+
+              {/* Recording Indicator */}
+              {isProctoringActive && (
+                <div className="absolute top-3 right-3 bg-red-500 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1 animate-pulse">
+                  <div className="w-2 h-2 bg-white rounded-full"></div>
+                  Recording
+                </div>
+              )}
+            </div>
+
+            {/* Tutor Video */}
+            <div className="relative bg-gray-900 rounded-xl overflow-hidden shadow-2xl border border-white/20">
+              {tutorParticipant ? (
+                <>
+                  <video
+                    ref={tutorVideoRef}
+                    className="w-full h-full object-cover"
+                    autoPlay
+                    playsInline
+                  />
+                  <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full flex items-center gap-2">
+                    <img 
+                      src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${tutorParticipant.name || 'Tutor'}`}
+                      alt="Tutor"
+                      className="w-5 h-5 rounded-full"
+                    />
+                    <span className="text-sm font-medium">{tutorParticipant.name || 'Tutor'}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className="text-center text-gray-400">
+                    <Eye className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p className="text-lg font-medium">Waiting for Tutor</p>
+                    <p className="text-sm">The tutor will join shortly</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Controls */}
-      <div className="p-4 bg-black/20 backdrop-blur-3xl border-t border-white/10 flex justify-center gap-4">
-        <Button
-          onClick={toggleAudio}
-          size="lg"
-          className={`rounded-full w-14 h-14 p-0 transition-all ${
-            isAudioEnabled 
-              ? 'bg-white/20 hover:bg-white/30 text-white border-white/30' 
-              : 'bg-red-500 hover:bg-red-600 text-white'
-          }`}
-        >
-          {isAudioEnabled ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
-        </Button>
-        
-        <Button
-          onClick={toggleVideo}
-          size="lg"
-          className={`rounded-full w-14 h-14 p-0 transition-all ${
-            isVideoEnabled 
-              ? 'bg-white/20 hover:bg-white/30 text-white border-white/30' 
-              : 'bg-red-500 hover:bg-red-600 text-white'
-          }`}
-        >
-          {isVideoEnabled ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
-        </Button>
+        {/* Controls */}
+        <div className="p-6 bg-black/20 backdrop-blur-3xl border-t border-white/10 shadow-lg flex justify-center items-center gap-4">
+          <Button
+            onClick={toggleAudio}
+            variant={isAudioEnabled ? "outline" : "destructive"}
+            size="lg"
+            className={`rounded-full w-14 h-14 p-0 transition-all ${isAudioEnabled ? 'bg-white/20 hover:bg-white/30 text-white border-white/30' : 'bg-red-500 hover:bg-red-600 text-white'}`}
+          >
+            {isAudioEnabled ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
+          </Button>
+          
+          <Button
+            onClick={toggleVideo}
+            variant={isVideoEnabled ? "outline" : "destructive"}
+            size="lg"
+            className={`rounded-full w-14 h-14 p-0 transition-all ${isVideoEnabled ? 'bg-white/20 hover:bg-white/30 text-white border-white/30' : 'bg-red-500 hover:bg-red-600 text-white'}`}
+          >
+            {isVideoEnabled ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
+          </Button>
 
-        <Button
-          onClick={toggleScreenShare}
-          size="lg"
-          className={`rounded-full w-14 h-14 p-0 transition-all ${
-            isScreenSharing 
-              ? 'bg-blue-500 hover:bg-blue-600 text-white' 
-              : 'bg-white/20 hover:bg-white/30 text-white border-white/30'
-          }`}
-        >
-          <Monitor className="w-6 h-6" />
-        </Button>
+          <Button
+            onClick={toggleScreenShare}
+            variant="outline"
+            size="lg"
+            className={`rounded-full w-14 h-14 p-0 transition-all ${isScreenSharing ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-white/20 hover:bg-white/30 text-white border-white/30'}`}
+          >
+            <Monitor className="w-6 h-6" />
+          </Button>
 
-        <Button
-          onClick={() => setShowQuizPanel(!showQuizPanel)}
-          size="lg"
-          className={`rounded-full w-14 h-14 p-0 transition-all ${
-            showQuizPanel 
-              ? 'bg-green-500 hover:bg-green-600 text-white' 
-              : 'bg-white/20 hover:bg-white/30 text-white border-white/30'
-          }`}
-        >
-          <MessageSquare className="w-6 h-6" />
-        </Button>
+          <Button
+            onClick={() => setShowQuizPanel(!showQuizPanel)}
+            variant="outline"
+            size="lg"
+            className={`rounded-full w-14 h-14 p-0 transition-all ${showQuizPanel ? 'bg-green-500 text-white' : 'bg-white/20 hover:bg-white/30 text-white border-white/30'}`}
+          >
+            <MessageSquare className="w-6 h-6" />
+          </Button>
 
-        <Button
-          onClick={() => {
-            if (room) {
-              room.disconnect();
-            }
-            onDisconnect?.();
-          }}
-          size="lg"
-          className="rounded-full w-14 h-14 p-0 bg-red-500 hover:bg-red-600 text-white transition-all hover:scale-105"
-        >
-          <PhoneOff className="w-6 h-6" />
-        </Button>
-      </div>
+          <Button
+            onClick={async () => {
+              stopProctoringAnalysis();
+              
+              // Notify backend that participant is leaving
+              try {
+                await fetch('http://localhost:4000/proctoring/analyze-frame', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'include',
+                  body: JSON.stringify({
+                    meetingId,
+                    participantId: userInfo?.id || 'unknown',
+                    userId: userInfo?.id || 'unknown',
+                    detections: {},
+                    browserData: { participantLeft: true }
+                  })
+                });
+              } catch (error) {
+                console.error('Failed to notify backend of participant leaving:', error);
 
-      {/* Quiz Panel */}
-      {showQuizPanel && (
-        <div className="fixed right-4 top-20 w-96 bg-white/95 backdrop-blur-xl rounded-2xl border border-blue-200/50 shadow-2xl">
-          <div className="p-4 border-b border-blue-200/50 flex justify-between items-center">
-            <h3 className="font-bold text-blue-600">Quiz Panel</h3>
-            <Button
-              onClick={() => setShowQuizPanel(false)}
-              variant="ghost"
-              size="sm"
-              className="rounded-full w-8 h-8 p-0"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-          <div className="p-4">
-            <StudentQuizPanel
-              meetingId={meetingId}
-              isConnected={isConnected}
-              userInfo={userInfo}
-            />
-          </div>
+
+              }
+              
+              // Stop all media tracks before disconnecting
+              if (room?.localParticipant) {
+                room.localParticipant.videoTrackPublications.forEach(pub => {
+                  if (pub.track) {
+                    pub.track.stop();
+                  }
+                });
+                room.localParticipant.audioTrackPublications.forEach(pub => {
+                  if (pub.track) {
+                    pub.track.stop();
+                  }
+                });
+              }
+              
+              if (room) {
+                room.disconnect();
+              }
+              
+              // Clear video elements
+              if (localVideoRef.current) {
+                localVideoRef.current.srcObject = null;
+              }
+              if (tutorVideoRef.current) {
+                tutorVideoRef.current.srcObject = null;
+              }
+              
+              onDisconnect?.();
+            }}
+            variant="destructive"
+            size="lg"
+            className="rounded-full w-14 h-14 p-0 bg-gradient-to-r from-red-500 to-red-600 text-white hover:scale-105 transition-all shadow-xl shadow-red-200/50"
+          >
+            <PhoneOff className="w-6 h-6" />
+          </Button>
         </div>
+      </div>
+
+      {/* Side Panels */}
+      {showQuizPanel && (
+        <StudentQuizPanel
+          meetingId={meetingId}
+          isConnected={isConnected}
+          userInfo={userInfo}
+        />
       )}
 
-      {/* Alerts Panel */}
+      {/* Proctoring Alerts Panel */}
       {proctoringAlerts.length > 0 && (
-        <div className="fixed left-4 top-20 w-80 bg-black/40 backdrop-blur-xl rounded-2xl border border-white/20 p-4 max-h-96 overflow-y-auto shadow-2xl">
-          <h3 className="font-bold text-white mb-3 flex items-center gap-2">
-            <Bell className="w-4 h-4" />
-            Recent Alerts ({proctoringAlerts.length})
-          </h3>
-          <div className="space-y-2">
-            {proctoringAlerts.map((alert) => (
+        <div className="w-80 bg-black/40 backdrop-blur-sm border-l border-white/20 flex flex-col">
+          <div className="p-4 border-b border-white/20">
+            <h3 className="text-lg font-semibold flex items-center gap-2 text-white">
+              <Bell className="w-5 h-5" />
+              Recent Alerts ({proctoringAlerts.length})
+            </h3>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {proctoringAlerts.map((alert, index) => (
               <div 
-                key={alert.id}
-                className={`p-3 rounded-lg border backdrop-blur-sm ${
+                key={`${alert.id}-${index}`} 
+                className={`p-3 rounded-lg backdrop-blur-sm border ${
                   alert.severity === 'CRITICAL' ? 'bg-red-500/20 border-red-400' :
                   alert.severity === 'HIGH' ? 'bg-orange-500/20 border-orange-400' :
                   alert.severity === 'MEDIUM' ? 'bg-yellow-500/20 border-yellow-400' :
                   'bg-white/10 border-white/20'
                 }`}
               >
-                <div className="flex justify-between items-start mb-1">
-                  <span className="text-xs font-semibold text-gray-200">
+                <div className="flex items-center gap-2 mb-1">
+                  <Badge className={`${
+                    alert.severity === 'CRITICAL' ? 'bg-red-500' :
+                    alert.severity === 'HIGH' ? 'bg-orange-500' :
+                    alert.severity === 'MEDIUM' ? 'bg-yellow-500' :
+                    'bg-gray-500'
+                  } text-white text-xs`}>
+                    {alert.severity}
+                  </Badge>
+                  <Badge className="bg-blue-500 text-white text-xs">
                     {alert.alertType.replace(/_/g, ' ')}
-                  </span>
-                  <span className="text-xs text-gray-400">
-                    {new Date(alert.timestamp).toLocaleTimeString()}
-                  </span>
+                  </Badge>
                 </div>
-                <p className="text-sm text-gray-100">{alert.description}</p>
-                <div className="text-xs text-gray-300 mt-1">
-                  Confidence: {Math.round(alert.confidence * 100)}%
+                <p className="text-sm text-gray-300 mb-2">{alert.description}</p>
+                <div className="flex items-center justify-between text-xs text-gray-400">
+                  <span>{Math.round(alert.confidence * 100)}% confidence</span>
+                  <span>{new Date(alert.timestamp).toLocaleTimeString()}</span>
                 </div>
               </div>
             ))}

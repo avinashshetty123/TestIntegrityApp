@@ -50,19 +50,21 @@ function createWindow() {
       setTimeout(() => {
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.focus();
+          mainWindow.show();
         }
       }, 100);
     }
   });
 
-  // Block all keyboard shortcuts during proctoring
+  // Block keyboard shortcuts during proctoring
   mainWindow.webContents.on('before-input-event', (event, input) => {
     if (isProctoringActive) {
       // Block Alt+Tab, Ctrl+Alt+Del, Windows key, etc.
       if (input.alt || input.meta || 
           (input.control && (input.key === 'Tab' || input.key === 'Escape')) ||
-          input.key === 'F11' || input.key === 'F4') {
+          input.key === 'F11' || input.key === 'F4' || input.key === 'F12') {
         event.preventDefault();
+        console.log('🚫 Blocked shortcut during proctoring:', input.key);
       }
     }
   });
@@ -246,17 +248,20 @@ ipcMain.handle('load-reference-face', (event, { imageUrl, userId }) => {
 ipcMain.handle('start-proctoring', (event, sessionData) => {
   isProctoringActive = true;
   
-  // Enable strict lockdown mode
+  // Enable secure lockdown mode
   mainWindow.setAlwaysOnTop(true);
-  mainWindow.setFullScreen(true);
-  mainWindow.setMenuBarVisibility(false);
   mainWindow.setMinimizable(false);
   mainWindow.setClosable(false);
+  mainWindow.setMenuBarVisibility(false);
   
-  // Hide taskbar and dock (platform specific)
-  if (process.platform === 'win32') {
-    mainWindow.setKiosk(true);
-  }
+  // Prevent Alt+Tab and other shortcuts
+  mainWindow.setSkipTaskbar(true);
+  
+  // Set focus and prevent losing it
+  mainWindow.focus();
+  mainWindow.show();
+  
+  console.log('🔒 Lockdown mode enabled - Window secured');
   
   if (pythonProcess && pythonProcess.stdin.writable) {
     try {
@@ -280,11 +285,12 @@ ipcMain.handle('stop-proctoring', () => {
   
   // Restore normal window mode
   mainWindow.setAlwaysOnTop(false);
-  mainWindow.setFullScreen(false);
-  mainWindow.setKiosk(false);
-  mainWindow.setMenuBarVisibility(true);
   mainWindow.setMinimizable(true);
   mainWindow.setClosable(true);
+  mainWindow.setMenuBarVisibility(true);
+  mainWindow.setSkipTaskbar(false);
+  
+  console.log('🔓 Lockdown mode disabled - Window restored');
   
   if (pythonProcess && pythonProcess.stdin.writable) {
     pythonProcess.stdin.write(JSON.stringify({

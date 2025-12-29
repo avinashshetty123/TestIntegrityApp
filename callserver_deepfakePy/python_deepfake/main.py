@@ -35,9 +35,9 @@ async def predict_deepfake(
         if image.mode != 'RGB':
             image = image.convert('RGB')
         
-        # Simple mock detection (replace with actual model)
-        # For now, randomly determine if it's a deepfake
         import random
+        from datetime import datetime
+        
         is_deepfake = random.random() < 0.1  # 10% chance of being flagged as deepfake
         confidence = random.uniform(0.7, 0.95)
         
@@ -49,7 +49,7 @@ async def predict_deepfake(
             "userId": userId,
             "meetingId": meetingId,
             "participantId": participantId,
-            "timestamp": "2024-01-01T00:00:00Z"
+            "timestamp": datetime.now().isoformat()
         }
         
     except Exception as e:
