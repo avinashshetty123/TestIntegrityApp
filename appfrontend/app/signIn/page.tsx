@@ -203,7 +203,8 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1 }}
-            className="text-5xl sm:text-6xl lg:text-7xl font-extrabold bg-gradient-to-r from-orange-600 to-orange-700 bg-clip-text text-transparent drop-shadow-lg"
+            whileHover={{ scale: 1.05 }}
+            className="text-5xl sm:text-6xl lg:text-7xl font-extrabold bg-gradient-to-r from-orange-600 to-orange-700 bg-clip-text text-transparent drop-shadow-[0_10px_20px_rgba(249,115,22,0.3)]"
           >
             TestIntegrity
           </motion.h1>
@@ -220,12 +221,13 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 1, delay: 0.6 }}
+            whileHover={{ scale: 1.1, rotate: 5 }}
             className="hidden lg:flex"
           >
             <img
               src="8912831.svg"
               alt="Illustration"
-              className="w-80 h-auto drop-shadow-2xl opacity-60"
+              className="w-80 h-auto drop-shadow-[0_20px_50px_rgba(249,115,22,0.4)] opacity-60"
             />
           </motion.div>
         </div>
@@ -234,12 +236,13 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
       {/* Auth */}
       <div className="relative flex-1 flex items-center justify-center px-4 sm:px-6 py-16">
         <motion.div
-          initial={{ opacity: 0, y: 60 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1 }}
-          className="w-full max-w-md"
+          initial={{ opacity: 0, y: 60, rotateX: 15 }}
+          animate={{ opacity: 1, y: 0, rotateX: 0 }}
+          transition={{ duration: 1, type: "spring", stiffness: 100 }}
+          whileHover={{ y: -5, scale: 1.02 }}
+          className="w-full max-w-md perspective-1000"
         >
-          <div className="rounded-3xl shadow-2xl shadow-orange-200/50 bg-white/60 backdrop-blur-3xl border border-orange-200/50">
+          <div className="rounded-3xl shadow-[0_20px_60px_-15px_rgba(249,115,22,0.4)] bg-white/70 backdrop-blur-3xl border border-orange-200/60 transform-gpu transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(249,115,22,0.5)]">
             <div className="p-8 sm:p-10">
               <AnimatePresence mode="wait">
                 {isLogin ? (
@@ -276,21 +279,27 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                         </p>
                       )}
 
-                      <button
+                      <motion.button
+                        whileHover={{ scale: 1.05, y: -2 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 17 }}
                         type="submit"
-                        className="w-full px-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-semibold text-lg hover:scale-105 transition-all duration-300 shadow-xl shadow-orange-200/50"
+                        className="w-full px-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-semibold text-lg shadow-[0_10px_30px_-5px_rgba(249,115,22,0.5)] hover:shadow-[0_15px_40px_-5px_rgba(249,115,22,0.6)] transition-shadow duration-300"
                       >
                         Sign In
-                      </button>
+                      </motion.button>
                     </form>
 
                     {/* Google Sign-In */}
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.05, y: -2 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 17 }}
                       onClick={handleGoogleSignIn}
-                      className="w-full mt-4 px-6 py-4 bg-white/60 backdrop-blur-xl border border-orange-200/50 text-gray-800 rounded-xl font-semibold text-lg hover:bg-white/80 hover:scale-105 transition-all duration-300 shadow-lg shadow-orange-100/30"
+                      className="w-full mt-4 px-6 py-4 bg-white/60 backdrop-blur-xl border border-orange-200/50 text-gray-800 rounded-xl font-semibold text-lg shadow-[0_8px_25px_-5px_rgba(249,115,22,0.3)] hover:shadow-[0_12px_35px_-5px_rgba(249,115,22,0.4)] hover:bg-white/80 transition-all duration-300"
                     >
                       Sign in with Google
-                    </button>
+                    </motion.button>
                   </motion.div>
                 ) : (
                   // 🔹 Register
@@ -430,12 +439,15 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                         </div>
                       )}
 
-                      <button
+                      <motion.button
+                        whileHover={{ scale: 1.05, y: -2 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 17 }}
                         type="submit"
-                        className="w-full px-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-semibold text-lg hover:scale-105 transition-all duration-300 shadow-xl shadow-orange-200/50"
+                        className="w-full px-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-semibold text-lg shadow-[0_10px_30px_-5px_rgba(249,115,22,0.5)] hover:shadow-[0_15px_40px_-5px_rgba(249,115,22,0.6)] transition-shadow duration-300"
                       >
                         Register
-                      </button>
+                      </motion.button>
                     </form>
                   </motion.div>
                 )}

@@ -20,7 +20,7 @@ export default function CreateMeetingForm() {
   const router = useRouter();
   const { toast } = useToast();
   
-  const onBack = () => router.push('/tutor/meeting');
+  const onBack = () => router.push('/tutor');
 
   const [formData, setFormData] = useState({
     title: "",

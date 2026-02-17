@@ -160,77 +160,77 @@ export default function StudentPage() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white text-gray-800 px-6 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white px-6 py-8">
       {/* HERO */}
-      <section className="max-w-5xl mx-auto mb-12">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div>
-            <motion.h1 
-              initial={{ opacity: 0, y: -20 }} 
-              animate={{ opacity: 1, y: 0 }} 
-              className="text-4xl md:text-5xl font-bold text-gray-800 mb-4"
-            >
-              Welcome, {userData?.firstName || 'Student'}
-            </motion.h1>
-            <motion.p 
-              initial={{ opacity: 0, y: 10 }} 
-              animate={{ opacity: 1, y: 0 }} 
-              transition={{ delay: 0.1 }} 
-              className="text-gray-600 text-lg mb-8 max-w-2xl"
-            >
-              Take tests, join meetings, and track your progress in a secure, AI-monitored environment.
-            </motion.p>
+      <section className="max-w-6xl mx-auto mb-12">
+        <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex-1">
+              <motion.h1 
+                initial={{ opacity: 0, y: -20 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-orange-600 to-orange-400 bg-clip-text text-transparent mb-4"
+              >
+                Welcome, {userData?.firstName || 'Student'}
+              </motion.h1>
+              <motion.p 
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                transition={{ delay: 0.1 }} 
+                className="text-orange-700 text-lg mb-8"
+              >
+                Take tests, join meetings, and track your progress in a secure, AI-monitored environment.
+              </motion.p>
 
-            <div className="flex flex-wrap gap-4">
-              <Button 
-                onClick={() => setCurrentView("join-code")}
-                className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-6 py-3 rounded-lg font-semibold"
-              >
-                Join by Code
-              </Button>
-              <Button 
-                onClick={() => router.push("/student/meeting")}
-                variant="outline"
-                className="border-orange-300 text-orange-600 hover:bg-orange-50 px-6 py-3 rounded-lg font-semibold"
-              >
-                Browse Meetings
-              </Button>
-              <Button 
-                onClick={() => router.push("/student/results")}
-                variant="outline"
-                className="border-orange-300 text-orange-600 hover:bg-orange-50 px-6 py-3 rounded-lg font-semibold"
-              >
-                View Results
-              </Button>
+              <div className="flex flex-wrap gap-3">
+                <button 
+                  onClick={() => setCurrentView("join-code")}
+                  className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-2xl font-semibold shadow-[0_8px_30px_rgba(251,146,60,0.4)] hover:shadow-[0_12px_40px_rgba(251,146,60,0.5)] hover:scale-105 transition-all duration-300"
+                >
+                  Join by Code
+                </button>
+                <button 
+                  onClick={() => router.push("/student/meeting")}
+                  className="bg-white/80 backdrop-blur-xl border border-orange-200/50 text-orange-600 px-6 py-3 rounded-2xl font-semibold shadow-[0_8px_30px_rgba(251,146,60,0.2)] hover:scale-105 transition-all duration-300"
+                >
+                  Browse Meetings
+                </button>
+                <button 
+                  onClick={() => router.push("/student/results")}
+                  className="bg-white/80 backdrop-blur-xl border border-orange-200/50 text-orange-600 px-6 py-3 rounded-2xl font-semibold shadow-[0_8px_30px_rgba(251,146,60,0.2)] hover:scale-105 transition-all duration-300"
+                >
+                  View Results
+                </button>
+              </div>
             </div>
+
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }} 
+              animate={{ opacity: 1, x: 0 }} 
+              className="flex items-center gap-4 p-6 rounded-2xl bg-white/80 backdrop-blur-xl border border-orange-200/50 shadow-[0_8px_30px_rgba(251,146,60,0.2)]"
+            >
+              <button 
+                onClick={() => router.push('/student/profile')}
+                className="w-16 h-16 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-xl font-bold hover:scale-105 transition-transform overflow-hidden shadow-[0_8px_30px_rgba(251,146,60,0.4)] text-white"
+              >
+                {userData?.profilePic ? (
+                  <img src={userData.profilePic} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  userData?.firstName ? userData.firstName.charAt(0).toUpperCase() : <User className="w-6 h-6" />
+                )}
+              </button>
+              <div>
+                <div className="font-semibold text-orange-800">{userData?.firstName ? `${userData.firstName} ${userData.lastName}` : 'Student Profile'}</div>
+                <div className="text-sm text-orange-600 hover:underline cursor-pointer">Edit Profile</div>
+                <div className="text-xs text-orange-500">{userData?.institutionName || 'Complete your profile'}</div>
+              </div>
+            </motion.div>
           </div>
-
-          <motion.div 
-            initial={{ opacity: 0, x: 20 }} 
-            animate={{ opacity: 1, x: 0 }} 
-            className="flex items-center gap-4 p-6 rounded-xl bg-white/80 backdrop-blur-xl border border-orange-200/50 shadow-lg"
-          >
-            <button 
-              onClick={() => router.push('/student/profile')}
-              className="w-16 h-16 rounded-full bg-gradient-to-r from-orange-400 to-orange-600 flex items-center justify-center text-xl font-bold hover:scale-105 transition-transform overflow-hidden"
-            >
-              {userData?.profilePic ? (
-                <img src={userData.profilePic} alt="Profile" className="w-full h-full object-cover" />
-              ) : (
-                userData?.firstName ? userData.firstName.charAt(0).toUpperCase() : <User className="w-6 h-6 text-white" />
-              )}
-            </button>
-            <div>
-              <div className="font-semibold text-gray-800">{userData?.firstName ? `${userData.firstName} ${userData.lastName}` : 'Student Profile'}</div>
-              <div className="text-sm text-orange-600 hover:underline cursor-pointer">Edit Profile</div>
-              <div className="text-xs text-gray-500">{userData?.institutionName || 'Complete your profile'}</div>
-            </div>
-          </motion.div>
         </div>
       </section>
 
       {/* Stats Overview */}
-      <section className="max-w-5xl mx-auto mb-12 grid grid-cols-2 md:grid-cols-4 gap-6">
+      <section className="max-w-6xl mx-auto mb-12 grid grid-cols-2 md:grid-cols-4 gap-6">
         {[
           { icon: <BookOpen className="w-6 h-6" />, label: "Tests Completed", value: stats.testsCompleted, color: "from-blue-500 to-blue-600" },
           { icon: <BarChart3 className="w-6 h-6" />, label: "Average Score", value: `${stats.averageScore}%`, color: "from-green-500 to-green-600" },
@@ -242,20 +242,20 @@ export default function StudentPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className="p-6 rounded-2xl bg-white/80 backdrop-blur-xl border border-orange-200/50 shadow-lg hover:shadow-xl transition-all"
+            className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:shadow-[0_25px_60px_rgba(251,146,60,0.4)] hover:scale-105 transition-all duration-300"
           >
-            <div className={`w-12 h-12 rounded-xl bg-gradient-to-r ${stat.color} flex items-center justify-center text-white mb-4`}>
+            <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${stat.color} flex items-center justify-center text-white mb-4 shadow-[0_8px_30px_rgba(0,0,0,0.3)]`}>
               {stat.icon}
             </div>
-            <div className="text-2xl font-bold text-gray-800">{stat.value}</div>
-            <div className="text-sm text-gray-600">{stat.label}</div>
+            <div className="text-2xl font-bold text-orange-800">{stat.value}</div>
+            <div className="text-sm text-orange-600">{stat.label}</div>
           </motion.div>
         ))}
       </section>
 
       {/* Quick Actions */}
-      <section className="max-w-5xl mx-auto mb-12">
-        <h3 className="text-xl font-bold text-gray-800 mb-6">Quick Actions</h3>
+      <section className="max-w-6xl mx-auto mb-12">
+        <h3 className="text-2xl font-bold text-orange-800 mb-6">Quick Actions</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {quickActions.map((action, i) => (
             <motion.button
@@ -263,22 +263,22 @@ export default function StudentPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
-              whileHover={{ scale: 1.02 }}
+              whileHover={{ scale: 1.05 }}
               onClick={action.onClick}
-              className="p-4 rounded-xl bg-white/80 backdrop-blur-xl border border-orange-200/50 shadow-sm hover:shadow-md transition-all flex flex-col items-center gap-3"
+              className="p-6 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/50 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] hover:shadow-[0_25px_60px_rgba(251,146,60,0.4)] transition-all duration-300 flex flex-col items-center gap-3"
             >
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-orange-400 to-orange-600 flex items-center justify-center text-white">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white shadow-[0_8px_30px_rgba(251,146,60,0.4)]">
                 {action.icon}
               </div>
-              <span className="text-sm font-semibold text-gray-700">{action.label}</span>
+              <span className="text-sm font-semibold text-orange-700">{action.label}</span>
             </motion.button>
           ))}
         </div>
       </section>
 
       {/* Recent Tests */}
-      <section className="max-w-5xl mx-auto mb-12">
-        <h3 className="text-xl font-bold text-gray-800 mb-6">Recent Tests</h3>
+      <section className="max-w-6xl mx-auto mb-12">
+        <h3 className="text-2xl font-bold text-orange-800 mb-6">Recent Tests</h3>
         <div className="grid gap-4">
           {recentTests.length > 0 ? recentTests.map((test: any, i) => (
             <motion.div 
@@ -286,34 +286,36 @@ export default function StudentPage() {
               initial={{ opacity: 0, x: -20 }} 
               animate={{ opacity: 1, x: 0 }} 
               transition={{ delay: i * 0.1 }}
-              className="p-4 rounded-xl bg-white/80 backdrop-blur-xl border border-orange-200/50 shadow-sm hover:shadow-md transition-all"
+              className="p-6 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/50 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] hover:shadow-[0_25px_60px_rgba(251,146,60,0.4)] hover:scale-105 transition-all duration-300"
             >
               <div className="flex justify-between items-center">
                 <div>
-                  <div className="font-semibold text-gray-800">{test.testTitle || 'Test'}</div>
-                  <div className="text-sm text-gray-600">
+                  <div className="font-semibold text-orange-800">{test.testTitle || 'Test'}</div>
+                  <div className="text-sm text-orange-600">
                     {test.score ? `Score: ${test.score}%` : 'Pending review'} • 
                     {new Date(test.submittedAt).toLocaleDateString()}
                   </div>
                 </div>
-                <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                  test.score >= 80 ? 'bg-green-100 text-green-700' :
-                  test.score >= 60 ? 'bg-yellow-100 text-yellow-700' :
-                  test.score ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
+                <div className={`px-4 py-2 rounded-2xl text-xs font-semibold shadow-[0_4px_15px_rgba(0,0,0,0.2)] ${
+                  test.score >= 80 ? 'bg-gradient-to-r from-green-500 to-green-600 text-white' :
+                  test.score >= 60 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white' :
+                  test.score ? 'bg-gradient-to-r from-red-500 to-red-600 text-white' : 'bg-gradient-to-r from-gray-400 to-gray-500 text-white'
                 }`}>
                   {test.score ? `${test.score}%` : 'Pending'}
                 </div>
               </div>
             </motion.div>
           )) : (
-            <div className="text-center py-8 text-gray-500">No tests taken yet</div>
+            <div className="text-center py-12 bg-white/60 backdrop-blur-3xl rounded-3xl border border-orange-200/50 shadow-[0_20px_50px_rgba(251,146,60,0.3)]">
+              <p className="text-orange-600">No tests taken yet</p>
+            </div>
           )}
         </div>
       </section>
 
       {/* Available Tests */}
-      <section className="max-w-5xl mx-auto mb-12">
-        <h3 className="text-xl font-bold text-gray-800 mb-6">Available Tests</h3>
+      <section className="max-w-6xl mx-auto mb-12">
+        <h3 className="text-2xl font-bold text-orange-800 mb-6">Available Tests</h3>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {availableTests.length > 0 ? availableTests.map((test: any, i) => (
             <motion.div 
@@ -321,28 +323,30 @@ export default function StudentPage() {
               initial={{ opacity: 0, y: 20 }} 
               animate={{ opacity: 1, y: 0 }} 
               transition={{ delay: i * 0.1 }}
-              whileHover={{ scale: 1.02 }} 
-              className="p-6 rounded-xl bg-white/80 backdrop-blur-xl border border-orange-200/50 shadow-sm hover:shadow-lg transition-all"
+              whileHover={{ scale: 1.05 }} 
+              className="p-6 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/50 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] hover:shadow-[0_25px_60px_rgba(251,146,60,0.4)] transition-all duration-300"
             >
               <div className="text-sm text-orange-600 font-medium mb-2">{test.creator?.institutionName || 'Institution'}</div>
-              <div className="font-bold text-gray-800 mb-2">{test.title}</div>
-              <div className="text-sm text-gray-600 mb-4">{test.questions?.length || 0} questions</div>
-              <Button 
-                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700" 
+              <div className="font-bold text-orange-800 mb-2">{test.title}</div>
+              <div className="text-sm text-orange-600 mb-4">{test.questions?.length || 0} questions</div>
+              <button 
+                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 rounded-2xl font-semibold shadow-[0_8px_30px_rgba(251,146,60,0.4)] hover:shadow-[0_12px_40px_rgba(251,146,60,0.5)] hover:scale-105 transition-all duration-300" 
                 onClick={() => router.push(`/student/tests/${test.id}`)}
               >
                 Take Test
-              </Button>
+              </button>
             </motion.div>
           )) : (
-            <div className="col-span-full text-center py-8 text-gray-500">No tests available</div>
+            <div className="col-span-full text-center py-12 bg-white/60 backdrop-blur-3xl rounded-3xl border border-orange-200/50 shadow-[0_20px_50px_rgba(251,146,60,0.3)]">
+              <p className="text-orange-600">No tests available</p>
+            </div>
           )}
         </div>
       </section>
 
       {/* Upcoming Meetings */}
-      <section className="max-w-5xl mx-auto mb-12">
-        <h3 className="text-xl font-bold text-gray-800 mb-6">Upcoming Meetings</h3>
+      <section className="max-w-6xl mx-auto mb-12">
+        <h3 className="text-2xl font-bold text-orange-800 mb-6">Upcoming Meetings</h3>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {upcomingMeetings.length > 0 ? upcomingMeetings.map((meeting: any, i) => (
             <motion.div 
@@ -350,16 +354,15 @@ export default function StudentPage() {
               initial={{ opacity: 0, y: 20 }} 
               animate={{ opacity: 1, y: 0 }} 
               transition={{ delay: i * 0.1 }}
-              whileHover={{ scale: 1.02 }} 
-              className="p-6 rounded-xl bg-white/80 backdrop-blur-xl border border-orange-200/50 shadow-sm hover:shadow-lg transition-all"
+              whileHover={{ scale: 1.05 }} 
+              className="p-6 rounded-3xl bg-white/60 backdrop-blur-3xl border border-orange-200/50 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] hover:shadow-[0_25px_60px_rgba(251,146,60,0.4)] transition-all duration-300"
             >
               <div className="text-sm text-orange-600 font-medium mb-2">{meeting.institution || 'Institution'}</div>
-              <div className="font-bold text-gray-800 mb-2">{meeting.title}</div>
-              <div className="text-sm text-gray-600 mb-4">{new Date(meeting.scheduledAt).toLocaleString()}</div>
+              <div className="font-bold text-orange-800 mb-2">{meeting.title}</div>
+              <div className="text-sm text-orange-600 mb-4">{new Date(meeting.scheduledAt).toLocaleString()}</div>
               <div className="flex gap-2">
-                <Button 
-                  size="sm" 
-                  className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                <button 
+                  className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white py-2 rounded-2xl font-semibold shadow-[0_8px_30px_rgba(34,197,94,0.4)] hover:shadow-[0_12px_40px_rgba(34,197,94,0.5)] hover:scale-105 transition-all duration-300"
                   onClick={async () => {
                     try {
                       const response = await fetch(`http://localhost:4000/meetings/${meeting.id}/join`, {
@@ -379,12 +382,14 @@ export default function StudentPage() {
                   }}
                 >
                   Join
-                </Button>
-                <Button size="sm" variant="outline" className="flex-1">Details</Button>
+                </button>
+                <button className="flex-1 bg-white/80 backdrop-blur-xl border border-orange-200/50 text-orange-600 py-2 rounded-2xl font-semibold shadow-[0_8px_30px_rgba(251,146,60,0.2)] hover:scale-105 transition-all duration-300">Details</button>
               </div>
             </motion.div>
           )) : (
-            <div className="col-span-full text-center py-8 text-gray-500">No upcoming meetings</div>
+            <div className="col-span-full text-center py-12 bg-white/60 backdrop-blur-3xl rounded-3xl border border-orange-200/50 shadow-[0_20px_50px_rgba(251,146,60,0.3)]">
+              <p className="text-orange-600">No upcoming meetings</p>
+            </div>
           )}
         </div>
       </section>

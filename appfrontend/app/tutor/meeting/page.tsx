@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Users, Clock, Video, Settings, Eye, AlertTriangle, Bell, CheckCircle, XCircle, Lock, Unlock, BarChart3 } from "lucide-react";
+import { Plus, Users, Clock, Video, Settings, Eye, AlertTriangle, Bell, CheckCircle, XCircle, Lock, Unlock, BarChart3, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -298,9 +298,17 @@ export default function TutorMeetingDashboard() {
         {/* Header */}
         <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 mb-8 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold mb-2 text-orange-800 drop-shadow-sm">Meeting Management</h1>
-              <p className="text-orange-600">Create and manage proctored examinations</p>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => router.push('/tutor')}
+                className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 shadow-[0_8px_30px_rgba(251,146,60,0.2)] hover:shadow-[0_12px_40px_rgba(251,146,60,0.3)] hover:scale-105 transition-all duration-300 text-orange-700"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <div>
+                <h1 className="text-3xl font-bold mb-2 text-orange-800 drop-shadow-sm">Meeting Management</h1>
+                <p className="text-orange-600">Create and manage proctored examinations</p>
+              </div>
             </div>
             <div className="flex gap-3">
               {joinRequests.length > 0 && (

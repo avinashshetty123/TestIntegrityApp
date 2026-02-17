@@ -807,56 +807,11 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
     : sortedParticipants[0];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white flex font-['Inter']">
+    <div className="h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white flex font-['Inter'] overflow-hidden">
       {/* Main Video Area */}
-      <div className="flex-1 flex flex-col">
-        {/* Header Bar */}
-        <div className="p-4 bg-white/60 backdrop-blur-3xl border-b border-orange-200/50 shadow-lg shadow-orange-100/50 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <h2 className="text-xl font-bold text-gray-800 drop-shadow-sm">Meeting Room</h2>
-            <Badge variant={isMeetingLocked ? "destructive" : "secondary"}>
-              {isMeetingLocked ? "Locked" : "Unlocked"}
-            </Badge>
-            <Badge variant="secondary">
-              {participants.length} Participants
-            </Badge>
-          </div>
-          <div className="flex gap-2">
-            {proctoringAlerts.length > 0 && (
-              <Badge variant="destructive" className="flex items-center gap-1">
-                <AlertTriangle className="w-3 h-3" />
-                {proctoringAlerts.length} Total
-              </Badge>
-            )}
-            {liveAlerts.length > 0 && (
-              <Badge className="bg-orange-500 text-white flex items-center gap-1">
-                <Bell className="w-3 h-3" />
-                {liveAlerts.length} Live
-              </Badge>
-            )}
-            {meetingFlags.length > 0 && (
-              <Badge variant="secondary" className="flex items-center gap-1 bg-purple-500 text-white">
-                <Flag className="w-3 h-3" />
-                {meetingFlags.length} Flags
-              </Badge>
-            )}
-            {joinRequests.length > 0 && (
-              <Badge variant="default" className="bg-yellow-500 flex items-center gap-1">
-                <UserPlus className="w-3 h-3" />
-                {joinRequests.length} Requests
-              </Badge>
-            )}
-            {unreadAlerts > 0 && (
-              <Badge variant="destructive" className="flex items-center gap-1 bg-red-600">
-                <Bell className="w-3 h-3" />
-                {unreadAlerts} New
-              </Badge>
-            )}
-          </div>
-        </div>
-
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* Video Grid */}
-        <div className="flex-1 p-6">
+        <div className="flex-1 p-4 pb-24 overflow-hidden">
           <div className={`grid gap-3 h-full ${
             participants.length === 0 ? 'grid-cols-1' :
             participants.length === 1 ? 'grid-cols-2' :
@@ -898,110 +853,122 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
           </div>
         </div>
 
-        {/* Controls */}
-        <div className="p-6 bg-white/60 backdrop-blur-3xl border-t border-orange-200/50 shadow-lg shadow-orange-100/50 flex justify-center items-center gap-4">
-          <Button
-            onClick={toggleAudio}
-            variant={isAudioEnabled ? "outline" : "destructive"}
-            size="lg"
-            className={`rounded-full w-14 h-14 p-0 transition-all ${isAudioEnabled ? 'bg-white/10 hover:bg-white/20 border-white/30 text-white backdrop-blur-sm' : 'bg-red-500 hover:bg-red-600 text-white'}`}
-          >
-            {isAudioEnabled ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
-          </Button>
-          
-          <Button
-            onClick={toggleVideo}
-            variant={isVideoEnabled ? "outline" : "destructive"}
-            size="lg"
-            className={`rounded-full w-14 h-14 p-0 transition-all ${isVideoEnabled ? 'bg-white/10 hover:bg-white/20 border-white/30 text-white backdrop-blur-sm' : 'bg-red-500 hover:bg-red-600 text-white'}`}
-          >
-            {isVideoEnabled ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
-          </Button>
+        {/* Fixed Bottom Controls Bar */}
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-8 py-4 bg-gradient-to-br from-orange-500 via-orange-600 to-orange-700 backdrop-blur-3xl rounded-3xl shadow-[0_10px_40px_rgba(251,146,60,0.6),inset_0_1px_2px_rgba(255,255,255,0.3),inset_0_-2px_4px_rgba(0,0,0,0.2)] border border-orange-400/30">
+          <div className="flex justify-center items-center gap-3">
+            <Button
+              onClick={toggleAudio}
+              variant={isAudioEnabled ? "outline" : "destructive"}
+              size="lg"
+              className={`rounded-full w-14 h-14 p-0 transition-all shadow-[0_4px_12px_rgba(0,0,0,0.3),inset_0_1px_2px_rgba(255,255,255,0.3)] hover:shadow-[0_6px_16px_rgba(0,0,0,0.4)] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)] hover:scale-105 active:scale-95 ${isAudioEnabled ? 'bg-gradient-to-br from-white to-orange-50 border-2 border-white/50 text-orange-600' : 'bg-gradient-to-br from-red-500 to-red-600 text-white border-none'}`}
+            >
+              {isAudioEnabled ? <Mic className="w-6 h-6 drop-shadow-sm" /> : <MicOff className="w-6 h-6 drop-shadow-sm" />}
+            </Button>
+            
+            <Button
+              onClick={toggleVideo}
+              variant={isVideoEnabled ? "outline" : "destructive"}
+              size="lg"
+              className={`rounded-full w-14 h-14 p-0 transition-all shadow-[0_4px_12px_rgba(0,0,0,0.3),inset_0_1px_2px_rgba(255,255,255,0.3)] hover:shadow-[0_6px_16px_rgba(0,0,0,0.4)] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)] hover:scale-105 active:scale-95 ${isVideoEnabled ? 'bg-gradient-to-br from-white to-orange-50 border-2 border-white/50 text-orange-600' : 'bg-gradient-to-br from-red-500 to-red-600 text-white border-none'}`}
+            >
+              {isVideoEnabled ? <Video className="w-6 h-6 drop-shadow-sm" /> : <VideoOff className="w-6 h-6 drop-shadow-sm" />}
+            </Button>
 
-          <Button
-            onClick={toggleScreenShare}
-            variant="outline"
-            size="lg"
-            className={`rounded-full w-14 h-14 p-0 transition-all ${isScreenSharing ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-white/10 hover:bg-white/20 border-white/30 text-white backdrop-blur-sm'}`}
-          >
-            <Monitor className="w-6 h-6" />
-          </Button>
+            <Button
+              onClick={toggleScreenShare}
+              variant="outline"
+              size="lg"
+              className={`rounded-full w-14 h-14 p-0 transition-all shadow-[0_4px_12px_rgba(0,0,0,0.3),inset_0_1px_2px_rgba(255,255,255,0.3)] hover:shadow-[0_6px_16px_rgba(0,0,0,0.4)] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)] hover:scale-105 active:scale-95 ${isScreenSharing ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white border-none' : 'bg-gradient-to-br from-white to-orange-50 border-2 border-white/50 text-orange-600'}`}
+            >
+              <Monitor className="w-6 h-6 drop-shadow-sm" />
+            </Button>
 
-          {isTutor && (
-            <>
-              <Button
-                onClick={() => setShowParticipants(!showParticipants)}
-                variant="outline"
-                size="lg"
-                className="rounded-full w-14 h-14 p-0 bg-white/10 hover:bg-white/20 border-white/30 text-white backdrop-blur-sm transition-all"
-              >
-                <Users className="w-6 h-6" />
-              </Button>
+            {isTutor && (
+              <>
+                <Button
+                  onClick={() => setShowParticipants(!showParticipants)}
+                  variant="outline"
+                  size="lg"
+                  className="rounded-full w-14 h-14 p-0 bg-gradient-to-br from-white to-orange-50 border-2 border-white/50 text-orange-600 shadow-[0_4px_12px_rgba(0,0,0,0.3),inset_0_1px_2px_rgba(255,255,255,0.3)] hover:shadow-[0_6px_16px_rgba(0,0,0,0.4)] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)] hover:scale-105 active:scale-95 transition-all"
+                >
+                  <Users className="w-6 h-6 drop-shadow-sm" />
+                </Button>
 
-              <Button
-                onClick={() => {
-                  setShowJoinRequests(!showJoinRequests);
-                  if (showAlerts) setShowAlerts(false);
-                }}
-                variant="outline"
-                size="lg"
-                className={`rounded-full w-14 h-14 p-0 transition-all ${
-                  joinRequests.length > 0 ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : 'bg-white/10 hover:bg-white/20 border-white/30 text-white backdrop-blur-sm'
-                }`}
-              >
-                <UserPlus className="w-6 h-6" />
-              </Button>
+                <Button
+                  onClick={() => {
+                    setShowJoinRequests(!showJoinRequests);
+                    if (showAlerts) setShowAlerts(false);
+                  }}
+                  variant="outline"
+                  size="lg"
+                  className={`rounded-full w-14 h-14 p-0 transition-all shadow-[0_4px_12px_rgba(0,0,0,0.3),inset_0_1px_2px_rgba(255,255,255,0.3)] hover:shadow-[0_6px_16px_rgba(0,0,0,0.4)] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)] hover:scale-105 active:scale-95 relative ${
+                    joinRequests.length > 0 ? 'bg-gradient-to-br from-yellow-500 to-yellow-600 text-white border-none' : 'bg-gradient-to-br from-white to-orange-50 border-2 border-white/50 text-orange-600'
+                  }`}
+                >
+                  <UserPlus className="w-6 h-6 drop-shadow-sm" />
+                  {joinRequests.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold shadow-lg">
+                      {joinRequests.length}
+                    </span>
+                  )}
+                </Button>
 
-              <Button
-                onClick={() => {
-                  setShowAlerts(!showAlerts);
-                  if (showJoinRequests) setShowJoinRequests(false);
-                  setUnreadAlerts(0); // Mark as read when opening
-                }}
-                variant="outline"
-                size="lg"
-                className={`rounded-full w-14 h-14 p-0 transition-all ${
-                  unreadAlerts > 0 ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-white/10 hover:bg-white/20 border-white/30 text-white backdrop-blur-sm'
-                }`}
-              >
-                <Bell className="w-6 h-6" />
-              </Button>
+                <Button
+                  onClick={() => {
+                    setShowAlerts(!showAlerts);
+                    if (showJoinRequests) setShowJoinRequests(false);
+                    setUnreadAlerts(0);
+                  }}
+                  variant="outline"
+                  size="lg"
+                  className={`rounded-full w-14 h-14 p-0 transition-all shadow-[0_4px_12px_rgba(0,0,0,0.3),inset_0_1px_2px_rgba(255,255,255,0.3)] hover:shadow-[0_6px_16px_rgba(0,0,0,0.4)] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)] hover:scale-105 active:scale-95 relative ${
+                    unreadAlerts > 0 ? 'bg-gradient-to-br from-red-500 to-red-600 text-white border-none' : 'bg-gradient-to-br from-white to-orange-50 border-2 border-white/50 text-orange-600'
+                  }`}
+                >
+                  <Bell className="w-6 h-6 drop-shadow-sm" />
+                  {unreadAlerts > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold animate-pulse shadow-lg">
+                      {unreadAlerts}
+                    </span>
+                  )}
+                </Button>
 
-              <Button
-                onClick={toggleMeetingLock}
-                variant="outline"
-                size="lg"
-                className={`rounded-full w-14 h-14 p-0 transition-all ${
-                  isMeetingLocked ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-white/10 hover:bg-white/20 border-white/30 text-white backdrop-blur-sm'
-                }`}
-              >
-                {isMeetingLocked ? <Lock className="w-6 h-6" /> : <Unlock className="w-6 h-6" />}
-              </Button>
+                <Button
+                  onClick={toggleMeetingLock}
+                  variant="outline"
+                  size="lg"
+                  className={`rounded-full w-14 h-14 p-0 transition-all shadow-[0_4px_12px_rgba(0,0,0,0.3),inset_0_1px_2px_rgba(255,255,255,0.3)] hover:shadow-[0_6px_16px_rgba(0,0,0,0.4)] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)] hover:scale-105 active:scale-95 ${
+                    isMeetingLocked ? 'bg-gradient-to-br from-red-500 to-red-600 text-white border-none' : 'bg-gradient-to-br from-white to-orange-50 border-2 border-white/50 text-orange-600'
+                  }`}
+                >
+                  {isMeetingLocked ? <Lock className="w-6 h-6 drop-shadow-sm" /> : <Unlock className="w-6 h-6 drop-shadow-sm" />}
+                </Button>
 
-              <Button
-                onClick={() => setShowQuizPanel(!showQuizPanel)}
-                variant="outline"
-                size="lg"
-                className="rounded-full w-14 h-14 p-0 bg-white/10 hover:bg-white/20 border-white/30 text-white backdrop-blur-sm transition-all"
-              >
-                <MessageSquare className="w-6 h-6" />
-              </Button>
-            </>
-          )}
+                <Button
+                  onClick={() => setShowQuizPanel(!showQuizPanel)}
+                  variant="outline"
+                  size="lg"
+                  className="rounded-full w-14 h-14 p-0 bg-gradient-to-br from-white to-orange-50 border-2 border-white/50 text-orange-600 shadow-[0_4px_12px_rgba(0,0,0,0.3),inset_0_1px_2px_rgba(255,255,255,0.3)] hover:shadow-[0_6px_16px_rgba(0,0,0,0.4)] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)] hover:scale-105 active:scale-95 transition-all"
+                >
+                  <MessageSquare className="w-6 h-6 drop-shadow-sm" />
+                </Button>
+              </>
+            )}
 
-          <Button
-            onClick={() => {
-              if (room) {
-                room.disconnect();
-              }
-              onDisconnect?.();
-            }}
-            variant="destructive"
-            size="lg"
-            className="rounded-full w-14 h-14 p-0 bg-gradient-to-r from-red-500 to-red-600 text-white hover:scale-105 transition-all shadow-xl shadow-red-200/50"
-          >
-            <PhoneOff className="w-6 h-6" />
-          </Button>
+            <Button
+              onClick={() => {
+                if (room) {
+                  room.disconnect();
+                }
+                onDisconnect?.();
+              }}
+              variant="destructive"
+              size="lg"
+              className="rounded-full w-14 h-14 p-0 bg-gradient-to-br from-red-500 to-red-600 text-white shadow-[0_4px_12px_rgba(220,38,38,0.5),inset_0_1px_2px_rgba(255,255,255,0.3)] hover:shadow-[0_6px_16px_rgba(220,38,38,0.6)] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)] hover:scale-105 active:scale-95 transition-all border-none"
+            >
+              <PhoneOff className="w-6 h-6 drop-shadow-sm" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -1010,15 +977,15 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
         <>
           {/* Participants Panel */}
           {showParticipants && (
-            <div className="w-80 bg-black/70 backdrop-blur-sm border-l border-white/20 flex flex-col">
-              <div className="p-4 border-b border-white/20">
+            <div className="w-80 bg-black/70 backdrop-blur-sm border-l border-white/20 flex flex-col overflow-hidden">
+              <div className="p-4 border-b border-white/20 flex-shrink-0">
                 <h3 className="text-lg font-semibold flex items-center gap-2 text-white">
                   <Users className="w-5 h-5" />
                   Participants ({participants.length})
                 </h3>
               </div>
               
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-24">
                 {sortedParticipants.map((participantData) => (
                   <Card 
                     key={participantData.identity}
@@ -1094,15 +1061,15 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
 
           {/* Join Requests Panel */}
           {showJoinRequests && (
-            <div className="w-80 bg-black/70 backdrop-blur-sm border-l border-white/20 flex flex-col">
-              <div className="p-4 border-b border-white/20">
+            <div className="w-80 bg-black/70 backdrop-blur-sm border-l border-white/20 flex flex-col overflow-hidden">
+              <div className="p-4 border-b border-white/20 flex-shrink-0">
                 <h3 className="text-lg font-semibold flex items-center gap-2 text-white">
                   <UserPlus className="w-5 h-5" />
                   Join Requests ({joinRequests.length})
                 </h3>
               </div>
               
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-24">
                 {joinRequests.map((request) => (
                   <Card key={request.id} className="p-3 bg-white/10 backdrop-blur-sm border border-white/20">
                     <div className="flex items-center justify-between">
@@ -1141,8 +1108,8 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
 
           {/* Real-time Alerts Panel */}
           {showAlerts && (
-            <div className="w-80 bg-black/70 backdrop-blur-sm border-l border-white/20 flex flex-col">
-              <div className="p-4 border-b border-white/20">
+            <div className="w-80 bg-black/70 backdrop-blur-sm border-l border-white/20 flex flex-col overflow-hidden">
+              <div className="p-4 border-b border-white/20 flex-shrink-0">
                 <h3 className="text-lg font-semibold flex items-center gap-2 text-white">
                   <Bell className="w-5 h-5" />
                   Live Alerts ({liveAlerts.length})
@@ -1157,7 +1124,7 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
                 )}
               </div>
               
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-24">
                 {liveAlerts.map((alert, index) => {
                   const isRecent = Date.now() - new Date(alert.timestamp).getTime() < 30000; // 30 seconds
                   return (

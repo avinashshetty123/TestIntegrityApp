@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft } from 'lucide-react';
 
 export default function CreateTestPage() {
   const router = useRouter();
@@ -99,10 +99,18 @@ export default function CreateTestPage() {
                boxShadow: '0 40px 80px rgba(251, 146, 60, 0.25), 0 15px 40px rgba(251, 146, 60, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95)',
                filter: 'drop-shadow(0 25px 50px rgba(251, 146, 60, 0.2))'
              }}>
-          <h1 className="text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-orange-600 via-orange-500 to-orange-400 drop-shadow-2xl mb-8"
-              style={{ fontFamily: 'Inter, system-ui, sans-serif', textShadow: '0 8px 32px rgba(251, 146, 60, 0.3)' }}>
-            Create a New Test
-          </h1>
+          <div className="flex items-center gap-4 mb-8">
+            <button
+              onClick={() => router.push('/tutor/tests')}
+              className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 shadow-[0_8px_30px_rgba(251,146,60,0.2)] hover:shadow-[0_12px_40px_rgba(251,146,60,0.3)] hover:scale-105 transition-all duration-300 text-orange-700"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h1 className="text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-orange-600 via-orange-500 to-orange-400 drop-shadow-2xl"
+                style={{ fontFamily: 'Inter, system-ui, sans-serif', textShadow: '0 8px 32px rgba(251, 146, 60, 0.3)' }}>
+              Create a New Test
+            </h1>
+          </div>
 
           <div className="space-y-8">
             <div className="space-y-6">

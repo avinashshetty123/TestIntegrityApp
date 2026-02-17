@@ -66,7 +66,7 @@ export default function Navigation() {
 
   const navItems = user?.role === 'tutor' ? getTutorNavItems() : getStudentNavItems();
 
-  if (!user) {
+  if (!user || pathname === '/signIn' || pathname === '/') {
     return null;
   }
 
