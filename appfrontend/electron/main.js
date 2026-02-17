@@ -16,25 +16,56 @@ function createWindow() {
     minimizable: false,
     maximizable: false,
     fullscreenable: false,
-    alwaysOnTop: true,
+    alwaysOnTop: false,
     kiosk: false,
+    frame: true,
+    titleBarStyle: 'default',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
+      webSecurity: true,
+      allowRunningInsecureContent: false
     }
   });
 
-  // Prevent window from being minimized
+  // Prevent window from being minimized during proctoring
   mainWindow.on('minimize', (event) => {
     if (isProctoringActive) {
       event.preventDefault();
+      mainWindow.restore();
+      mainWindow.focus();
       dialog.showMessageBox(mainWindow, {
         type: 'warning',
-        title: 'Proctoring Active',
-        message: 'Cannot minimize window during proctoring session',
+        title: 'Proctoring Session Active',
+        message: 'Window cannot be minimized during proctoring. Session is being monitored.',
         buttons: ['OK']
       });
+    }
+  });
+
+  // Prevent window from losing focus during proctoring
+  mainWindow.on('blur', () => {
+    if (isProctoringActive) {
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.focus();
+          mainWindow.show();
+        }
+      }, 100);
+    }
+  });
+
+  // Block keyboard shortcuts during proctoring
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (isProctoringActive) {
+      // Block Alt+Tab, Ctrl+Alt+Del, Windows key, etc.
+      if (input.alt || input.meta || 
+          (input.control && (input.key === 'Tab' || input.key === 'Escape')) ||
+          input.key === 'F11' || input.key === 'F4' || input.key === 'F12') {
+        event.preventDefault();
+        console.log('🚫 Blocked shortcut during proctoring:', input.key);
+      }
     }
   });
 
@@ -216,7 +247,21 @@ ipcMain.handle('load-reference-face', (event, { imageUrl, userId }) => {
 
 ipcMain.handle('start-proctoring', (event, sessionData) => {
   isProctoringActive = true;
+  
+  // Enable secure lockdown mode
   mainWindow.setAlwaysOnTop(true);
+  mainWindow.setMinimizable(false);
+  mainWindow.setClosable(false);
+  mainWindow.setMenuBarVisibility(false);
+  
+  // Prevent Alt+Tab and other shortcuts
+  mainWindow.setSkipTaskbar(true);
+  
+  // Set focus and prevent losing it
+  mainWindow.focus();
+  mainWindow.show();
+  
+  console.log('🔒 Lockdown mode enabled - Window secured');
   
   if (pythonProcess && pythonProcess.stdin.writable) {
     try {
@@ -237,7 +282,15 @@ ipcMain.handle('start-proctoring', (event, sessionData) => {
 
 ipcMain.handle('stop-proctoring', () => {
   isProctoringActive = false;
+  
+  // Restore normal window mode
   mainWindow.setAlwaysOnTop(false);
+  mainWindow.setMinimizable(true);
+  mainWindow.setClosable(true);
+  mainWindow.setMenuBarVisibility(true);
+  mainWindow.setSkipTaskbar(false);
+  
+  console.log('🔓 Lockdown mode disabled - Window restored');
   
   if (pythonProcess && pythonProcess.stdin.writable) {
     pythonProcess.stdin.write(JSON.stringify({
@@ -254,13 +307,34 @@ ipcMain.handle('get-proctoring-status', () => {
 
 ipcMain.handle('set-window-mode', (event, mode) => {
   if (mode === 'proctoring') {
-    mainWindow.setKiosk(true);
     isProctoringActive = true;
-  } else {
-    mainWindow.setKiosk(false);
+    mainWindow.setKiosk(true);
+    mainWindow.setAlwaysOnTop(true);
+    mainWindow.setFullScreen(true);
+  } else if (mode === 'normal') {
     isProctoringActive = false;
+    mainWindow.setKiosk(false);
+    mainWindow.setAlwaysOnTop(false);
+    mainWindow.setFullScreen(false);
   }
   return true;
+});
+
+// Add navigation control
+ipcMain.handle('navigate-back', () => {
+  if (mainWindow && mainWindow.webContents.canGoBack()) {
+    mainWindow.webContents.goBack();
+    return true;
+  }
+  return false;
+});
+
+ipcMain.handle('can-go-back', () => {
+  return mainWindow ? mainWindow.webContents.canGoBack() : false;
+});
+
+ipcMain.handle('get-window-mode', () => {
+  return isProctoringActive ? 'proctoring' : 'normal';
 });
 
 app.whenReady().then(createWindow);

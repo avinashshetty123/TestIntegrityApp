@@ -24,6 +24,9 @@ interface ParticipantData {
   riskScore: number;
   identity: string;
   name?: string;
+  videoEnabled?: boolean;
+  audioEnabled?: boolean;
+  screenSharing?: boolean;
 }
 
 interface JoinRequest {
@@ -70,8 +73,8 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
   const [room, setRoom] = useState<Room | null>(null);
   const [participants, setParticipants] = useState<ParticipantData[]>([]);
   const [isConnected, setIsConnected] = useState(false);
-  const [isVideoEnabled, setIsVideoEnabled] = useState(true);
-  const [isAudioEnabled, setIsAudioEnabled] = useState(true);
+  const [isVideoEnabled, setIsVideoEnabled] = useState(false);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [showParticipants, setShowParticipants] = useState(false);
   const [showJoinRequests, setShowJoinRequests] = useState(false);
@@ -114,12 +117,20 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
     }
   }, [isTutor, isConnected, showJoinRequests]);
 
-  // Fetch meeting flags for tutor visibility
+  // Fetch meeting status on connection
   useEffect(() => {
     if (isTutor && isConnected) {
+      fetchMeetingStatus();
       fetchMeetingFlags();
+      fetchSessionParticipants();
       const flagsInterval = setInterval(fetchMeetingFlags, 5000);
-      return () => clearInterval(flagsInterval);
+      const participantsInterval = setInterval(fetchSessionParticipants, 10000);
+      const statusInterval = setInterval(fetchMeetingStatus, 30000); // Check status every 30s
+      return () => {
+        clearInterval(flagsInterval);
+        clearInterval(participantsInterval);
+        clearInterval(statusInterval);
+      };
     }
   }, [isTutor, isConnected, meetingId]);
 
@@ -146,6 +157,20 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
     }
   };
 
+  const fetchMeetingStatus = async () => {
+    try {
+      const response = await fetch(`http://localhost:4000/meetings/${meetingId}`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const meeting = await response.json();
+        setIsMeetingLocked(meeting.isLocked || false);
+      }
+    } catch (error) {
+      console.error('Failed to fetch meeting status:', error);
+    }
+  };
+
   const fetchMeetingFlags = async () => {
     try {
       const response = await fetch(`http://localhost:4000/proctoring/meeting/${meetingId}/flags`, {
@@ -157,6 +182,35 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
       }
     } catch (error) {
       console.error('Failed to fetch meeting flags:', error);
+    }
+  };
+
+  const fetchSessionParticipants = async () => {
+    try {
+      const response = await fetch(`http://localhost:4000/proctoring/session/${meetingId}/participants`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const sessionParticipants = await response.json();
+        console.log('👥 Session participants:', sessionParticipants);
+        
+        // Update participant data with session info
+        setParticipants(prev => prev.map(p => {
+          const sessionData = sessionParticipants.find(sp => sp.participantId === p.identity);
+          if (sessionData) {
+            return {
+              ...p,
+              sessionData,
+              totalAlerts: sessionData.totalAlerts,
+              joinedAt: sessionData.joinedAt,
+              lastActivity: sessionData.lastActivity
+            };
+          }
+          return p;
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch session participants:', error);
     }
   };
 
@@ -219,6 +273,21 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
     });
   };
 
+  const updateParticipantState = (stateData: any, participant?: RemoteParticipant) => {
+    setParticipants(prev => prev.map(p => {
+      if (p.identity === stateData.participantId || p.identity === participant?.identity) {
+        return {
+          ...p,
+          videoEnabled: stateData.videoEnabled !== undefined ? stateData.videoEnabled : p.videoEnabled,
+          audioEnabled: stateData.audioEnabled !== undefined ? stateData.audioEnabled : p.audioEnabled,
+          screenSharing: stateData.screenSharing !== undefined ? stateData.screenSharing : p.screenSharing,
+          lastActivity: Date.now()
+        };
+      }
+      return p;
+    }));
+  };
+
   const updateParticipantAfterAlert = (participantId: string, alert: ProctoringAlert) => {
     setParticipants(prev => prev.map(p => {
       if (p.identity === participantId) {
@@ -272,7 +341,14 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
         dynacast: true,
         videoCaptureDefaults: {
           resolution: { width: 1280, height: 720 },
+          facingMode: 'user'
         },
+        audioCaptureDefaults: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+        // Removed publishDefaults to fix "non-finite double value" error
       });
       setRoom(newRoom);
 
@@ -292,30 +368,20 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
           alerts: [],
           displayName: p.name || p.identity,
           identity: p.identity,
-          name: p.name
+          name: p.name,
+          videoEnabled: true,
+          audioEnabled: true,
+          screenSharing: false
         }));
         setParticipants(initialParticipants);
         
-        // Enable camera and microphone
+        // Enable camera and microphone only if user wants them
         try {
-          if (isVideoEnabled) {
-            await newRoom.localParticipant.setCameraEnabled(true);
-          }
-          if (isAudioEnabled) {
-            await newRoom.localParticipant.setMicrophoneEnabled(true);
-          }
-          
-          // Attach local video after a brief delay
-          setTimeout(() => {
-            if (localVideoRef.current) {
-              const videoTrack = Array.from(newRoom.localParticipant.videoTrackPublications.values())[0]?.track;
-              if (videoTrack) {
-                videoTrack.attach(localVideoRef.current);
-              }
-            }
-          }, 1000);
+          // Start with both disabled - user must manually enable
+          await newRoom.localParticipant.setCameraEnabled(false);
+          await newRoom.localParticipant.setMicrophoneEnabled(false);
         } catch (error) {
-          console.error("Failed to enable camera/microphone:", error);
+          console.error("Failed to set initial media state:", error);
         }
       });
 
@@ -323,14 +389,29 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
         console.log("❌ Disconnected from room");
         setIsConnected(false);
         setIsConnecting(false);
+        
+        // Properly stop all media tracks
+        if (newRoom.localParticipant) {
+          newRoom.localParticipant.videoTrackPublications.forEach(pub => {
+            if (pub.track) {
+              pub.track.stop();
+            }
+          });
+          newRoom.localParticipant.audioTrackPublications.forEach(pub => {
+            if (pub.track) {
+              pub.track.stop();
+            }
+          });
+        }
+        
         // Clean up intervals
         if (joinRequestIntervalRef.current) {
           clearInterval(joinRequestIntervalRef.current);
         }
       });
 
-      newRoom.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
-        console.log("Participant connected:", participant.identity);
+      newRoom.on(RoomEvent.ParticipantConnected, async (participant: RemoteParticipant) => {
+        console.log("✅ Participant connected:", participant.identity, participant.name);
         const newParticipant: ParticipantData = {
           participant: participant,
           flagCount: 0,
@@ -341,14 +422,65 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
           alerts: [],
           displayName: participant.name || participant.identity,
           identity: participant.identity,
-          name: participant.name
+          name: participant.name,
+          videoEnabled: true,
+          audioEnabled: true,
+          screenSharing: false
         };
         setParticipants(prev => [...prev, newParticipant]);
+        
+        // Create backend session for new participant
+        try {
+          await fetch('http://localhost:4000/proctoring/session/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              meetingId,
+              participantId: participant.identity,
+              userId: participant.identity,
+              studentName: participant.name || participant.identity,
+              startedAt: new Date().toISOString()
+            })
+          });
+          console.log(`📝 Created session for ${participant.name || participant.identity}`);
+        } catch (error) {
+          console.error('Failed to create session:', error);
+        }
+        
+        toast({
+          title: "Student Joined",
+          description: `${participant.name || participant.identity} joined the meeting`,
+        });
       });
 
-      newRoom.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
-        console.log("Participant disconnected:", participant.identity);
+      newRoom.on(RoomEvent.ParticipantDisconnected, async (participant: RemoteParticipant) => {
+        console.log("❌ Participant disconnected:", participant.identity, participant.name);
         setParticipants(prev => prev.filter(p => p.identity !== participant.identity));
+        
+        // Update backend session status
+        try {
+          await fetch(`http://localhost:4000/proctoring/analyze-frame`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              meetingId,
+              participantId: participant.identity,
+              userId: participant.identity,
+              detections: {},
+              browserData: { participantLeft: true }
+            })
+          });
+          console.log(`📝 Updated session for leaving participant ${participant.name || participant.identity}`);
+        } catch (error) {
+          console.error('Failed to update session:', error);
+        }
+        
+        toast({
+          title: "Student Left",
+          description: `${participant.name || participant.identity} left the meeting`,
+        });
       });
 
       newRoom.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
@@ -387,6 +519,10 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
             // Handle real-time proctoring alerts from LiveKit
             console.log('🚨 Proctoring alert received via LiveKit:', data.data);
             handleLiveProctoringAlert(data.data, participant);
+          } else if (data.type === 'PARTICIPANT_STATE_UPDATE') {
+            // Handle participant state updates (audio/video/screen share)
+            console.log('👤 Participant state update:', data.data);
+            updateParticipantState(data.data, participant);
           } else if (data.type === 'DASHBOARD_UPDATE') {
             // Handle dashboard updates if needed
             console.log('📊 Dashboard update received:', data.data);
@@ -409,68 +545,148 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
         }
       });
 
-      // Fix server URL connection
+      // Fix server URL connection with better error handling
       let actualServerUrl = serverUrl;
       
+      // Normalize server URL
       if (!serverUrl.startsWith('ws://') && !serverUrl.startsWith('wss://')) {
         actualServerUrl = `ws://${serverUrl}`;
       }
       
+      // Default to localhost if URL is malformed
       if (actualServerUrl.includes('localhost') && !actualServerUrl.includes('7880')) {
         actualServerUrl = 'ws://localhost:7880';
       }
-
-      console.log('🔄 Connecting to LiveKit server:', actualServerUrl);
       
-      await newRoom.connect(actualServerUrl, token, {
-        autoSubscribe: true,
-        maxRetries: 5,
-        peerConnectionTimeout: 15000,
-      });
+      // Fallback URLs to try
+      const fallbackUrls = [
+        actualServerUrl,
+        'ws://localhost:7880',
+        'ws://127.0.0.1:7880'
+      ];
+
+      console.log('🔄 Attempting to connect to LiveKit server:', actualServerUrl);
+      
+      let connected = false;
+      let lastError = null;
+      
+      for (const url of fallbackUrls) {
+        try {
+          console.log(`Trying connection to: ${url}`);
+          
+          await newRoom.connect(url, token, {
+            autoSubscribe: true,
+            maxRetries: 3,
+            peerConnectionTimeout: 10000,
+            websocketTimeout: 5000
+          });
+          
+          connected = true;
+          console.log(`✅ Successfully connected to: ${url}`);
+          break;
+        } catch (error) {
+          console.warn(`❌ Failed to connect to ${url}:`, error.message);
+          lastError = error;
+          
+          // Disconnect and clean up before trying next URL
+          try {
+            await newRoom.disconnect();
+          } catch (e) {
+            // Ignore cleanup errors
+          }
+        }
+      }
+      
+      if (!connected) {
+        throw lastError || new Error('Failed to connect to any LiveKit server');
+      }
     } catch (error: any) {
       console.error("❌ Failed to connect to LiveKit:", error);
       setIsConnecting(false);
-      setConnectionError(
-        error.message || 'Failed to connect to meeting. Please check your connection and try again.'
-      );
+      
+      let errorMessage = 'Failed to connect to meeting. Please check your connection and try again.';
+      
+      if (error.message?.includes('WebSocket')) {
+        errorMessage = 'LiveKit server is not running. Please start the Docker services first.';
+      } else if (error.message?.includes('token')) {
+        errorMessage = 'Invalid meeting token. Please refresh and try again.';
+      } else if (error.message?.includes('timeout')) {
+        errorMessage = 'Connection timeout. Please check your network and try again.';
+      } else if (error.message?.includes('pc connection')) {
+        errorMessage = 'Peer connection failed. Please check firewall settings and try again.';
+      }
+      
+      setConnectionError(errorMessage);
       
       toast({
         title: "Connection Failed",
-        description: "Could not connect to the meeting room. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
   };
 
   const toggleVideo = async () => {
-    if (room?.localParticipant) {
-      try {
-        await room.localParticipant.setCameraEnabled(!isVideoEnabled);
-        setIsVideoEnabled(!isVideoEnabled);
-      } catch (error) {
-        console.error("Failed to toggle video:", error);
-        toast({
-          title: "Error",
-          description: "Failed to toggle video",
-          variant: "destructive",
-        });
+    if (!room?.localParticipant) {
+      toast({
+        title: "Error",
+        description: "Not connected to meeting",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      const newVideoState = !isVideoEnabled;
+      await room.localParticipant.setCameraEnabled(newVideoState);
+      setIsVideoEnabled(newVideoState);
+      
+      // Handle video element display
+      if (localVideoRef.current && !newVideoState) {
+        localVideoRef.current.style.backgroundColor = '#000';
+        localVideoRef.current.srcObject = null;
       }
+      
+      toast({
+        title: newVideoState ? "Camera On" : "Camera Off",
+        description: newVideoState ? "Your camera is now enabled" : "Your camera is now disabled",
+      });
+    } catch (error) {
+      console.error("Failed to toggle video:", error);
+      toast({
+        title: "Error",
+        description: "Failed to toggle camera",
+        variant: "destructive",
+      });
     }
   };
 
   const toggleAudio = async () => {
-    if (room?.localParticipant) {
-      try {
-        await room.localParticipant.setMicrophoneEnabled(!isAudioEnabled);
-        setIsAudioEnabled(!isAudioEnabled);
-      } catch (error) {
-        console.error("Failed to toggle audio:", error);
-        toast({
-          title: "Error",
-          description: "Failed to toggle audio",
-          variant: "destructive",
-        });
-      }
+    if (!room?.localParticipant) {
+      toast({
+        title: "Error",
+        description: "Not connected to meeting",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      const newAudioState = !isAudioEnabled;
+      await room.localParticipant.setMicrophoneEnabled(newAudioState);
+      setIsAudioEnabled(newAudioState);
+      
+      toast({
+        title: newAudioState ? "Microphone On" : "Microphone Off",
+        description: newAudioState ? "Your microphone is now enabled" : "Your microphone is now muted",
+      });
+    } catch (error) {
+      console.error("Failed to toggle audio:", error);
+      toast({
+        title: "Error",
+        description: "Failed to toggle microphone",
+        variant: "destructive",
+      });
     }
   };
 
@@ -773,28 +989,28 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
 
   if (!isConnected) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white flex items-center justify-center font-['Inter']">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center font-['Inter']">
         <div className="text-center max-w-md">
-          <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-xl shadow-orange-200/50">
+          <div className="w-16 h-16 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-xl">
             <Video className="w-8 h-8 text-white drop-shadow-sm" />
           </div>
           {connectionError ? (
-            <>
-              <h1 className="text-xl font-bold mb-4 text-red-600">Connection Failed</h1>
-              <p className="text-gray-600 mb-4 font-medium">{connectionError}</p>
+            <div className="bg-white/10 backdrop-blur-3xl rounded-3xl p-8 border border-white/20 shadow-2xl">
+              <h1 className="text-xl font-bold mb-4 text-red-400">Connection Failed</h1>
+              <p className="text-gray-300 mb-4 font-medium">{connectionError}</p>
               <button 
                 onClick={() => connectToRoom()}
-                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-semibold hover:scale-105 transition-all duration-300 shadow-xl shadow-orange-200/50"
+                className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-semibold hover:scale-105 transition-all duration-300 shadow-xl"
               >
                 Retry Connection
               </button>
-            </>
+            </div>
           ) : (
-            <>
-              <h1 className="text-xl font-bold mb-4 text-gray-800">Connecting to Meeting...</h1>
-              <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600 font-medium">Establishing connection to LiveKit server...</p>
-            </>
+            <div className="bg-white/10 backdrop-blur-3xl rounded-3xl p-8 border border-white/20 shadow-2xl">
+              <h1 className="text-xl font-bold mb-4 text-blue-300">Connecting to Meeting...</h1>
+              <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-300 font-medium">Establishing connection to LiveKit server...</p>
+            </div>
           )}
         </div>
       </div>
@@ -807,9 +1023,60 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
     : sortedParticipants[0];
 
   return (
+<<<<<<< HEAD
     <div className="h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white flex font-['Inter'] overflow-hidden">
       {/* Main Video Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
+=======
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex font-['Inter']">
+      {/* Main Video Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Header Bar */}
+        <div className="p-4 bg-black/20 backdrop-blur-3xl border-b border-white/10 shadow-lg flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-bold text-white drop-shadow-sm">Tutor Meeting Room</h2>
+            <Badge className={`${isMeetingLocked ? "bg-red-400 text-black" : "bg-green-400 text-black"}`}>
+              {isMeetingLocked ? "Locked" : "Unlocked"}
+            </Badge>
+            <Badge className="bg-blue-400 text-black">
+              {participants.length} Participants
+            </Badge>
+          </div>
+          <div className="flex gap-2">
+            {proctoringAlerts.length > 0 && (
+              <Badge className="bg-red-400 text-black flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3" />
+                {proctoringAlerts.length} Total
+              </Badge>
+            )}
+            {liveAlerts.length > 0 && (
+              <Badge className="bg-orange-400 text-black flex items-center gap-1">
+                <Bell className="w-3 h-3" />
+                {liveAlerts.length} Live
+              </Badge>
+            )}
+            {meetingFlags.length > 0 && (
+              <Badge className="bg-purple-400 text-black flex items-center gap-1">
+                <Flag className="w-3 h-3" />
+                {meetingFlags.length} Flags
+              </Badge>
+            )}
+            {joinRequests.length > 0 && (
+              <Badge className="bg-yellow-400 text-black flex items-center gap-1">
+                <UserPlus className="w-3 h-3" />
+                {joinRequests.length} Requests
+              </Badge>
+            )}
+            {unreadAlerts > 0 && (
+              <Badge className="bg-red-500 text-white flex items-center gap-1">
+                <Bell className="w-3 h-3" />
+                {unreadAlerts} New
+              </Badge>
+            )}
+          </div>
+        </div>
+
+>>>>>>> afe276c9682e3ef78eda69faaf47c5956c44779a
         {/* Video Grid */}
         <div className="flex-1 p-4 pb-24 overflow-hidden">
           <div className={`grid gap-3 h-full ${
@@ -853,6 +1120,7 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
           </div>
         </div>
 
+<<<<<<< HEAD
         {/* Fixed Bottom Controls Bar */}
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-8 py-4 bg-gradient-to-br from-orange-500 via-orange-600 to-orange-700 backdrop-blur-3xl rounded-3xl shadow-[0_10px_40px_rgba(251,146,60,0.6),inset_0_1px_2px_rgba(255,255,255,0.3),inset_0_-2px_4px_rgba(0,0,0,0.2)] border border-orange-400/30">
           <div className="flex justify-center items-center gap-3">
@@ -969,6 +1237,128 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
               <PhoneOff className="w-6 h-6 drop-shadow-sm" />
             </Button>
           </div>
+=======
+        {/* Controls */}
+        <div className="p-6 bg-black/20 backdrop-blur-3xl border-t border-white/10 shadow-lg flex justify-center items-center gap-4">
+          <Button
+            onClick={toggleAudio}
+            variant={isAudioEnabled ? "outline" : "destructive"}
+            size="lg"
+            className={`rounded-full w-14 h-14 p-0 transition-all ${isAudioEnabled ? 'bg-white/20 hover:bg-white/30 text-white border-white/30' : 'bg-red-500 hover:bg-red-600 text-white'}`}
+          >
+            {isAudioEnabled ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
+          </Button>
+          
+          <Button
+            onClick={toggleVideo}
+            variant={isVideoEnabled ? "outline" : "destructive"}
+            size="lg"
+            className={`rounded-full w-14 h-14 p-0 transition-all ${isVideoEnabled ? 'bg-white/20 hover:bg-white/30 text-white border-white/30' : 'bg-red-500 hover:bg-red-600 text-white'}`}
+          >
+            {isVideoEnabled ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
+          </Button>
+
+          <Button
+            onClick={toggleScreenShare}
+            variant="outline"
+            size="lg"
+            className={`rounded-full w-14 h-14 p-0 transition-all ${isScreenSharing ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-white/20 hover:bg-white/30 text-white border-white/30'}`}
+          >
+            <Monitor className="w-6 h-6" />
+          </Button>
+
+          {isTutor && (
+            <>
+              <Button
+                onClick={() => setShowParticipants(!showParticipants)}
+                variant="outline"
+                size="lg"
+                className={`rounded-full w-14 h-14 p-0 transition-all ${showParticipants ? 'bg-blue-500 text-white' : 'bg-white/20 hover:bg-white/30 text-white border-white/30'}`}
+              >
+                <Users className="w-6 h-6" />
+              </Button>
+
+              <Button
+                onClick={() => {
+                  setShowJoinRequests(!showJoinRequests);
+                  if (showAlerts) setShowAlerts(false);
+                }}
+                variant="outline"
+                size="lg"
+                className={`rounded-full w-14 h-14 p-0 transition-all ${
+                  joinRequests.length > 0 ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : 
+                  showJoinRequests ? 'bg-blue-500 text-white' : 'bg-white/20 hover:bg-white/30 text-white border-white/30'
+                }`}
+              >
+                <UserPlus className="w-6 h-6" />
+              </Button>
+
+              <Button
+                onClick={() => {
+                  setShowAlerts(!showAlerts);
+                  if (showJoinRequests) setShowJoinRequests(false);
+                  setUnreadAlerts(0);
+                }}
+                variant="outline"
+                size="lg"
+                className={`rounded-full w-14 h-14 p-0 transition-all ${
+                  unreadAlerts > 0 ? 'bg-red-500 hover:bg-red-600 text-white' : 
+                  showAlerts ? 'bg-blue-500 text-white' : 'bg-white/20 hover:bg-white/30 text-white border-white/30'
+                }`}
+              >
+                <Bell className="w-6 h-6" />
+              </Button>
+
+              <Button
+                onClick={toggleMeetingLock}
+                variant="outline"
+                size="lg"
+                className={`rounded-full w-14 h-14 p-0 transition-all ${
+                  isMeetingLocked ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'
+                }`}
+              >
+                {isMeetingLocked ? <Lock className="w-6 h-6" /> : <Unlock className="w-6 h-6" />}
+              </Button>
+
+              <Button
+                onClick={() => setShowQuizPanel(!showQuizPanel)}
+                variant="outline"
+                size="lg"
+                className={`rounded-full w-14 h-14 p-0 transition-all ${showQuizPanel ? 'bg-green-500 text-white' : 'bg-white/20 hover:bg-white/30 text-white border-white/30'}`}
+              >
+                <MessageSquare className="w-6 h-6" />
+              </Button>
+            </>
+          )}
+
+          <Button
+            onClick={() => {
+              // Stop all media tracks before disconnecting
+              if (room?.localParticipant) {
+                room.localParticipant.videoTrackPublications.forEach(pub => {
+                  if (pub.track) {
+                    pub.track.stop();
+                  }
+                });
+                room.localParticipant.audioTrackPublications.forEach(pub => {
+                  if (pub.track) {
+                    pub.track.stop();
+                  }
+                });
+              }
+              
+              if (room) {
+                room.disconnect();
+              }
+              onDisconnect?.();
+            }}
+            variant="destructive"
+            size="lg"
+            className="rounded-full w-14 h-14 p-0 bg-gradient-to-r from-red-500 to-red-600 text-white hover:scale-105 transition-all shadow-xl shadow-red-200/50"
+          >
+            <PhoneOff className="w-6 h-6" />
+          </Button>
+>>>>>>> afe276c9682e3ef78eda69faaf47c5956c44779a
         </div>
       </div>
 
@@ -977,8 +1367,13 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
         <>
           {/* Participants Panel */}
           {showParticipants && (
+<<<<<<< HEAD
             <div className="w-80 bg-black/70 backdrop-blur-sm border-l border-white/20 flex flex-col overflow-hidden">
               <div className="p-4 border-b border-white/20 flex-shrink-0">
+=======
+            <div className="w-80 bg-black/40 backdrop-blur-sm border-l border-white/20 flex flex-col">
+              <div className="p-4 border-b border-white/20">
+>>>>>>> afe276c9682e3ef78eda69faaf47c5956c44779a
                 <h3 className="text-lg font-semibold flex items-center gap-2 text-white">
                   <Users className="w-5 h-5" />
                   Participants ({participants.length})
@@ -1008,12 +1403,29 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
                           <p className="text-sm font-medium text-white">
                             {participantData.displayName}
                           </p>
-                          {participantData.isSpeaking && (
-                            <p className="text-xs text-green-400 flex items-center gap-1">
-                              <Volume2 className="w-3 h-3" />
-                              Speaking
-                            </p>
-                          )}
+                          <div className="flex items-center gap-2 mt-1">
+                            {participantData.isSpeaking && (
+                              <p className="text-xs text-green-400 flex items-center gap-1">
+                                <Volume2 className="w-3 h-3" />
+                                Speaking
+                              </p>
+                            )}
+                            {participantData.videoEnabled === false && (
+                              <Badge className="bg-red-500 text-white text-xs">
+                                Video Off
+                              </Badge>
+                            )}
+                            {participantData.audioEnabled === false && (
+                              <Badge className="bg-red-500 text-white text-xs">
+                                Muted
+                              </Badge>
+                            )}
+                            {participantData.screenSharing && (
+                              <Badge className="bg-blue-400 text-black text-xs">
+                                Screen Share
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </div>
                       
@@ -1061,8 +1473,13 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
 
           {/* Join Requests Panel */}
           {showJoinRequests && (
+<<<<<<< HEAD
             <div className="w-80 bg-black/70 backdrop-blur-sm border-l border-white/20 flex flex-col overflow-hidden">
               <div className="p-4 border-b border-white/20 flex-shrink-0">
+=======
+            <div className="w-80 bg-black/40 backdrop-blur-sm border-l border-white/20 flex flex-col">
+              <div className="p-4 border-b border-white/20">
+>>>>>>> afe276c9682e3ef78eda69faaf47c5956c44779a
                 <h3 className="text-lg font-semibold flex items-center gap-2 text-white">
                   <UserPlus className="w-5 h-5" />
                   Join Requests ({joinRequests.length})
@@ -1108,8 +1525,13 @@ export default function EnhancedTutorMeetingRoom({ token, serverUrl, onDisconnec
 
           {/* Real-time Alerts Panel */}
           {showAlerts && (
+<<<<<<< HEAD
             <div className="w-80 bg-black/70 backdrop-blur-sm border-l border-white/20 flex flex-col overflow-hidden">
               <div className="p-4 border-b border-white/20 flex-shrink-0">
+=======
+            <div className="w-80 bg-black/40 backdrop-blur-sm border-l border-white/20 flex flex-col">
+              <div className="p-4 border-b border-white/20">
+>>>>>>> afe276c9682e3ef78eda69faaf47c5956c44779a
                 <h3 className="text-lg font-semibold flex items-center gap-2 text-white">
                   <Bell className="w-5 h-5" />
                   Live Alerts ({liveAlerts.length})

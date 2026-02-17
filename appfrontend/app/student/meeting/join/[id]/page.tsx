@@ -5,6 +5,7 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import StreamlinedStudentMeeting from "@/components/StreamlinedStudentMeeting";
+import EnhancedStudentMeetingRoom from "@/components/StudentMeeting";
 
 export default function StudentMeetingJoinPage() {
   const params = useParams();
@@ -56,10 +57,10 @@ export default function StudentMeetingJoinPage() {
   // UI states
   if (isConnecting) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white font-['Inter'] flex items-center justify-center">
-        <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 text-center">
-          <div className="w-12 h-12 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-orange-800 font-medium">Connecting to meeting...</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 font-['Inter'] flex items-center justify-center">
+        <div className="bg-white/10 backdrop-blur-3xl rounded-3xl p-8 shadow-2xl border border-white/20 text-center">
+          <div className="w-12 h-12 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-blue-300 font-medium">Connecting to meeting...</p>
         </div>
       </div>
     );
@@ -67,12 +68,12 @@ export default function StudentMeetingJoinPage() {
 
   if (!token || !serverUrl) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white font-['Inter'] flex items-center justify-center">
-        <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 text-center">
-          <h2 className="text-xl font-semibold mb-4 text-orange-800">Connection Error</h2>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 font-['Inter'] flex items-center justify-center">
+        <div className="bg-white/10 backdrop-blur-3xl rounded-3xl p-8 shadow-2xl border border-white/20 text-center">
+          <h2 className="text-xl font-semibold mb-4 text-red-400">Connection Error</h2>
           <button 
             onClick={() => router.push("/student/meeting")}
-            className="bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold py-3 px-6 rounded-2xl shadow-[0_8px_30px_rgba(251,146,60,0.4)] hover:shadow-[0_12px_40px_rgba(251,146,60,0.5)] hover:scale-105 transition-all duration-300 drop-shadow-lg"
+            className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold py-3 px-6 rounded-2xl shadow-xl hover:scale-105 transition-all duration-300"
           >
             Return to Dashboard
           </button>
@@ -82,8 +83,8 @@ export default function StudentMeetingJoinPage() {
   }
 
   return (
-    <div className="h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white font-['Inter']">
-      <StreamlinedStudentMeeting
+    <div className="h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 font-['Inter']">
+      <EnhancedStudentMeetingRoom
         token={token}
         serverUrl={serverUrl}
         meetingId={meetingId}

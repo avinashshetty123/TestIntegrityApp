@@ -18,43 +18,101 @@ export class ProctoringService {
     const alerts: ProctoringAlert[] = [];
     const timestamp = new Date();
 
+    // Validate required fields
+    if (!data.meetingId || !data.participantId || !data.userId) {
+      console.warn('Missing required fields in analyzeFrame:', { 
+        meetingId: !!data.meetingId, 
+        participantId: !!data.participantId, 
+        userId: !!data.userId 
+      });
+      return {
+        alertsGenerated: 0,
+        alerts: [],
+        error: 'Missing required fields'
+      };
+    }
+
+    // Participant leaving - handle early
+    if (data.browserData?.participantLeft) {
+      const session = await this.sessionRepo.findOne({
+        where: { meetingId: data.meetingId, participantId: data.participantId }
+      });
+      
+      if (session) {
+        session.status = 'LEFT';
+        session.lastActivity = new Date();
+        await this.sessionRepo.save(session);
+        console.log(`👋 Participant ${data.participantId} left meeting ${data.meetingId}`);
+      }
+      
+      return {
+        alertsGenerated: 0,
+        alerts: []
+      };
+    }
+
+    // Initialize detections if not provided
+    const detections = data.detections || {};
+    const browserData = data.browserData || {};
+
     // Face detection alerts
-    if (data.detections.faceCount === 0) {
+    if (detections.faceCount === 0) {
       alerts.push(this.createAlert(data, 'NO_FACE', 'No face detected', 0.8, 'MEDIUM'));
-    } else if (data.detections.faceCount && data.detections.faceCount > 1) {
-      alerts.push(this.createAlert(data, 'MULTIPLE_FACES', `${data.detections.faceCount} faces detected`, 0.9, 'HIGH'));
+    } else if (detections.faceCount && detections.faceCount > 1) {
+      alerts.push(this.createAlert(data, 'MULTIPLE_FACES', `${detections.faceCount} faces detected`, 0.9, 'HIGH'));
     }
 
     // Phone detection
-    if (data.detections.phoneDetected) {
+    if (detections.phoneDetected) {
       alerts.push(this.createAlert(data, 'PHONE_DETECTED', 'Mobile phone detected in frame', 0.85, 'HIGH'));
     }
 
     // Browser behavior
-    if (data.browserData?.tabSwitch) {
+    if (browserData.tabSwitch) {
       alerts.push(this.createAlert(data, 'TAB_SWITCH', 'Tab switching detected', 0.7, 'MEDIUM'));
     }
 
-    if (data.browserData?.windowSwitch) {
+    if (browserData.windowSwitch) {
       alerts.push(this.createAlert(data, 'WINDOW_SWITCH', 'Window switching detected', 0.8, 'HIGH'));
     }
 
-    if (data.browserData?.copyPaste) {
+    if (browserData.copyPaste) {
       alerts.push(this.createAlert(data, 'COPY_PASTE', 'Copy/paste activity detected', 0.6, 'MEDIUM'));
     }
 
     // Suspicious behavior
-    if (data.detections.suspiciousBehavior) {
+    if (detections.suspiciousBehavior) {
       alerts.push(this.createAlert(data, 'SUSPICIOUS_BEHAVIOR', 'Suspicious behavior detected', 0.7, 'MEDIUM'));
+    }
+
+    // Automated detection from frontend
+    if (browserData.automatedDetection) {
+      const alertType = browserData.alertType || 'AUTOMATED_DETECTION';
+      const description = browserData.description || 'Automated detection triggered';
+      const confidence = browserData.confidence || 0.7;
+      const severity = browserData.severity || 'MEDIUM';
+      
+      alerts.push(this.createAlert(data, alertType, description, confidence, severity));
     }
 
     // Save alerts to database
     if (alerts.length > 0) {
-      await this.alertRepo.save(alerts);
+      try {
+        await this.alertRepo.save(alerts);
+        console.log(`🚨 Saved ${alerts.length} alerts for participant ${data.participantId}`);
+      } catch (error) {
+        console.error('Failed to save alerts:', error);
+      }
     }
 
     // Update session
-    await this.updateSession(data.meetingId, data.participantId, alerts.length);
+    if (data.participantId) {
+      try {
+        await this.updateSession(data.meetingId, data.participantId, alerts.length);
+      } catch (error) {
+        console.error('Failed to update session:', error);
+      }
+    }
 
     return {
       alertsGenerated: alerts.length,
@@ -81,6 +139,67 @@ export class ProctoringService {
     });
   }
 
+  async createSession(data: {
+    meetingId: string;
+    participantId: string;
+    userId: string;
+    studentName?: string;
+    startedAt: string;
+  }) {
+    // Check if session already exists
+    let session = await this.sessionRepo.findOne({
+      where: { meetingId: data.meetingId, participantId: data.participantId }
+    });
+
+    if (!session) {
+      session = this.sessionRepo.create({
+        meetingId: data.meetingId,
+        participantId: data.participantId,
+        userId: data.userId,
+        studentName: data.studentName,
+        startedAt: new Date(data.startedAt),
+        totalAlerts: 0,
+        lastActivity: new Date(),
+        status: 'ACTIVE'
+      });
+      
+      await this.sessionRepo.save(session);
+      console.log(`✅ Created proctoring session for ${data.studentName || data.participantId}`);
+    } else {
+      session.lastActivity = new Date();
+      session.status = 'ACTIVE';
+      await this.sessionRepo.save(session);
+      console.log(`🔄 Updated existing session for ${data.studentName || data.participantId}`);
+    }
+
+    return {
+      id: session.id,
+      sessionId: session.id,
+      status: 'created',
+      participantId: data.participantId,
+      meetingId: data.meetingId
+    };
+  }
+
+  async getSessionParticipants(meetingId: string) {
+    const sessions = await this.sessionRepo.find({
+      where: { meetingId },
+      order: { startedAt: 'DESC' }
+    });
+
+    return sessions.map(session => ({
+      participantId: session.participantId,
+      userId: session.userId,
+      studentName: session.studentName,
+      joinedAt: session.startedAt,
+      lastActivity: session.lastActivity,
+      totalAlerts: session.totalAlerts || 0,
+      status: session.status || 'ACTIVE',
+      duration: session.lastActivity ? 
+        Math.floor((session.lastActivity.getTime() - session.startedAt.getTime()) / 1000) : 0
+    }));
+  }
+
   async updateSession(meetingId: string, participantId: string, newAlerts: number) {
     let session = await this.sessionRepo.findOne({
       where: { meetingId, participantId }
@@ -92,7 +211,8 @@ export class ProctoringService {
         participantId,
         startedAt: new Date(),
         totalAlerts: newAlerts,
-        lastActivity: new Date()
+        lastActivity: new Date(),
+        status: 'ACTIVE'
       });
     } else {
       session.totalAlerts = (session.totalAlerts || 0) + newAlerts;
@@ -238,6 +358,8 @@ export class ProctoringService {
       this.sessionRepo.find({ where: { meetingId } })
     ]);
 
+    console.log(`📊 Generating report for meeting ${meetingId}: ${sessions.length} sessions, ${alerts.length} alerts`);
+
     const participantReports = sessions.map(session => {
       const participantAlerts = alerts.filter(alert => alert.participantId === session.participantId);
       
@@ -251,7 +373,7 @@ export class ProctoringService {
       return {
         userId: session.participantId,
         studentInfo: {
-          name: `Student ${session.participantId}`,
+          name: session.studentName || `Student ${session.participantId}`,
           email: `${session.participantId}@example.com`
         },
         totalAlerts: participantAlerts.length,
@@ -271,28 +393,38 @@ export class ProctoringService {
     const mostCommonAlert = this.getMostCommonAlert(alerts);
     const averageRiskScore = participantReports.reduce((sum, p) => sum + p.riskScore, 0) / participantReports.length || 0;
 
+    // Calculate actual meeting duration
+    const startTimes = sessions.map(s => s.startedAt.getTime());
+    const endTimes = sessions.map(s => s.lastActivity?.getTime() || Date.now());
+    const meetingStart = Math.min(...startTimes);
+    const meetingEnd = Math.max(...endTimes);
+    const actualDuration = Math.floor((meetingEnd - meetingStart) / 1000);
+
     return {
       meeting: {
         id: meetingId,
         title: `Meeting ${meetingId}`,
         description: 'Proctored meeting session',
-        status: 'ENDED',
-        subject: 'General'
+        status: sessions.some(s => s.status === 'ACTIVE') ? 'LIVE' : 'ENDED',
+        subject: 'General',
+        startedAt: sessions.length > 0 ? new Date(meetingStart).toISOString() : null,
+        endedAt: sessions.every(s => s.status !== 'ACTIVE') ? new Date(meetingEnd).toISOString() : null
       },
       participants: {
         total: sessions.length,
         joined: sessions.length,
-        left: sessions.length,
+        left: sessions.filter(s => s.status !== 'ACTIVE').length,
         participants: sessions.map(session => {
           const participantAlerts = alerts.filter(alert => alert.participantId === session.participantId);
           return {
             userId: session.participantId,
-            name: `Student ${session.participantId}`,
+            name: session.studentName || `Student ${session.participantId}`,
             email: `${session.participantId}@example.com`,
-            status: 'LEFT',
+            status: session.status || 'LEFT',
             joinedAt: session.startedAt.toISOString(),
             leftAt: session.lastActivity?.toISOString(),
-            duration: 3600, // 1 hour default
+            duration: session.lastActivity ? 
+              Math.floor((session.lastActivity.getTime() - session.startedAt.getTime()) / 1000) : 0,
             alertCount: participantAlerts.length,
             riskLevel: this.getRiskLevel(participantAlerts.length),
             riskScore: this.calculateRiskScore(participantAlerts),
@@ -329,11 +461,11 @@ export class ProctoringService {
       statistics: {
         totalParticipants: sessions.length,
         totalAlerts: alerts.length,
-        averageAlertsPerParticipant: alerts.length / sessions.length || 0,
+        averageAlertsPerParticipant: sessions.length > 0 ? alerts.length / sessions.length : 0,
         riskDistribution: this.getRiskDistribution(participantReports),
         alertTypeDistribution: this.getAlertTypeDistribution(alerts),
         participationRate: 100,
-        averageSessionDuration: 3600
+        averageSessionDuration: actualDuration
       }
     };
   }

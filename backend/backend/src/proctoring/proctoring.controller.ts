@@ -1,16 +1,30 @@
-import { Controller, Post, Get, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param } from '@nestjs/common';
 import { ProctoringService } from './proctoring.service';
 import type { AnalyzeFrameDto } from './dto/analyze-frame.dto';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('proctoring')
-@UseGuards(JwtAuthGuard)
 export class ProctoringController {
   constructor(private readonly proctoringService: ProctoringService) {}
 
   @Post('analyze-frame')
   async analyzeFrame(@Body() data: AnalyzeFrameDto) {
     return this.proctoringService.analyzeFrame(data);
+  }
+
+  @Post('session/create')
+  async createSession(@Body() data: {
+    meetingId: string;
+    participantId: string;
+    userId: string;
+    studentName?: string;
+    startedAt: string;
+  }) {
+    return this.proctoringService.createSession(data);
+  }
+
+  @Get('session/:meetingId/participants')
+  async getSessionParticipants(@Param('meetingId') meetingId: string) {
+    return this.proctoringService.getSessionParticipants(meetingId);
   }
 
   @Post('browser-activity')
@@ -98,5 +112,10 @@ export class ProctoringController {
     @Param('participantId') participantId: string
   ) {
     return this.proctoringService.getParticipantDetailedReport(meetingId, participantId);
+  }
+
+  @Get('meeting/:meetingId/alerts-detailed')
+  async getAlertsDetailed(@Param('meetingId') meetingId: string) {
+    return this.proctoringService.getAlertsWithParticipantDetails(meetingId);
   }
 }
