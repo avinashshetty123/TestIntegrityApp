@@ -1,135 +1,563 @@
+import base64
 import json
 import sys
 import time
-import base64
-import numpy as np
+import urllib.request
+from collections import deque
+
 import cv2
+import numpy as np
+
 
 class SimpleProctoringAnalyzer:
     def __init__(self):
-        print("Simple Proctoring Analyzer initialized (basic mode)")
-        self.face_cascade = None
-        try:
-            # Try to load OpenCV face cascade
-            self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-            print("✅ Face detection loaded")
-        except Exception as e:
-            print(f"⚠️ Face detection not available: {e}")
+        print("Initializing Simple Proctoring Analyzer...", file=sys.stderr)
 
-    def decode_base64_image(self, base64_string):
-        """Convert base64 string to OpenCV image"""
+        self.face_cascade = cv2.CascadeClassifier(
+            cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+        )
+        self.face_profile_cascade = cv2.CascadeClassifier(
+            cv2.data.haarcascades + "haarcascade_profileface.xml"
+        )
+        self.eye_cascade = cv2.CascadeClassifier(
+            cv2.data.haarcascades + "haarcascade_eye.xml"
+        )
+        self.upper_body_cascade = cv2.CascadeClassifier(
+            cv2.data.haarcascades + "haarcascade_upperbody.xml"
+        )
+
+        # ── Identity ──────────────────────────────────────────────────────
+        self.reference_face_signature = None
+        self.reference_user_id = None
+        self.identity_similarity_threshold = 0.40
+        self.identity_alerted_at = 0.0
+        self.identity_alert_cooldown = 60.0
+
+        # ── No face ───────────────────────────────────────────────────────
+        # Must be absent for 10s continuously before first alert
+        # Then 30s cooldown before next alert
+        self.no_face_start = None
+        self.no_face_threshold = 10.0
+        self.no_face_alerted_at = 0.0
+        self.no_face_cooldown = 30.0
+
+        # ── Multiple faces ────────────────────────────────────────────────
+        # Must persist for 5s continuously before alerting, 45s cooldown
+        self.multi_face_start = None
+        self.multi_face_threshold = 5.0
+        self.multi_face_alerted_at = 0.0
+        self.multi_face_cooldown = 45.0
+
+        # ── Gaze deviation ────────────────────────────────────────────────
+        # Must look away for 8s continuously, 20s cooldown
+        self.gaze_away_start = None
+        self.gaze_away_threshold = 8.0
+        self.gaze_alerted_at = 0.0
+        self.gaze_alert_cooldown = 20.0
+
+        # ── Phone detection ───────────────────────────────────────────────
+        # Must appear in 5 consecutive frames, 60s cooldown
+        self.phone_consecutive = 0
+        self.phone_consecutive_threshold = 5
+        self.phone_alerted_at = 0.0
+        self.phone_alert_cooldown = 60.0
+
+        # ── Audio / speech ────────────────────────────────────────────────
+        self.audio_history = deque(maxlen=30)
+        self.speech_start = None
+        self.speech_threshold = 0.09
+        self.speech_duration_threshold = 8.0
+        self.speech_alerted_at = 0.0
+        self.speech_alert_cooldown = 45.0
+
+        print("Simple proctoring analyzer ready", file=sys.stderr)
+
+    # ── Helpers ───────────────────────────────────────────────────────────
+
+    def _iso(self):
+        return time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()) + "Z"
+
+    def decode_image(self, b64: str):
         try:
-            if ',' in base64_string:
-                base64_string = base64_string.split(',')[1]
-            
-            img_data = base64.b64decode(base64_string)
-            nparr = np.frombuffer(img_data, np.uint8)
-            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            if b64.startswith("http://") or b64.startswith("https://"):
+                with urllib.request.urlopen(b64, timeout=5) as r:
+                    data = r.read()
+                arr = np.frombuffer(data, np.uint8)
+                img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+            else:
+                if "," in b64:
+                    b64 = b64.split(",")[1]
+                b64 += "=" * (-len(b64) % 4)
+                data = base64.b64decode(b64)
+                arr = np.frombuffer(data, np.uint8)
+                img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+
+            if img is None:
+                return None
+
+            h, w = img.shape[:2]
+            if w < 640:
+                scale = 640.0 / w
+                img = cv2.resize(img, (int(w * scale), int(h * scale)),
+                                 interpolation=cv2.INTER_LINEAR)
             return img
-        except Exception as e:
-            print(f"Error decoding image: {e}")
+        except Exception as exc:
+            print(f"Image decode error: {exc}", file=sys.stderr)
             return None
 
-    def analyze_frame(self, frame_data):
-        """Basic frame analysis without advanced AI"""
+    def _gray_clahe(self, image):
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        return clahe.apply(gray)
+
+    def _gray_eq(self, image):
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        return cv2.equalizeHist(gray)
+
+    # ── Face detection ────────────────────────────────────────────────────
+
+    def detect_faces(self, image):
+        """
+        Dual-pass frontal + profile detection.
+        minNeighbors=4, minSize=60px — works at normal webcam distance.
+        Returns (faces_list, body_detected).
+        """
+        gc = self._gray_clahe(image)
+        ge = self._gray_eq(image)
+        faces = []
+
+        for gray in (gc, ge):
+            found = self.face_cascade.detectMultiScale(
+                gray, scaleFactor=1.05, minNeighbors=4,
+                minSize=(60, 60), flags=cv2.CASCADE_SCALE_IMAGE
+            )
+            if len(found) > 0:
+                faces = found.tolist()
+                break
+
+        # Profile fallback
+        if not faces and not self.face_profile_cascade.empty():
+            for gray in (gc, ge):
+                found = self.face_profile_cascade.detectMultiScale(
+                    gray, scaleFactor=1.05, minNeighbors=4, minSize=(60, 60)
+                )
+                if len(found) > 0:
+                    faces = found.tolist()
+                    break
+                flipped = cv2.flip(gray, 1)
+                found = self.face_profile_cascade.detectMultiScale(
+                    flipped, scaleFactor=1.05, minNeighbors=4, minSize=(60, 60)
+                )
+                if len(found) > 0:
+                    faces = found.tolist()
+                    break
+
+        # Deduplicate (IoU > 0.4)
+        unique = []
+        for f in faces:
+            fx, fy, fw, fh = f
+            dup = False
+            for uf in unique:
+                ux, uy, uw, uh = uf
+                ox = max(0, min(fx + fw, ux + uw) - max(fx, ux))
+                oy = max(0, min(fy + fh, uy + uh) - max(fy, uy))
+                if ox * oy / max(fw * fh, 1) > 0.4:
+                    dup = True
+                    break
+            if not dup:
+                unique.append(f)
+
+        body_detected = False
+        if not unique and not self.upper_body_cascade.empty():
+            bodies = self.upper_body_cascade.detectMultiScale(
+                gc, scaleFactor=1.05, minNeighbors=3, minSize=(60, 60)
+            )
+            body_detected = len(bodies) > 0
+
+        return unique, body_detected
+
+    # ── Gaze ──────────────────────────────────────────────────────────────
+
+    def check_gaze_away(self, image, face_rect):
+        """
+        Returns True if the student is clearly looking away.
+        Uses eye position within face ROI — if no eyes found OR
+        eyes are very far to one side, treat as looking away.
+        """
         try:
-            image = self.decode_base64_image(frame_data['imageData'])
+            gc = self._gray_clahe(image)
+            fx, fy, fw, fh = face_rect
+            # Only look at top 55% of face for eyes
+            roi = gc[fy: fy + int(fh * 0.55), fx: fx + fw]
+            eyes = self.eye_cascade.detectMultiScale(
+                roi, scaleFactor=1.1, minNeighbors=3, minSize=(15, 15)
+            )
+            if len(eyes) == 0:
+                # No eyes detected inside face — likely looking away or down
+                return True
+            # Check if all detected eyes are heavily off-center
+            for ex, ey, ew, eh in eyes:
+                cx = (ex + ew / 2) / fw
+                if 0.15 < cx < 0.85:
+                    return False  # at least one eye is centered — looking at screen
+            return True  # all eyes off-center
+        except Exception:
+            return False
+
+    # ── Phone detection ───────────────────────────────────────────────────
+
+    def detect_phone(self, image):
+        """
+        Detects a phone-shaped bright rectangle in the frame.
+        Uses contour shape + aspect ratio + relative size.
+        No glow gate — glow was too restrictive in normal lighting.
+        """
+        try:
+            h, w = image.shape[:2]
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+
+            # Adaptive threshold works better than Canny for phone screens
+            thresh = cv2.adaptiveThreshold(
+                blurred, 255,
+                cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                cv2.THRESH_BINARY, 11, 2
+            )
+            # Also try Canny
+            edges = cv2.Canny(blurred, 30, 100)
+            combined = cv2.bitwise_or(thresh, edges)
+
+            contours, _ = cv2.findContours(
+                combined, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+            )
+
+            frame_area = h * w
+            for cnt in contours:
+                area = cv2.contourArea(cnt)
+                # Phone: 1.5%–20% of frame area
+                if area < frame_area * 0.015 or area > frame_area * 0.20:
+                    continue
+                peri = cv2.arcLength(cnt, True)
+                approx = cv2.approxPolyDP(cnt, 0.03 * peri, True)
+                if len(approx) == 4:
+                    x, y, cw, ch = cv2.boundingRect(approx)
+                    long_side = max(cw, ch)
+                    short_side = max(min(cw, ch), 1)
+                    aspect = long_side / short_side
+                    # Phone portrait/landscape: 1.5–2.5 aspect ratio
+                    if 1.5 < aspect < 2.5:
+                        # Must not be the whole frame (not a monitor)
+                        if cw < w * 0.85 and ch < h * 0.85:
+                            print(f"[PY] Phone candidate: area={area:.0f} aspect={aspect:.2f} rect={cw}x{ch}", file=sys.stderr)
+                            return True
+        except Exception as exc:
+            print(f"Phone detect error: {exc}", file=sys.stderr)
+        return False
+
+    # ── Identity ──────────────────────────────────────────────────────────
+
+    def _extract_face_signature(self, image):
+        gc = self._gray_clahe(image)
+        ge = self._gray_eq(image)
+        faces = []
+        for gray in (gc, ge):
+            found = self.face_cascade.detectMultiScale(
+                gray, scaleFactor=1.05, minNeighbors=4,
+                minSize=(60, 60), flags=cv2.CASCADE_SCALE_IMAGE
+            )
+            if len(found) > 0:
+                faces = found
+                break
+        if len(faces) == 0:
+            return None
+        x, y, w, h = max(faces, key=lambda f: f[2] * f[3])
+        roi = gc[y: y + h, x: x + w]
+        roi = cv2.resize(roi, (96, 96))
+        hist = cv2.calcHist([roi], [0], None, [32], [0, 256]).flatten()
+        hist = cv2.normalize(hist, hist).flatten()
+        edges = cv2.Canny(roi, 80, 160)
+        edge_hist = cv2.calcHist([edges], [0], None, [16], [0, 256]).flatten()
+        edge_hist = cv2.normalize(edge_hist, edge_hist).flatten()
+        return np.concatenate([hist, edge_hist]), faces
+
+    def load_reference_face(self, image_b64, user_id):
+        image = self.decode_image(image_b64)
+        if image is None:
+            return False
+        result = self._extract_face_signature(image)
+        if result is None:
+            return False
+        self.reference_face_signature = result[0]
+        self.reference_user_id = user_id
+        print(f"Reference face loaded for {user_id}", file=sys.stderr)
+        return True
+
+    def compare_identity(self, image):
+        if self.reference_face_signature is None:
+            return None
+        result = self._extract_face_signature(image)
+        if result is None:
+            return None
+        signature, faces = result
+        similarity = float(cv2.compareHist(
+            self.reference_face_signature.astype(np.float32),
+            signature.astype(np.float32),
+            cv2.HISTCMP_CORREL,
+        ))
+        similarity = max(0.0, min(1.0, similarity))
+        return {
+            "similarity": similarity,
+            "matches": similarity >= self.identity_similarity_threshold,
+        }
+
+    # ── Audio ─────────────────────────────────────────────────────────────
+
+    def analyze_audio(self, energy, now):
+        alerts = []
+        self.audio_history.append(energy)
+        if energy > self.speech_threshold:
+            if self.speech_start is None:
+                self.speech_start = now
+            elif (
+                now - self.speech_start > self.speech_duration_threshold
+                and now - self.speech_alerted_at > self.speech_alert_cooldown
+            ):
+                alerts.append({
+                    "alertType": "SUSTAINED_SPEECH",
+                    "description": f"Continuous speech detected for {int(now - self.speech_start)}s — possible communication with others",
+                    "confidence": 0.74,
+                    "severity": "MEDIUM",
+                    "timestamp": self._iso(),
+                })
+                self.speech_alerted_at = now
+                self.speech_start = now  # reset so it doesn't re-fire immediately
+        else:
+            self.speech_start = None
+        return alerts
+
+    # ── Main analysis ─────────────────────────────────────────────────────
+
+    def analyze_frame(self, frame_data):
+        try:
+            raw = frame_data.get("imageData", "")
+            print(f"[PY] analyze_frame: len={len(raw)}", file=sys.stderr)
+            image = self.decode_image(raw)
             if image is None:
-                return {'alerts': [], 'faceDetected': False}
-            
+                print("[PY] decode_image returned None!", file=sys.stderr)
+                return {"alerts": [], "faceDetected": False, "faceCount": 0}
+            print(f"[PY] decoded image shape={image.shape}", file=sys.stderr)
+
             alerts = []
-            face_count = 0
-            
-            # Basic face detection if available
-            if self.face_cascade is not None:
-                gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-                faces = self.face_cascade.detectMultiScale(gray, 1.1, 4)
-                face_count = len(faces)
-                
-                if face_count == 0:
-                    alerts.append({
-                        'alertType': 'NO_FACE',
-                        'description': 'No face detected in frame',
-                        'confidence': 0.8,
-                        'severity': 'MEDIUM'
-                    })
-                elif face_count > 1:
-                    alerts.append({
-                        'alertType': 'MULTIPLE_FACES',
-                        'description': f'{face_count} faces detected',
-                        'confidence': 0.9,
-                        'severity': 'HIGH'
-                    })
+            now = time.time()
+
+            faces, body_detected = self.detect_faces(image)
+            face_count = len(faces)
+            print(f"[PY] detect_faces: face_count={face_count} body={body_detected}", file=sys.stderr)
+
+            # ── No face ───────────────────────────────────────────────────
+            # Timer starts when face disappears; alert fires after 10s absence
+            if face_count == 0:
+                if self.no_face_start is None:
+                    self.no_face_start = now
+                    print(f"[PY] No face timer started", file=sys.stderr)
                 else:
+                    absent_for = now - self.no_face_start
+                    print(f"[PY] No face for {absent_for:.1f}s / threshold={self.no_face_threshold}s", file=sys.stderr)
+                    if (
+                        absent_for >= self.no_face_threshold
+                        and now - self.no_face_alerted_at > self.no_face_cooldown
+                    ):
+                        desc = "Face not visible — please look at the camera" if body_detected else "No face detected in frame for over 10 seconds"
+                        alerts.append({
+                            "alertType": "NO_FACE",
+                            "description": desc,
+                            "confidence": 0.85,
+                            "severity": "MEDIUM",
+                            "timestamp": self._iso(),
+                        })
+                        self.no_face_alerted_at = now
+            else:
+                if self.no_face_start is not None:
+                    print(f"[PY] Face returned after {now - self.no_face_start:.1f}s", file=sys.stderr)
+                self.no_face_start = None
+
+            # ── Multiple faces ────────────────────────────────────────────
+            # Timer starts when >1 face appears; alert fires after 5s
+            if face_count > 1:
+                if self.multi_face_start is None:
+                    self.multi_face_start = now
+                    print(f"[PY] Multiple faces timer started", file=sys.stderr)
+                else:
+                    present_for = now - self.multi_face_start
+                    print(f"[PY] Multiple faces for {present_for:.1f}s / threshold={self.multi_face_threshold}s", file=sys.stderr)
+                    if (
+                        present_for >= self.multi_face_threshold
+                        and now - self.multi_face_alerted_at > self.multi_face_cooldown
+                    ):
+                        alerts.append({
+                            "alertType": "MULTIPLE_FACES",
+                            "description": f"{face_count} faces detected for over 5 seconds — another person may be assisting",
+                            "confidence": 0.88,
+                            "severity": "HIGH",
+                            "timestamp": self._iso(),
+                        })
+                        self.multi_face_alerted_at = now
+                        self.multi_face_start = now  # reset timer after alert
+            else:
+                self.multi_face_start = None
+
+            # ── Gaze deviation ────────────────────────────────────────────
+            # Only check when exactly 1 face present
+            # Timer starts when looking away; alert fires after 8s
+            if face_count == 1:
+                looking_away = self.check_gaze_away(image, faces[0])
+                print(f"[PY] gaze_away={looking_away}", file=sys.stderr)
+                if looking_away:
+                    if self.gaze_away_start is None:
+                        self.gaze_away_start = now
+                    else:
+                        away_for = now - self.gaze_away_start
+                        print(f"[PY] Gaze away for {away_for:.1f}s / threshold={self.gaze_away_threshold}s", file=sys.stderr)
+                        if (
+                            away_for >= self.gaze_away_threshold
+                            and now - self.gaze_alerted_at > self.gaze_alert_cooldown
+                        ):
+                            alerts.append({
+                                "alertType": "GAZE_DEVIATION",
+                                "description": "Student has been looking away from the screen for over 8 seconds",
+                                "confidence": 0.70,
+                                "severity": "LOW",
+                                "timestamp": self._iso(),
+                            })
+                            self.gaze_alerted_at = now
+                            self.gaze_away_start = now  # reset after alert
+                else:
+                    self.gaze_away_start = None
+            else:
+                self.gaze_away_start = None
+
+            # ── Phone detection ───────────────────────────────────────────
+            # Requires 5 consecutive frames to avoid false positives
+            if self.detect_phone(image):
+                self.phone_consecutive += 1
+                print(f"[PY] Phone consecutive={self.phone_consecutive}/{self.phone_consecutive_threshold}", file=sys.stderr)
+                if (
+                    self.phone_consecutive >= self.phone_consecutive_threshold
+                    and now - self.phone_alerted_at > self.phone_alert_cooldown
+                ):
                     alerts.append({
-                        'alertType': 'FACE_DETECTED',
-                        'description': 'Face detected successfully',
-                        'confidence': 0.8,
-                        'severity': 'LOW'
+                        "alertType": "PHONE_DETECTED",
+                        "description": "Mobile phone detected in frame — please remove unauthorized devices",
+                        "confidence": 0.75,
+                        "severity": "HIGH",
+                        "timestamp": self._iso(),
                     })
-            
+                    self.phone_alerted_at = now
+                    self.phone_consecutive = 0
+            else:
+                self.phone_consecutive = max(0, self.phone_consecutive - 1)
+
+            # ── Identity check ────────────────────────────────────────────
+            identity_result = self.compare_identity(image)
+            identity_verified = None
+            identity_similarity = None
+            if identity_result is not None:
+                identity_similarity = identity_result["similarity"]
+                identity_verified = identity_result["matches"]
+                if (
+                    not identity_result["matches"]
+                    and now - self.identity_alerted_at > self.identity_alert_cooldown
+                ):
+                    alerts.append({
+                        "alertType": "IDENTITY_MISMATCH",
+                        "description": f"Face does not match registered student (similarity {identity_similarity:.0%})",
+                        "confidence": round(1 - identity_similarity, 2),
+                        "severity": "HIGH",
+                        "timestamp": self._iso(),
+                    })
+                    self.identity_alerted_at = now
+
+            # ── Audio ─────────────────────────────────────────────────────
+            audio_energy = frame_data.get("audioEnergy")
+            if audio_energy is not None:
+                alerts.extend(self.analyze_audio(float(audio_energy), now))
+
+            print(f"[PY] RESULT: faceDetected={face_count > 0} alerts={len(alerts)}", file=sys.stderr)
             return {
-                'alerts': alerts,
-                'faceDetected': face_count > 0,
-                'faceCount': face_count,
-                'identityVerified': False,
-                'identityMatches': 0,
-                'objectsDetected': [],
-                'timestamp': time.time(),
-                'processingTime': time.time(),
-                'mode': 'basic'
+                "alerts": alerts,
+                "faceDetected": face_count > 0,
+                "faceCount": face_count,
+                "bodyDetected": body_detected,
+                "identityVerified": identity_verified,
+                "identitySimilarity": identity_similarity,
+                "timestamp": self._iso(),
+                "mode": "simple",
             }
-            
-        except Exception as e:
-            print(f"Error in frame analysis: {e}")
-            return {'alerts': [], 'faceDetected': False, 'error': str(e)}
+        except Exception as exc:
+            print(f"Frame analysis error: {exc}", file=sys.stderr)
+            return {"alerts": [], "faceDetected": False, "faceCount": 0}
+
 
 def main():
     analyzer = SimpleProctoringAnalyzer()
-    print("Simple Python proctoring worker started. Waiting for frames...")
-    
-    try:
-        for line in sys.stdin:
-            try:
-                data = json.loads(line.strip())
-                
-                if data.get('type') == 'VIDEO_FRAME':
-                    frame_data = data.get('data', {})
-                    analysis_result = analyzer.analyze_frame(frame_data)
-                    
-                    # Add metadata
-                    analysis_result.update({
-                        'meetingId': frame_data.get('meetingId'),
-                        'userId': frame_data.get('userId'),
-                        'participantId': frame_data.get('participantId'),
-                        'frameTimestamp': frame_data.get('timestamp')
-                    })
-                    
-                    print(json.dumps(analysis_result))
-                    sys.stdout.flush()
-                
-                elif data.get('type') == 'START_PROCESSING':
-                    print(json.dumps({
-                        'status': 'PROCESSING_STARTED',
-                        'mode': 'basic',
-                        'timestamp': time.time()
-                    }))
-                    sys.stdout.flush()
-                
-                elif data.get('type') == 'STOP_PROCESSING':
-                    print(json.dumps({
-                        'status': 'PROCESSING_STOPPED',
-                        'timestamp': time.time()
-                    }))
-                    sys.stdout.flush()
-                    
-            except json.JSONDecodeError as e:
-                print(f"JSON decode error: {e}", file=sys.stderr)
-            except Exception as e:
-                print(f"Processing error: {e}", file=sys.stderr)
-                
-    except KeyboardInterrupt:
-        print("Simple Python worker shutting down...", file=sys.stderr)
+    print(json.dumps({
+        "status": "READY",
+        "mode": "simple",
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }))
+    sys.stdout.flush()
+
+    for line in sys.stdin:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            data = json.loads(line)
+            msg_type = data.get("type")
+
+            if msg_type == "VIDEO_FRAME":
+                frame_data = data.get("data", {})
+                result = analyzer.analyze_frame(frame_data)
+                result.update({
+                    "meetingId": frame_data.get("meetingId"),
+                    "userId": frame_data.get("userId"),
+                    "participantId": frame_data.get("participantId"),
+                })
+                print(json.dumps(result))
+                sys.stdout.flush()
+
+            elif msg_type == "LOAD_REFERENCE_FACE":
+                success = analyzer.load_reference_face(
+                    data.get("imageUrl", ""),
+                    data.get("userId"),
+                )
+                print(json.dumps({
+                    "status": "REFERENCE_FACE_LOADED",
+                    "success": success,
+                    "userId": data.get("userId"),
+                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                }))
+                sys.stdout.flush()
+
+            elif msg_type == "START_PROCESSING":
+                print(json.dumps({
+                    "status": "PROCESSING_STARTED",
+                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                }))
+                sys.stdout.flush()
+
+            elif msg_type == "STOP_PROCESSING":
+                print(json.dumps({
+                    "status": "PROCESSING_STOPPED",
+                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                }))
+                sys.stdout.flush()
+
+        except json.JSONDecodeError as exc:
+            print(f"JSON decode error: {exc}", file=sys.stderr)
+        except Exception as exc:
+            print(f"Processing error: {exc}", file=sys.stderr)
+
 
 if __name__ == "__main__":
     main()

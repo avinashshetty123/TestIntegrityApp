@@ -1,6 +1,6 @@
 # 🛡️ TestIntegrity - AI-Powered Online Proctoring Platform
 
-![TestIntegrity Banner](https://user-images.githubusercontent.com/yourusername/banner.png)  
+![TestIntegrity Banner](https://api.deepai.org/job-view-file/eadf7d9a-888e-4ae2-9302-58891a7fa4db/outputs/output.jpg)
 
 TestIntegrity is a cutting-edge **online examination proctoring system** designed to ensure academic integrity. Leveraging **AI, computer vision, and deepfake detection**, it provides a secure and seamless testing environment with real-time monitoring.
 
@@ -9,11 +9,13 @@ TestIntegrity is a cutting-edge **online examination proctoring system** designe
 ## 🚀 Features
 
 ### 1. **Real-Time Video Call**
+
 - Fully integrated **video conferencing** for live exams and interviews.
 - Supports **multi-participant sessions** with minimal latency.
 - Real-time **audio/video streaming** for remote proctoring.
 
 ### 2. **AI-Based Cheating Detection**
+
 - Monitors participant behavior during exams.
 - Detects:
   - **Deepfake or synthetic faces**
@@ -22,6 +24,7 @@ TestIntegrity is a cutting-edge **online examination proctoring system** designe
 - Alerts proctors if **potential cheating** is detected.
 
 ### 3. **Eye Tracking**
+
 - Tracks **eye movement** to detect where the candidate is looking.
 - Identifies if the participant is looking at:
   - Off-screen distractions
@@ -29,6 +32,7 @@ TestIntegrity is a cutting-edge **online examination proctoring system** designe
 - Heatmaps generated for analysis of attention span.
 
 ### 4. **Test Analysis**
+
 - Automatically records and analyzes test sessions.
 - Metrics include:
   - **Time spent per question**
@@ -37,16 +41,19 @@ TestIntegrity is a cutting-edge **online examination proctoring system** designe
 - Generates **comprehensive reports** post-exam.
 
 ### 5. **Device & Environment Monitoring**
+
 - Detects visible **mobile phones** or other electronic devices.
 - Monitors **screen changes** and tab activity.
 - Uses **computer vision** to ensure the participant remains compliant.
 
 ### 6. **Secure Architecture**
+
 - **End-to-end encrypted video and audio**.
 - Cloud or self-hosted **server deployment**.
 - Supports **scalable real-time communication** using LiveKit or WebRTC.
 
 ### 7. **Recording & Playback**
+
 - Full **session recording** for auditing purposes.
 - Exportable **video + analysis logs** for examiners.
 - Supports **automatic archiving** of suspicious activity clips.
@@ -55,15 +62,15 @@ TestIntegrity is a cutting-edge **online examination proctoring system** designe
 
 ## 🖥️ Technology Stack
 
-| Component                     | Technology / Library                     |
-|-------------------------------|-----------------------------------------|
-| Frontend                       | React.js, Next.js                        |
-| Backend                        | Python, NestJS                           |
-| Real-Time Communication         | LiveKit, WebRTC                           |
-| Video & Eye Tracking            | OpenCV, Mediapipe                        |
-| AI Detection                    | TensorFlow, PyTorch, Deepfake detection |
-| Database                        | PostgreSQL / MongoDB                      |
-| Deployment                      | Docker, Docker Compose                    |
+| Component               | Technology / Library                    |
+| ----------------------- | --------------------------------------- |
+| Frontend                | React.js, Next.js                       |
+| Backend                 | Python, NestJS                          |
+| Real-Time Communication | LiveKit, WebRTC                         |
+| Video & Eye Tracking    | OpenCV, Mediapipe                       |
+| AI Detection            | TensorFlow, PyTorch, Deepfake detection |
+| Database                | PostgreSQL / MongoDB                    |
+| Deployment              | Docker, Docker Compose                  |
 
 ---
 
@@ -84,12 +91,14 @@ Before running TestIntegrity, ensure you have the following installed:
 ### Option 1: Automated Startup (Recommended)
 
 **For Windows:**
+
 ```cmd
 # Double-click or run in Command Prompt
 start_app.bat
 ```
 
 **For Linux/Mac:**
+
 ```bash
 # Make executable and run
 chmod +x start_app.py
@@ -154,13 +163,13 @@ npm run electron:dev
 
 The application runs the following Docker containers:
 
-| Service | Container Name | Port | Description |
-|---------|---------------|------|-------------|
-| **LiveKit Server** | `livekit-server` | 7880, 7881, 50000-50010/udp | Real-time video/audio server |
-| **Redis** | `livekit-redis` | 6379 | LiveKit session storage |
-| **PostgreSQL** | `test-integrity-postgres` | 5433 | Main database |
-| **Backend API** | `test-integrity-backend` | 4000 | NestJS REST API |
-| **TURN Server** | `coturn-server` | 3478/udp, 5349 | NAT traversal (optional) |
+| Service            | Container Name            | Port                        | Description                  |
+| ------------------ | ------------------------- | --------------------------- | ---------------------------- |
+| **LiveKit Server** | `livekit-server`          | 7880, 7881, 50000-50010/udp | Real-time video/audio server |
+| **Redis**          | `livekit-redis`           | 6379                        | LiveKit session storage      |
+| **PostgreSQL**     | `test-integrity-postgres` | 5433                        | Main database                |
+| **Backend API**    | `test-integrity-backend`  | 4000                        | NestJS REST API              |
+| **TURN Server**    | `coturn-server`           | 3478/udp, 5349              | NAT traversal (optional)     |
 
 ---
 
@@ -193,6 +202,7 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 ### Electron Configuration
 
 The Electron app provides enhanced proctoring features:
+
 - **Window Lock**: Prevents minimization during proctoring
 - **AI Analysis**: Real-time face detection and behavior analysis
 - **Deepfake Detection**: Synthetic face detection using AI
@@ -209,10 +219,10 @@ rtc:
   port_range_start: 50000
   port_range_end: 50010
   use_external_ip: true
-  
+
 redis:
   address: livekit-redis:6379
-  
+
 keys:
   avinashashokshettyandchatgptpartnership: avinashashokshettyandchatgptpartnership
 ```
@@ -289,117 +299,6 @@ python -c "import sys; sys.path.append('appfrontend/electron/python-worker'); im
 
 ---
 
-## 🔍 Troubleshooting
-
-### Automated Diagnostics
-
-```bash
-# Run comprehensive tests
-python test_all_python.py
-
-# Test only specific services
-python start_app.py --test-only
-```
-
-### Common Issues
-
-#### 1. **Connection Failed to LiveKit Server**
-```bash
-# Check if LiveKit container is running
-docker ps | grep livekit-server
-
-# Check LiveKit logs
-docker logs livekit-server
-
-# Restart LiveKit service
-docker restart livekit-server
-```
-
-#### 2. **Database Connection Error**
-```bash
-# Check PostgreSQL container
-docker ps | grep postgres
-
-# Check database logs
-docker logs test-integrity-postgres
-
-# Reset database
-docker-compose -f fix-video-call.yml down
-docker-compose -f fix-video-call.yml up -d
-```
-
-#### 3. **Python Services Not Working**
-```bash
-# Check deepfake service
-curl http://localhost:8000/health
-
-# Test proctoring worker
-python -c "import sys; sys.path.append('appfrontend/electron/python-worker'); import proctoring_worker"
-
-# Install missing dependencies
-pip install ultralytics opencv-python dlib pillow
-```
-
-#### 4. **Electron App Issues**
-```bash
-# Rebuild Electron
-cd appfrontend
-npm run build:electron
-
-# Check Electron logs in DevTools
-# Press F12 in Electron app
-```
-
-#### 5. **Port Already in Use**
-```bash
-# Check what's using the port
-netstat -ano | findstr :7880
-
-# Kill the process or change port in docker-compose.yml
-```
-
-### Debug Commands
-
-```bash
-# View all container logs
-docker-compose -f fix-video-call.yml logs
-
-# View specific service logs
-docker logs livekit-server --tail 50 -f
-
-# Check container status
-docker ps -a
-
-# Restart all services
-docker-compose -f fix-video-call.yml restart
-
-# Clean restart (removes all data)
-docker-compose -f fix-video-call.yml down -v
-docker-compose -f fix-video-call.yml up -d
-```
-
-### Proctoring Debug Commands
-
-```bash
-# Test proctoring integration
-python test_proctoring_integration.py
-
-# Setup proctoring dependencies
-python setup_proctoring.py
-
-# Check AI services
-curl http://localhost:8000/health
-curl http://localhost:4000/proctoring/health
-
-# Test Electron proctoring (in Electron DevTools console)
-console.log(window.electronAPI)
-
-# Check WebSocket connection (in browser DevTools)
-# Look for WebSocket connection to ws://localhost:3002
-```
-
----
-
 ## 📁 Project Structure
 
 ```
@@ -435,26 +334,6 @@ TestIntegrityApp/
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🆘 Support
-
-If you encounter any issues:
-
-1. Check the [Troubleshooting](#-troubleshooting) section
-2. Search existing [GitHub Issues](https://github.com/yourusername/TestIntegrityApp/issues)
-3. Create a new issue with:
-   - Steps to reproduce
-   - Expected vs actual behavior
-   - Docker logs (`docker-compose logs`)
-   - Browser console errors
 
 ---
 
