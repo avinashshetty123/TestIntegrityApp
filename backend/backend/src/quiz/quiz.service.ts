@@ -69,10 +69,7 @@ export class QuizService {
 
       // Check if student already answered
       const existingResponse = await this.responseRepo.findOne({
-        where: { 
-          quiz: { id: dto.quizId }, 
-          studentId 
-        }
+        where: { quizId: dto.quizId, studentId }
       });
 
       if (existingResponse) {
@@ -92,7 +89,8 @@ export class QuizService {
       const isCorrect = this.checkAnswer(quiz.correctAnswer, dto.answer, quiz.type);
 
       const response = this.responseRepo.create({
-        quiz: { id: dto.quizId } as any, // Type workaround
+        quiz: { id: dto.quizId } as any,
+        quizId: dto.quizId,
         studentId,
         studentName: student.fullName || student.firstName || `Student-${studentId.slice(-4)}`,
         answer: dto.answer,
@@ -152,7 +150,7 @@ export class QuizService {
     }
 
     const responses = await this.responseRepo.find({ 
-      where: { quiz: { id: quizId } } 
+      where: { quizId } 
     });
 
     // Build leaderboard
@@ -201,8 +199,7 @@ export class QuizService {
     const quizIds = quizzes.map(q => q.id);
 
     const responses = await this.responseRepo.find({
-      where: { quiz: { id: In(quizIds) } },
-      relations: ['quiz']
+      where: { quizId: In(quizIds) },
     });
 
     const scores = new Map<string, { 
@@ -248,6 +245,13 @@ export class QuizService {
       });
 
     return leaderboard;
+  }
+
+  async getQuizResponses(quizId: string) {
+    return this.responseRepo.find({
+      where: { quizId },
+      order: { submittedAt: 'ASC' },
+    });
   }
 
   async getActiveQuiz(meetingId: string): Promise<LiveQuiz | null> {

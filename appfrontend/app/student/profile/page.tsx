@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ProfileForm from "@/components/ProfileForm";
 import { useToast } from "@/components/ui/use-toast";
+import StudentNav from "@/components/StudentNav";
 
 export default function StudentProfilePage() {
   const { toast } = useToast();
@@ -87,14 +88,7 @@ export default function StudentProfilePage() {
         <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-4">
-              <button
-                onClick={() => router.push('/student')}
-                className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 shadow-[0_8px_30px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:scale-105 transition-all duration-300 hover:shadow-[0_12px_40px_rgba(251,146,60,0.4)] group"
-              >
-                <svg className="w-5 h-5 text-orange-600 group-hover:text-orange-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
+              <StudentNav backPath="/student" backLabel="Back" />
               <div>
                 <h1 className="text-3xl font-bold text-orange-800 drop-shadow-sm">Profile Settings</h1>
                 <p className="text-orange-600 mt-1">Manage your account information</p>

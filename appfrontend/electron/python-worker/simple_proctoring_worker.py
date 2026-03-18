@@ -34,29 +34,24 @@ class SimpleProctoringAnalyzer:
         self.identity_alert_cooldown = 60.0
 
         # ── No face ───────────────────────────────────────────────────────
-        # Must be absent for 10s continuously before first alert
-        # Then 30s cooldown before next alert
         self.no_face_start = None
         self.no_face_threshold = 10.0
         self.no_face_alerted_at = 0.0
         self.no_face_cooldown = 30.0
 
         # ── Multiple faces ────────────────────────────────────────────────
-        # Must persist for 5s continuously before alerting, 45s cooldown
         self.multi_face_start = None
         self.multi_face_threshold = 5.0
         self.multi_face_alerted_at = 0.0
         self.multi_face_cooldown = 45.0
 
         # ── Gaze deviation ────────────────────────────────────────────────
-        # Must look away for 8s continuously, 20s cooldown
         self.gaze_away_start = None
         self.gaze_away_threshold = 8.0
         self.gaze_alerted_at = 0.0
         self.gaze_alert_cooldown = 20.0
 
         # ── Phone detection ───────────────────────────────────────────────
-        # Must appear in 5 consecutive frames, 60s cooldown
         self.phone_consecutive = 0
         self.phone_consecutive_threshold = 5
         self.phone_alerted_at = 0.0
@@ -117,11 +112,6 @@ class SimpleProctoringAnalyzer:
     # ── Face detection ────────────────────────────────────────────────────
 
     def detect_faces(self, image):
-        """
-        Dual-pass frontal + profile detection.
-        minNeighbors=4, minSize=60px — works at normal webcam distance.
-        Returns (faces_list, body_detected).
-        """
         gc = self._gray_clahe(image)
         ge = self._gray_eq(image)
         faces = []
@@ -135,7 +125,6 @@ class SimpleProctoringAnalyzer:
                 faces = found.tolist()
                 break
 
-        # Profile fallback
         if not faces and not self.face_profile_cascade.empty():
             for gray in (gc, ge):
                 found = self.face_profile_cascade.detectMultiScale(
@@ -152,7 +141,6 @@ class SimpleProctoringAnalyzer:
                     faces = found.tolist()
                     break
 
-        # Deduplicate (IoU > 0.4)
         unique = []
         for f in faces:
             fx, fy, fw, fh = f
@@ -179,51 +167,36 @@ class SimpleProctoringAnalyzer:
     # ── Gaze ──────────────────────────────────────────────────────────────
 
     def check_gaze_away(self, image, face_rect):
-        """
-        Returns True if the student is clearly looking away.
-        Uses eye position within face ROI — if no eyes found OR
-        eyes are very far to one side, treat as looking away.
-        """
         try:
             gc = self._gray_clahe(image)
             fx, fy, fw, fh = face_rect
-            # Only look at top 55% of face for eyes
             roi = gc[fy: fy + int(fh * 0.55), fx: fx + fw]
             eyes = self.eye_cascade.detectMultiScale(
                 roi, scaleFactor=1.1, minNeighbors=3, minSize=(15, 15)
             )
             if len(eyes) == 0:
-                # No eyes detected inside face — likely looking away or down
                 return True
-            # Check if all detected eyes are heavily off-center
             for ex, ey, ew, eh in eyes:
                 cx = (ex + ew / 2) / fw
                 if 0.15 < cx < 0.85:
-                    return False  # at least one eye is centered — looking at screen
-            return True  # all eyes off-center
+                    return False
+            return True
         except Exception:
             return False
 
     # ── Phone detection ───────────────────────────────────────────────────
 
     def detect_phone(self, image):
-        """
-        Detects a phone-shaped bright rectangle in the frame.
-        Uses contour shape + aspect ratio + relative size.
-        No glow gate — glow was too restrictive in normal lighting.
-        """
         try:
             h, w = image.shape[:2]
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
-            # Adaptive threshold works better than Canny for phone screens
             thresh = cv2.adaptiveThreshold(
                 blurred, 255,
                 cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                 cv2.THRESH_BINARY, 11, 2
             )
-            # Also try Canny
             edges = cv2.Canny(blurred, 30, 100)
             combined = cv2.bitwise_or(thresh, edges)
 
@@ -234,7 +207,6 @@ class SimpleProctoringAnalyzer:
             frame_area = h * w
             for cnt in contours:
                 area = cv2.contourArea(cnt)
-                # Phone: 1.5%–20% of frame area
                 if area < frame_area * 0.015 or area > frame_area * 0.20:
                     continue
                 peri = cv2.arcLength(cnt, True)
@@ -244,9 +216,7 @@ class SimpleProctoringAnalyzer:
                     long_side = max(cw, ch)
                     short_side = max(min(cw, ch), 1)
                     aspect = long_side / short_side
-                    # Phone portrait/landscape: 1.5–2.5 aspect ratio
                     if 1.5 < aspect < 2.5:
-                        # Must not be the whole frame (not a monitor)
                         if cw < w * 0.85 and ch < h * 0.85:
                             print(f"[PY] Phone candidate: area={area:.0f} aspect={aspect:.2f} rect={cw}x{ch}", file=sys.stderr)
                             return True
@@ -330,7 +300,7 @@ class SimpleProctoringAnalyzer:
                     "timestamp": self._iso(),
                 })
                 self.speech_alerted_at = now
-                self.speech_start = now  # reset so it doesn't re-fire immediately
+                self.speech_start = now
         else:
             self.speech_start = None
         return alerts
@@ -355,11 +325,10 @@ class SimpleProctoringAnalyzer:
             print(f"[PY] detect_faces: face_count={face_count} body={body_detected}", file=sys.stderr)
 
             # ── No face ───────────────────────────────────────────────────
-            # Timer starts when face disappears; alert fires after 10s absence
             if face_count == 0:
                 if self.no_face_start is None:
                     self.no_face_start = now
-                    print(f"[PY] No face timer started", file=sys.stderr)
+                    print("[PY] No face timer started", file=sys.stderr)
                 else:
                     absent_for = now - self.no_face_start
                     print(f"[PY] No face for {absent_for:.1f}s / threshold={self.no_face_threshold}s", file=sys.stderr)
@@ -382,11 +351,10 @@ class SimpleProctoringAnalyzer:
                 self.no_face_start = None
 
             # ── Multiple faces ────────────────────────────────────────────
-            # Timer starts when >1 face appears; alert fires after 5s
             if face_count > 1:
                 if self.multi_face_start is None:
                     self.multi_face_start = now
-                    print(f"[PY] Multiple faces timer started", file=sys.stderr)
+                    print("[PY] Multiple faces timer started", file=sys.stderr)
                 else:
                     present_for = now - self.multi_face_start
                     print(f"[PY] Multiple faces for {present_for:.1f}s / threshold={self.multi_face_threshold}s", file=sys.stderr)
@@ -402,13 +370,11 @@ class SimpleProctoringAnalyzer:
                             "timestamp": self._iso(),
                         })
                         self.multi_face_alerted_at = now
-                        self.multi_face_start = now  # reset timer after alert
+                        self.multi_face_start = now
             else:
                 self.multi_face_start = None
 
             # ── Gaze deviation ────────────────────────────────────────────
-            # Only check when exactly 1 face present
-            # Timer starts when looking away; alert fires after 8s
             if face_count == 1:
                 looking_away = self.check_gaze_away(image, faces[0])
                 print(f"[PY] gaze_away={looking_away}", file=sys.stderr)
@@ -430,14 +396,13 @@ class SimpleProctoringAnalyzer:
                                 "timestamp": self._iso(),
                             })
                             self.gaze_alerted_at = now
-                            self.gaze_away_start = now  # reset after alert
+                            self.gaze_away_start = now
                 else:
                     self.gaze_away_start = None
             else:
                 self.gaze_away_start = None
 
             # ── Phone detection ───────────────────────────────────────────
-            # Requires 5 consecutive frames to avoid false positives
             if self.detect_phone(image):
                 self.phone_consecutive += 1
                 print(f"[PY] Phone consecutive={self.phone_consecutive}/{self.phone_consecutive_threshold}", file=sys.stderr)

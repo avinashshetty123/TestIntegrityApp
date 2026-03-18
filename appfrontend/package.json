@@ -14,7 +14,7 @@
     "electron": "electron .",
     "electron:pack": "npm run build:electron && electron-builder"
   },
-  "main": "dist-electron/main.js",
+  "main": "electron/main.js",
   "dependencies": {
     "@livekit/components-react": "^2.9.14",
     "@livekit/components-styles": "^1.1.6",

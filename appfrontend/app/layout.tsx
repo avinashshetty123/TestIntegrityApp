@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 import ClientWrapper from "@/components/ClientWrapper";
 import Navigation from "@/components/Navigation";
 import { Toaster } from "@/components/ui/toaster";
+import { Toaster as SonnerToaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -25,6 +26,7 @@ export default function RootLayout({
           {children}
         </ClientWrapper>
         <Toaster />
+        <SonnerToaster position="top-right" richColors closeButton />
       </body>
     </html>
   );

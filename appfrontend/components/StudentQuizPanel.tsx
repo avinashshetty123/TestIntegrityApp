@@ -37,6 +37,7 @@ export default function StudentQuizPanel({ meetingId, isConnected, userInfo }: S
   const socketRef = useRef<Socket | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
+  const hasSubmittedRef = useRef<boolean>(false);
   
   const { toast } = useToast();
 
@@ -150,6 +151,7 @@ export default function StudentQuizPanel({ meetingId, isConnected, userInfo }: S
     setSelectedAnswer('');
     setShortAnswer('');
     setHasSubmitted(false);
+    hasSubmittedRef.current = false;
     setSubmissionResult(null);
     setTimeRemaining(data.timeLimit);
     startTimeRef.current = Date.now();
@@ -205,11 +207,12 @@ export default function StudentQuizPanel({ meetingId, isConnected, userInfo }: S
   };
 
   const submitAnswer = async (customAnswer?: string) => {
-    if (!activeQuiz || !socketRef.current || hasSubmitted) {
-      console.log('❌ Cannot submit answer:', { activeQuiz, socket: socketRef.current, hasSubmitted });
+    if (!activeQuiz || !socketRef.current || hasSubmittedRef.current) {
+      console.log('❌ Cannot submit answer:', { activeQuiz, socket: socketRef.current, hasSubmitted: hasSubmittedRef.current });
       return;
     }
 
+    hasSubmittedRef.current = true; // guard immediately before any async
     setIsSubmitting(true);
 
     const answer = customAnswer || 
@@ -222,6 +225,7 @@ export default function StudentQuizPanel({ meetingId, isConnected, userInfo }: S
         variant: "destructive",
       });
       setIsSubmitting(false);
+      hasSubmittedRef.current = false; // reset guard on validation fail
       return;
     }
 
@@ -242,6 +246,7 @@ export default function StudentQuizPanel({ meetingId, isConnected, userInfo }: S
     } catch (error) {
       console.error('❌ Error emitting submitAnswer:', error);
       setIsSubmitting(false);
+      hasSubmittedRef.current = false; // reset so user can retry
       toast({
         title: "Submission Failed",
         description: "Could not submit answer",
@@ -255,6 +260,7 @@ export default function StudentQuizPanel({ meetingId, isConnected, userInfo }: S
     
     setIsSubmitting(false);
     setHasSubmitted(true);
+    hasSubmittedRef.current = true;
     
     if (timerRef.current) {
       clearInterval(timerRef.current);

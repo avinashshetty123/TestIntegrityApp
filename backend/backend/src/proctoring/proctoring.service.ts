@@ -14,9 +14,48 @@ export class ProctoringService {
     private sessionRepo: Repository<ProctoringSession>,
   ) {}
 
+  private normalizeAnalyzeFrameData(data: Record<string, any>): AnalyzeFrameDto {
+    const detections = data?.detections && typeof data.detections === 'object'
+      ? data.detections
+      : {};
+    const browserData = data?.browserData && typeof data.browserData === 'object'
+      ? data.browserData
+      : {};
+
+    return {
+      meetingId: typeof data?.meetingId === 'string' ? data.meetingId : undefined,
+      userId: typeof data?.userId === 'string' ? data.userId : undefined,
+      participantId: typeof data?.participantId === 'string' ? data.participantId : undefined,
+      sessionId: typeof data?.sessionId === 'string' ? data.sessionId : undefined,
+      frameSnapshot: typeof data?.frameSnapshot === 'string' ? data.frameSnapshot : undefined,
+      detections: {
+        faceDetected: typeof detections.faceDetected === 'boolean' ? detections.faceDetected : undefined,
+        faceCount: typeof detections.faceCount === 'number' ? detections.faceCount : undefined,
+        phoneDetected: typeof detections.phoneDetected === 'boolean' ? detections.phoneDetected : undefined,
+        suspiciousBehavior: typeof detections.suspiciousBehavior === 'boolean' ? detections.suspiciousBehavior : undefined,
+        identityVerified: typeof detections.identityVerified === 'boolean' ? detections.identityVerified : undefined,
+      },
+      browserData: {
+        tabSwitch: typeof browserData.tabSwitch === 'boolean' ? browserData.tabSwitch : undefined,
+        windowSwitch: typeof browserData.windowSwitch === 'boolean' ? browserData.windowSwitch : undefined,
+        copyPaste: typeof browserData.copyPaste === 'boolean' ? browserData.copyPaste : undefined,
+        manualFlag: typeof browserData.manualFlag === 'boolean' ? browserData.manualFlag : undefined,
+        automatedDetection: typeof browserData.automatedDetection === 'boolean' ? browserData.automatedDetection : undefined,
+        participantLeft: typeof browserData.participantLeft === 'boolean' ? browserData.participantLeft : undefined,
+        alertType: typeof browserData.alertType === 'string' ? browserData.alertType : undefined,
+        description: typeof browserData.description === 'string' ? browserData.description : undefined,
+        confidence: typeof browserData.confidence === 'number' ? browserData.confidence : undefined,
+        severity: typeof browserData.severity === 'string' ? browserData.severity : undefined,
+        timestamp: typeof browserData.timestamp === 'string' ? browserData.timestamp : undefined,
+        frameAnalysis: typeof browserData.frameAnalysis === 'boolean' ? browserData.frameAnalysis : undefined,
+        activityType: typeof browserData.activityType === 'string' ? browserData.activityType : undefined,
+      },
+    };
+  }
+
   async analyzeFrame(data: AnalyzeFrameDto) {
+    data = this.normalizeAnalyzeFrameData(data as Record<string, any>);
     const alerts: ProctoringAlert[] = [];
-    const timestamp = new Date();
 
     // Validate required fields
     if (!data.meetingId || !data.participantId || !data.userId) {
@@ -56,7 +95,7 @@ export class ProctoringService {
     const browserData = data.browserData || {};
 
     // Face detection alerts
-    if (detections.faceCount === 0) {
+    if (detections.faceDetected === false || detections.faceCount === 0) {
       alerts.push(this.createAlert(data, 'NO_FACE', 'No face detected', 0.8, 'MEDIUM'));
     } else if (detections.faceCount && detections.faceCount > 1) {
       alerts.push(this.createAlert(data, 'MULTIPLE_FACES', `${detections.faceCount} faces detected`, 0.9, 'HIGH'));
@@ -65,6 +104,10 @@ export class ProctoringService {
     // Phone detection
     if (detections.phoneDetected) {
       alerts.push(this.createAlert(data, 'PHONE_DETECTED', 'Mobile phone detected in frame', 0.85, 'HIGH'));
+    }
+
+    if (detections.identityVerified === false) {
+      alerts.push(this.createAlert(data, 'IDENTITY_MISMATCH', 'Different person or unverified identity detected', 0.85, 'HIGH'));
     }
 
     // Browser behavior
@@ -80,19 +123,25 @@ export class ProctoringService {
       alerts.push(this.createAlert(data, 'COPY_PASTE', 'Copy/paste activity detected', 0.6, 'MEDIUM'));
     }
 
+    if (browserData.manualFlag) {
+      alerts.push(this.createAlert(data, 'MANUAL_FLAG', 'Participant manually flagged by tutor', 1, 'MEDIUM'));
+    }
+
     // Suspicious behavior
     if (detections.suspiciousBehavior) {
       alerts.push(this.createAlert(data, 'SUSPICIOUS_BEHAVIOR', 'Suspicious behavior detected', 0.7, 'MEDIUM'));
     }
 
-    // Automated detection from frontend
+    // Automated detection from frontend / Python worker
     if (browserData.automatedDetection) {
       const alertType = browserData.alertType || 'AUTOMATED_DETECTION';
       const description = browserData.description || 'Automated detection triggered';
       const confidence = browserData.confidence || 0.7;
       const severity = browserData.severity || 'MEDIUM';
-      
-      alerts.push(this.createAlert(data, alertType, description, confidence, severity));
+      const alreadyExists = alerts.some((alert) => alert.alertType === alertType);
+      if (!alreadyExists) {
+        alerts.push(this.createAlert(data, alertType, description, confidence, severity));
+      }
     }
 
     // Save alerts to database
@@ -108,7 +157,7 @@ export class ProctoringService {
     // Update session
     if (data.participantId) {
       try {
-        await this.updateSession(data.meetingId, data.participantId, alerts.length);
+        await this.updateSession(data.meetingId, data.participantId, data.userId, alerts.length);
       } catch (error) {
         console.error('Failed to update session:', error);
       }
@@ -136,6 +185,11 @@ export class ProctoringService {
       confidence,
       severity,
       detectedAt: new Date(),
+      metadata: {
+        detections: data.detections || {},
+        browserData: data.browserData || {},
+        frameSnapshot: data.frameSnapshot || null,
+      },
     });
   }
 
@@ -146,10 +200,17 @@ export class ProctoringService {
     studentName?: string;
     startedAt: string;
   }) {
-    // Check if session already exists
-    let session = await this.sessionRepo.findOne({
-      where: { meetingId: data.meetingId, participantId: data.participantId }
-    });
+    let session = data.userId
+      ? await this.sessionRepo.findOne({
+          where: { meetingId: data.meetingId, userId: data.userId }
+        })
+      : null;
+
+    if (!session) {
+      session = await this.sessionRepo.findOne({
+        where: { meetingId: data.meetingId, participantId: data.participantId }
+      });
+    }
 
     if (!session) {
       session = this.sessionRepo.create({
@@ -166,6 +227,9 @@ export class ProctoringService {
       await this.sessionRepo.save(session);
       console.log(`✅ Created proctoring session for ${data.studentName || data.participantId}`);
     } else {
+      session.participantId = data.participantId;
+      session.userId = data.userId;
+      session.studentName = data.studentName || session.studentName;
       session.lastActivity = new Date();
       session.status = 'ACTIVE';
       await this.sessionRepo.save(session);
@@ -200,23 +264,35 @@ export class ProctoringService {
     }));
   }
 
-  async updateSession(meetingId: string, participantId: string, newAlerts: number) {
-    let session = await this.sessionRepo.findOne({
-      where: { meetingId, participantId }
-    });
+  async updateSession(meetingId: string, participantId: string, userId: string, newAlerts: number) {
+    let session = userId
+      ? await this.sessionRepo.findOne({
+          where: { meetingId, userId }
+        })
+      : null;
+
+    if (!session) {
+      session = await this.sessionRepo.findOne({
+        where: { meetingId, participantId }
+      });
+    }
 
     if (!session) {
       session = this.sessionRepo.create({
         meetingId,
         participantId,
+        userId,
         startedAt: new Date(),
         totalAlerts: newAlerts,
         lastActivity: new Date(),
         status: 'ACTIVE'
       });
     } else {
+      session.participantId = participantId;
+      session.userId = userId || session.userId;
       session.totalAlerts = (session.totalAlerts || 0) + newAlerts;
       session.lastActivity = new Date();
+      session.status = 'ACTIVE';
     }
 
     return this.sessionRepo.save(session);
@@ -262,19 +338,51 @@ export class ProctoringService {
       generatedAt: new Date(),
       summary: stats,
       sessions: sessions.map(session => ({
+        userId: session.userId || session.participantId,
+        studentName: session.studentName || `Student ${session.userId || session.participantId}`,
         participantId: session.participantId,
         startedAt: session.startedAt,
         totalAlerts: session.totalAlerts,
         lastActivity: session.lastActivity,
-        alerts: alerts.filter(alert => alert.participantId === session.participantId)
+        alerts: alerts.filter(
+          (alert) => alert.userId === session.userId || alert.participantId === session.participantId,
+        )
       }))
     };
   }
 
   async getAlertsWithParticipantDetails(meetingId: string) {
-    return this.alertRepo.find({
-      where: { meetingId },
-      order: { detectedAt: 'DESC' }
+    const [alerts, sessions] = await Promise.all([
+      this.alertRepo.find({
+        where: { meetingId },
+        order: { detectedAt: 'DESC' }
+      }),
+      this.sessionRepo.find({ where: { meetingId } }),
+    ]);
+
+    const sessionMap = new Map<string, ProctoringSession>();
+    sessions.forEach((session) => {
+      sessionMap.set(session.participantId, session);
+      if (session.userId) {
+        sessionMap.set(session.userId, session);
+      }
+    });
+
+    return alerts.map((alert) => {
+      const session = sessionMap.get(alert.userId) || sessionMap.get(alert.participantId);
+      return {
+        ...alert,
+        timestamp: alert.detectedAt,
+        studentName: session?.studentName || alert.userId || alert.participantId,
+        participant: {
+          id: session?.userId || alert.userId || alert.participantId,
+          userId: session?.userId || alert.userId,
+          name: session?.studentName || alert.userId || alert.participantId,
+          email: session?.userId ? `${session.userId}@example.com` : undefined,
+          role: 'STUDENT',
+          status: session?.status || 'UNKNOWN',
+        },
+      };
     });
   }
 
@@ -302,13 +410,28 @@ export class ProctoringService {
   }
 
   async getLiveAlerts(meetingId: string) {
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
     
-    return this.alertRepo.createQueryBuilder('alert')
+    const alerts = await this.alertRepo.createQueryBuilder('alert')
       .where('alert.meetingId = :meetingId', { meetingId })
-      .andWhere('alert.detectedAt >= :fiveMinutesAgo', { fiveMinutesAgo })
+      .andWhere('alert.detectedAt >= :thirtyMinutesAgo', { thirtyMinutesAgo })
       .orderBy('alert.detectedAt', 'DESC')
       .getMany();
+
+    // Enrich with studentName from sessions
+    const sessions = await this.sessionRepo.find({ where: { meetingId } });
+    const nameMap = new Map<string, string>();
+    sessions.forEach((session) => {
+      nameMap.set(session.participantId, session.studentName);
+      if (session.userId) {
+        nameMap.set(session.userId, session.studentName);
+      }
+    });
+
+    return alerts.map(a => ({
+      ...a,
+      studentName: nameMap.get(a.userId) || nameMap.get(a.participantId) || a.userId || a.participantId,
+    }));
   }
 
   async recordTestViolation(data: {
@@ -361,7 +484,9 @@ export class ProctoringService {
     console.log(`📊 Generating report for meeting ${meetingId}: ${sessions.length} sessions, ${alerts.length} alerts`);
 
     const participantReports = sessions.map(session => {
-      const participantAlerts = alerts.filter(alert => alert.participantId === session.participantId);
+      const participantAlerts = alerts.filter(
+        (alert) => alert.userId === session.userId || alert.participantId === session.participantId,
+      );
       
       const alertsByType = participantAlerts.reduce((acc, alert) => {
         acc[alert.alertType] = (acc[alert.alertType] || 0) + 1;
@@ -371,10 +496,10 @@ export class ProctoringService {
       const riskScore = this.calculateRiskScore(participantAlerts);
 
       return {
-        userId: session.participantId,
+        userId: session.userId || session.participantId,
         studentInfo: {
-          name: session.studentName || `Student ${session.participantId}`,
-          email: `${session.participantId}@example.com`
+          name: session.studentName || `Student ${session.userId || session.participantId}`,
+          email: session.userId ? `${session.userId}@example.com` : `${session.participantId}@example.com`
         },
         totalAlerts: participantAlerts.length,
         alertsByType,
@@ -415,11 +540,14 @@ export class ProctoringService {
         joined: sessions.length,
         left: sessions.filter(s => s.status !== 'ACTIVE').length,
         participants: sessions.map(session => {
-          const participantAlerts = alerts.filter(alert => alert.participantId === session.participantId);
+          const participantAlerts = alerts.filter(
+            (alert) => alert.userId === session.userId || alert.participantId === session.participantId,
+          );
           return {
-            userId: session.participantId,
-            name: session.studentName || `Student ${session.participantId}`,
-            email: `${session.participantId}@example.com`,
+            userId: session.userId || session.participantId,
+            participantId: session.participantId,
+            name: session.studentName || `Student ${session.userId || session.participantId}`,
+            email: session.userId ? `${session.userId}@example.com` : `${session.participantId}@example.com`,
             status: session.status || 'LEFT',
             joinedAt: session.startedAt.toISOString(),
             leftAt: session.lastActivity?.toISOString(),

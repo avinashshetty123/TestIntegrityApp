@@ -42,5 +42,10 @@ export class AnalyzeFrameDto {
     severity?: string;
     timestamp?: string;
     frameAnalysis?: boolean;
+    activityType?: string;
   };
+
+  @IsOptional()
+  @IsString()
+  frameSnapshot?: string;
 }

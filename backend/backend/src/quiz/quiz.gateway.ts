@@ -148,6 +148,12 @@ export class QuizGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       client.emit('questionSent', { 
         quizId: quiz.id,
+        question: quiz.question,
+        type: quiz.type,
+        options: quiz.options,
+        correctAnswer: quiz.correctAnswer,
+        timeLimit: quiz.timeLimit,
+        startedAt: quiz.startedAt,
         message: 'Question sent successfully'
       });
       

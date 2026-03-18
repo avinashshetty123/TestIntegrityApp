@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Search, Filter, Clock, Users, BookOpen, Award, Calendar, Play, FileText, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import StudentNav from '@/components/StudentNav';
 
 interface Test {
   id: number;
@@ -100,13 +101,7 @@ export default function StudentTestsPage() {
         <div className="container mx-auto px-6 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4">
-              <button 
-                onClick={() => router.back()}
-                className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:shadow-[0_12px_40px_rgba(251,146,60,0.3)] hover:scale-105 transition-all duration-300 flex items-center gap-2 text-orange-700 hover:text-orange-800"
-              >
-                <ArrowLeft className="h-5 w-5" />
-                <span className="font-medium">Back</span>
-              </button>
+              <StudentNav backPath="/student" backLabel="Back" />
               <motion.div
                 className="flex items-center space-x-3"
                 whileHover={{ scale: 1.02 }}
@@ -322,7 +317,7 @@ export default function StudentTestsPage() {
                   <div className="flex gap-2">
                     {test.ispublished && (
                       <button className="flex-1 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium hover:scale-105 transition-all duration-300 shadow-lg shadow-orange-200/50 flex items-center justify-center gap-2"
-                      onClick={()=>router.push(`student/tests/${test.id}`)}>
+                      onClick={()=>router.push(`/student/tests/${test.id}`)}>
                         <Play className="h-4 w-4" />
                         
                         Start Test

@@ -11,9 +11,9 @@ import {
   CheckCircle, 
   XCircle, 
   AlertTriangle,
-  User,
-  ArrowLeft
+  User
 } from 'lucide-react';
+import StudentNav from '@/components/StudentNav';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -142,14 +142,8 @@ export default function SubmissionResultPage() {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-6 mb-6 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.push('/student/results')}
-              className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 shadow-[0_8px_30px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:scale-105 transition-all duration-300 hover:shadow-[0_12px_40px_rgba(251,146,60,0.4)] group flex items-center gap-2"
-            >
-              <ArrowLeft className="h-4 w-4 text-orange-600 group-hover:text-orange-700" />
-              <span className="text-orange-700 font-medium">Back to Results</span>
-            </button>
+          <div className="flex items-center gap-4 flex-wrap">
+            <StudentNav backPath="/student/results" backLabel="Back to Results" />
             <h1 className="text-3xl font-bold text-orange-800 drop-shadow-sm">Test Result</h1>
           </div>
         </div>

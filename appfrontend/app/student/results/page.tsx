@@ -16,9 +16,9 @@ import {
   User,
   Eye,
   Search,
-  Filter,
-  ArrowLeft
+  Filter
 } from 'lucide-react';
+import StudentNav from '@/components/StudentNav';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -186,13 +186,7 @@ export default function StudentResultsPage() {
         {/* Header */}
         <div className="bg-white/60 backdrop-blur-3xl rounded-3xl p-8 mb-8 shadow-[0_20px_50px_rgba(251,146,60,0.3),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50">
           <div className="flex items-center justify-between mb-6">
-            <button 
-              onClick={() => router.push('/student')}
-              className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 shadow-[0_8px_30px_rgba(251,146,60,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] border border-orange-200/50 hover:shadow-[0_12px_40px_rgba(251,146,60,0.3)] hover:scale-105 transition-all duration-300 flex items-center gap-2 text-orange-700 hover:text-orange-800"
-            >
-              <ArrowLeft className="h-5 w-5" />
-              <span className="font-medium">Back</span>
-            </button>
+          <StudentNav backPath="/student" backLabel="Back" />
           </div>
           <div className="flex items-center justify-center gap-4 mb-4">
             <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-600 rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(251,146,60,0.4)]">

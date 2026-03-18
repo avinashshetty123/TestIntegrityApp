@@ -1,12 +1,34 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
-const { spawn } = require('child_process');
-const path = require('path');
-const WebSocket = require('ws');
+// main.js
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  dialog,
+  globalShortcut,
+  powerSaveBlocker,
+} = require("electron");
+const { spawn } = require("child_process");
+const path = require("path");
+const WebSocket = require("ws");
+const fetch = require("node-fetch"); // npm install node-fetch@2
 
 let mainWindow;
 let pythonProcess;
 let wsServer;
 let isProctoringActive = false;
+let blockerId = null;
+let rendererReady = false;
+const logBuffer = [];
+
+function dbg(msg) {
+  const line = `[PROCTOR] ${msg}`;
+  console.log(line); // always in terminal
+  if (mainWindow && !mainWindow.isDestroyed() && rendererReady) {
+    mainWindow.webContents.send('debug-log', line);
+  } else {
+    logBuffer.push(line); // buffer until renderer ready
+  }
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -19,68 +41,95 @@ function createWindow() {
     alwaysOnTop: false,
     kiosk: false,
     frame: true,
-    titleBarStyle: 'default',
+    titleBarStyle: "default",
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, "preload.js"),
       webSecurity: true,
-      allowRunningInsecureContent: false
-    }
+      allowRunningInsecureContent: false,
+    },
   });
 
-  // Prevent window from being minimized during proctoring
-  mainWindow.on('minimize', (event) => {
+  // Prevent minimize during proctoring
+  mainWindow.on("minimize", (event) => {
     if (isProctoringActive) {
       event.preventDefault();
       mainWindow.restore();
       mainWindow.focus();
       dialog.showMessageBox(mainWindow, {
-        type: 'warning',
-        title: 'Proctoring Session Active',
-        message: 'Window cannot be minimized during proctoring. Session is being monitored.',
-        buttons: ['OK']
+        type: "warning",
+        title: "Proctoring Session Active",
+        message:
+          "Window cannot be minimized during proctoring. Session is being monitored.",
+        buttons: ["OK"],
       });
     }
   });
 
-  // Prevent window from losing focus during proctoring
-  mainWindow.on('blur', () => {
+  let focusRestoreTimeout = null;
+
+  // Prevent focus loss during proctoring
+  mainWindow.on("blur", () => {
     if (isProctoringActive) {
-      setTimeout(() => {
+      // Debounce — kiosk mode itself triggers blur, don't flood renderer
+      if (focusRestoreTimeout) return;
+      focusRestoreTimeout = setTimeout(() => {
+        focusRestoreTimeout = null;
+        if (!isProctoringActive) return;
         if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("proctoring-analysis", {
+            alerts: [{
+              alertType: "WINDOW_FOCUS_LOST",
+              description: "Application focus was lost – possible attempt to switch apps",
+              severity: "HIGH",
+              timestamp: Date.now(),
+            }],
+          });
           mainWindow.focus();
-          mainWindow.show();
         }
-      }, 100);
+      }, 300);
     }
   });
 
   // Block keyboard shortcuts during proctoring
-  mainWindow.webContents.on('before-input-event', (event, input) => {
+  mainWindow.webContents.on("before-input-event", (event, input) => {
     if (isProctoringActive) {
-      // Block Alt+Tab, Ctrl+Alt+Del, Windows key, etc.
-      if (input.alt || input.meta || 
-          (input.control && (input.key === 'Tab' || input.key === 'Escape')) ||
-          input.key === 'F11' || input.key === 'F4' || input.key === 'F12') {
+      const blockedKeys = [
+        "Alt",
+        "Meta",
+        "Control",
+        "Tab",
+        "Escape",
+        "F11",
+        "F4",
+        "F12",
+      ];
+      if (
+        input.alt ||
+        input.meta ||
+        (input.control && (input.key === "Tab" || input.key === "Escape")) ||
+        input.key === "F11" ||
+        input.key === "F4" ||
+        input.key === "F12"
+      ) {
         event.preventDefault();
-        console.log('🚫 Blocked shortcut during proctoring:', input.key);
+        console.log("🚫 Blocked shortcut during proctoring:", input.key);
       }
     }
   });
 
-  // Prevent window from being closed during proctoring
-  mainWindow.on('close', (event) => {
+  // Prevent window close during proctoring (with confirmation)
+  mainWindow.on("close", (event) => {
     if (isProctoringActive) {
       const choice = dialog.showMessageBoxSync(mainWindow, {
-        type: 'question',
-        title: 'End Proctoring Session',
-        message: 'Are you sure you want to end the proctoring session?',
-        buttons: ['Cancel', 'End Session'],
+        type: "question",
+        title: "End Proctoring Session",
+        message: "Are you sure you want to end the proctoring session?",
+        buttons: ["Cancel", "End Session"],
         defaultId: 0,
-        cancelId: 0
+        cancelId: 0,
       });
-      
       if (choice === 0) {
         event.preventDefault();
       } else {
@@ -89,229 +138,244 @@ function createWindow() {
     }
   });
 
-  mainWindow.loadURL('http://localhost:3000');
+  mainWindow.loadURL("http://localhost:3000");
   startPythonWorker();
   startWebSocketServer();
 }
 
 function startPythonWorker() {
-  // Try advanced worker first, fallback to simple worker
-  const advancedWorkerPath = path.join(__dirname, 'python-worker', 'proctoring_worker.py');
-  const simpleWorkerPath = path.join(__dirname, 'python-worker', 'simple_proctoring_worker.py');
-  
+  const advancedWorkerPath = path.join(
+    __dirname,
+    "python-worker",
+    "proctoring_worker.py",
+  );
+  const simpleWorkerPath = path.join(
+    __dirname,
+    "python-worker",
+    "simple_proctoring_worker.py",
+  );
+
   let pythonScriptPath = advancedWorkerPath;
-  
+
   // Check if advanced dependencies are available
   try {
-    const testProcess = spawn('python', ['-c', 'import ultralytics, dlib'], { stdio: 'pipe' });
-    testProcess.on('close', (code) => {
+    const testProcess = spawn("python", ["-c", "import ultralytics, dlib"], {
+      stdio: "pipe",
+    });
+    testProcess.on("close", (code) => {
       if (code !== 0) {
-        console.log('Advanced AI dependencies not available, using simple worker');
+        dbg("Advanced AI deps not available — using simple worker");
         pythonScriptPath = simpleWorkerPath;
+      } else {
+        dbg("Advanced AI deps OK — using advanced worker");
       }
       startWorker(pythonScriptPath);
     });
   } catch (error) {
-    console.log('Using simple worker due to dependency check error');
+    dbg(`Dep check error: ${error.message} — using simple worker`);
     startWorker(simpleWorkerPath);
   }
 }
 
 function startWorker(scriptPath) {
-  pythonProcess = spawn('python', [scriptPath], {
-    stdio: ['pipe', 'pipe', 'pipe'],
-    cwd: path.join(__dirname, 'python-worker')
+  dbg(`Starting Python worker: ${scriptPath}`);
+  pythonProcess = spawn("python", [scriptPath], {
+    stdio: ["pipe", "pipe", "pipe"],
+    cwd: path.join(__dirname, "python-worker"),
   });
 
-  pythonProcess.stdout.on('data', (data) => {
+  pythonProcess.stdout.on("data", (data) => {
     const output = data.toString().trim();
-    console.log(`Python Worker Output: ${output}`);
-    
-    // Handle multiple JSON objects in output
-    const lines = output.split('\n').filter(line => line.trim());
-    
-    lines.forEach(line => {
+    dbg(`PY-STDOUT: ${output}`);
+
+    const lines = output.split("\n").filter((line) => line.trim());
+    lines.forEach((line) => {
       try {
         const analysis = JSON.parse(line);
-        
-        // Send to renderer process
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('proctoring-analysis', analysis);
+        if (analysis.status && !analysis.alerts) {
+          dbg(`PY-STATUS: ${analysis.status}`);
+          return;
         }
-        
-        // Send to WebSocket clients
+        dbg(`PY-ANALYSIS: faces=${analysis.faceCount} faceDetected=${analysis.faceDetected} alerts=${JSON.stringify(analysis.alerts)}`);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("proctoring-analysis", analysis);
+        }
         if (wsServer) {
-          wsServer.clients.forEach(client => {
+          wsServer.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
-              client.send(JSON.stringify({
-                type: 'PROCTORING_ANALYSIS',
-                data: analysis
-              }));
+              client.send(
+                JSON.stringify({ type: "PROCTORING_ANALYSIS", data: analysis }),
+              );
             }
           });
         }
       } catch (error) {
-        console.error('Error parsing Python output:', error, 'Raw output:', line);
+        // Not JSON — plain log line
+        dbg(`PY-LOG: ${line}`);
       }
     });
   });
 
-  pythonProcess.stderr.on('data', (data) => {
-    console.error(`Python Worker Error: ${data}`);
+  pythonProcess.stderr.on("data", (data) => {
+    dbg(`PY-STDERR: ${data.toString().trim()}`);
   });
 
-  pythonProcess.on('close', (code) => {
-    console.log(`Python worker exited with code ${code}`);
+  pythonProcess.on("close", (code) => {
+    dbg(`Python worker exited with code ${code}`);
     if (isProctoringActive) {
-      console.log('Restarting Python worker in 3 seconds...');
+      dbg("Restarting Python worker in 3 seconds...");
       setTimeout(startPythonWorker, 3000);
     }
   });
 
-  pythonProcess.on('error', (error) => {
-    console.error('Python worker process error:', error);
+  pythonProcess.on("error", (error) => {
+    dbg(`Python worker process error: ${error.message}`);
   });
 }
 
 function startWebSocketServer() {
   wsServer = new WebSocket.Server({ port: 3002 });
-  
-  wsServer.on('connection', (ws) => {
-    console.log('Client connected to proctoring WebSocket');
-    
-    ws.on('message', (message) => {
+  wsServer.on("connection", (ws) => {
+    console.log("Client connected to proctoring WebSocket");
+    ws.on("message", (message) => {
       try {
         const data = JSON.parse(message);
-        
-        if (data.type === 'VIDEO_FRAME' && pythonProcess && pythonProcess.stdin.writable) {
-          const frameMessage = JSON.stringify(data) + '\n';
-          pythonProcess.stdin.write(frameMessage);
+        if (
+          data.type === "VIDEO_FRAME" &&
+          pythonProcess &&
+          pythonProcess.stdin.writable
+        ) {
+          pythonProcess.stdin.write(JSON.stringify(data) + "\n");
         }
       } catch (error) {
-        console.error('Error processing WebSocket message:', error);
+        console.error("Error processing WebSocket message:", error);
       }
     });
-    
-    ws.on('close', () => {
-      console.log('Client disconnected from proctoring WebSocket');
-    });
-    
-    ws.on('error', (error) => {
-      console.error('WebSocket error:', error);
-    });
+    ws.on("close", () => console.log("Client disconnected"));
+    ws.on("error", console.error);
   });
-  
-  wsServer.on('error', (error) => {
-    console.error('WebSocket server error:', error);
-  });
+  wsServer.on("error", console.error);
 }
 
-// IPC handlers
-ipcMain.handle('send-video-frame', (event, frameData) => {
-  if (pythonProcess && pythonProcess.stdin.writable) {
+// IPC Handlers
+ipcMain.handle("renderer-ready", () => {
+  rendererReady = true;
+  // flush buffered logs
+  while (logBuffer.length > 0) {
+    const msg = logBuffer.shift();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('debug-log', msg);
+    }
+  }
+  return true;
+});
+
+ipcMain.handle("send-video-frame", (event, frameData) => {
+  const pyReady = pythonProcess && pythonProcess.stdin.writable;
+  dbg(`IPC send-video-frame: pyReady=${pyReady} dataLen=${frameData?.imageData?.length ?? 0}`);
+  if (pyReady) {
     try {
-      const message = JSON.stringify({
-        type: 'VIDEO_FRAME',
-        data: frameData,
-        timestamp: Date.now()
-      }) + '\n';
-      
-      pythonProcess.stdin.write(message);
+      pythonProcess.stdin.write(
+        JSON.stringify({ type: "VIDEO_FRAME", data: frameData }) + "\n",
+      );
       return true;
     } catch (error) {
-      console.error('Failed to send frame to Python worker:', error);
-      return false;
+      dbg(`Failed to send frame to Python: ${error.message}`);
+    }
+  } else {
+    dbg("send-video-frame: Python process not ready!");
+  }
+  return false;
+});
+
+ipcMain.handle("load-reference-face", (event, { imageUrl, userId }) => {
+  if (pythonProcess && pythonProcess.stdin.writable) {
+    try {
+      pythonProcess.stdin.write(
+        JSON.stringify({ type: "LOAD_REFERENCE_FACE", imageUrl, userId }) +
+          "\n",
+      );
+      return true;
+    } catch (error) {
+      console.error("Failed to load reference face:", error);
     }
   }
   return false;
 });
 
-ipcMain.handle('load-reference-face', (event, { imageUrl, userId }) => {
-  if (pythonProcess && pythonProcess.stdin.writable) {
-    try {
-      const message = JSON.stringify({
-        type: 'LOAD_REFERENCE_FACE',
-        imageUrl: imageUrl,
-        userId: userId
-      }) + '\n';
-      
-      pythonProcess.stdin.write(message);
-      return true;
-    } catch (error) {
-      console.error('Failed to load reference face:', error);
-      return false;
+ipcMain.handle("start-proctoring", async (event, sessionData) => {
+  try {
+    isProctoringActive = true;
+
+    // Enter kiosk mode — wrap each call so one failure doesn't abort the rest
+    try { mainWindow.setKiosk(true); } catch {}
+    try { mainWindow.setFullScreenable(false); } catch {}
+    try { mainWindow.setResizable(false); } catch {}
+    try { mainWindow.setMinimizable(false); } catch {}
+    try { mainWindow.setMaximizable(false); } catch {}
+    try { mainWindow.setClosable(false); } catch {}
+    try { mainWindow.setMenuBarVisibility(false); } catch {}
+    try { mainWindow.setSkipTaskbar(true); } catch {}
+    try { blockerId = powerSaveBlocker.start("prevent-display-sleep"); } catch {}
+    try { mainWindow.setContentProtection(true); } catch {}
+    try { globalShortcut.register("Alt+Tab", () => {}); } catch {}
+    try { globalShortcut.register("CommandOrControl+Tab", () => {}); } catch {}
+
+    // Start processing in Python worker
+    if (pythonProcess && pythonProcess.stdin.writable) {
+      pythonProcess.stdin.write(
+        JSON.stringify({ type: "START_PROCESSING", sessionData: {
+          meetingId: String(sessionData?.meetingId || ""),
+          userId: String(sessionData?.userId || ""),
+          participantId: String(sessionData?.participantId || ""),
+          studentName: String(sessionData?.studentName || ""),
+        }}) + "\n"
+      );
     }
+
+    dbg(`Proctoring started for ${sessionData?.userId}`);
+    return true;
+  } catch (err) {
+    dbg(`start-proctoring error: ${err.message}`);
+    return false;
   }
-  return false;
 });
 
-ipcMain.handle('start-proctoring', (event, sessionData) => {
-  isProctoringActive = true;
-  
-  // Enable secure lockdown mode
-  mainWindow.setAlwaysOnTop(true);
-  mainWindow.setMinimizable(false);
-  mainWindow.setClosable(false);
-  mainWindow.setMenuBarVisibility(false);
-  
-  // Prevent Alt+Tab and other shortcuts
-  mainWindow.setSkipTaskbar(true);
-  
-  // Set focus and prevent losing it
-  mainWindow.focus();
-  mainWindow.show();
-  
-  console.log('🔒 Lockdown mode enabled - Window secured');
-  
-  if (pythonProcess && pythonProcess.stdin.writable) {
-    try {
-      const message = JSON.stringify({
-        type: 'START_PROCESSING',
-        sessionData: sessionData || {}
-      }) + '\n';
-      
-      pythonProcess.stdin.write(message);
-      return true;
-    } catch (error) {
-      console.error('Failed to start proctoring:', error);
-      return false;
-    }
-  }
-  return false;
-});
-
-ipcMain.handle('stop-proctoring', () => {
+ipcMain.handle("stop-proctoring", () => {
   isProctoringActive = false;
-  
+
   // Restore normal window mode
-  mainWindow.setAlwaysOnTop(false);
+  mainWindow.setKiosk(false);
+  mainWindow.setFullScreenable(true);
+  mainWindow.setResizable(true);
   mainWindow.setMinimizable(true);
+  mainWindow.setMaximizable(true);
   mainWindow.setClosable(true);
   mainWindow.setMenuBarVisibility(true);
   mainWindow.setSkipTaskbar(false);
-  
-  console.log('🔓 Lockdown mode disabled - Window restored');
-  
+  mainWindow.setContentProtection(false);
+  if (blockerId) powerSaveBlocker.stop(blockerId);
+  globalShortcut.unregisterAll();
+
+  console.log("🔓 Lockdown mode disabled - Window restored");
+
   if (pythonProcess && pythonProcess.stdin.writable) {
-    pythonProcess.stdin.write(JSON.stringify({
-      type: 'STOP_PROCESSING'
-    }) + '\n');
-    return true;
+    pythonProcess.stdin.write(
+      JSON.stringify({ type: "STOP_PROCESSING" }) + "\n",
+    );
   }
-  return false;
+  return true;
 });
 
-ipcMain.handle('get-proctoring-status', () => {
-  return isProctoringActive;
-});
+ipcMain.handle("get-proctoring-status", () => isProctoringActive);
 
-ipcMain.handle('set-window-mode', (event, mode) => {
-  if (mode === 'proctoring') {
+ipcMain.handle("set-window-mode", (event, mode) => {
+  if (mode === "proctoring") {
     isProctoringActive = true;
     mainWindow.setKiosk(true);
     mainWindow.setAlwaysOnTop(true);
     mainWindow.setFullScreen(true);
-  } else if (mode === 'normal') {
+  } else {
     isProctoringActive = false;
     mainWindow.setKiosk(false);
     mainWindow.setAlwaysOnTop(false);
@@ -320,8 +384,7 @@ ipcMain.handle('set-window-mode', (event, mode) => {
   return true;
 });
 
-// Add navigation control
-ipcMain.handle('navigate-back', () => {
+ipcMain.handle("navigate-back", () => {
   if (mainWindow && mainWindow.webContents.canGoBack()) {
     mainWindow.webContents.goBack();
     return true;
@@ -329,34 +392,26 @@ ipcMain.handle('navigate-back', () => {
   return false;
 });
 
-ipcMain.handle('can-go-back', () => {
-  return mainWindow ? mainWindow.webContents.canGoBack() : false;
-});
+ipcMain.handle("can-go-back", () =>
+  mainWindow ? mainWindow.webContents.canGoBack() : false,
+);
 
-ipcMain.handle('get-window-mode', () => {
-  return isProctoringActive ? 'proctoring' : 'normal';
-});
+ipcMain.handle("get-window-mode", () =>
+  isProctoringActive ? "proctoring" : "normal",
+);
 
 app.whenReady().then(createWindow);
 
-app.on('window-all-closed', () => {
-  if (pythonProcess) {
-    pythonProcess.kill();
-  }
-  if (wsServer) {
-    wsServer.close();
-  }
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+app.on("window-all-closed", () => {
+  if (pythonProcess) pythonProcess.kill();
+  if (wsServer) wsServer.close();
+  if (process.platform !== "darwin") app.quit();
 });
 
-app.on('before-quit', () => {
+app.on("before-quit", () => {
   isProctoringActive = false;
 });
 
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
+app.on("activate", () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });

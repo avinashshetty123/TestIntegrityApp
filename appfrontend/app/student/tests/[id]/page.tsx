@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Save, Flag, CheckCircle, AlertTriangle, ChevronLeft, ChevronRight, CheckCircle2, XCircle } from 'lucide-react';
+import { Clock, Save, Flag, CheckCircle, AlertTriangle, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Home } from 'lucide-react';
+import StudentNav from '@/components/StudentNav';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -65,6 +66,9 @@ export default function TakeTestPage() {
   const startTimeRef = useRef<number>(0);
   const blurCountRef = useRef<number>(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const isSubmittingRef = useRef<boolean>(false);
+  const submitDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const electronAvailable = typeof window !== 'undefined' && !!(window as any).electronAPI;
 
   // Anti-cheating measures
   useEffect(() => {
@@ -231,6 +235,16 @@ export default function TakeTestPage() {
       const duration = test?.durationMinutes || 120; // Default 2 hours
       setTimeLeft(duration * 60); // Convert to seconds
     }
+
+    // Enter fullscreen/kiosk mode via Electron (same as meeting)
+    if (electronAvailable) {
+      (window as any).electronAPI.startProctoring({
+        meetingId: `test-${testId}`,
+        userId: 'student',
+        participantId: `test-${testId}-student`,
+        studentName: 'Student',
+      }).catch(() => {});
+    }
   };
 
   const handleAnswerChange = (questionId: number, response: string | string[]) => {
@@ -263,24 +277,18 @@ export default function TakeTestPage() {
     }
   };
 
-  const handleAutoSubmit = async (reason: string) => {
-    if (submitting) return;
-    
-    setSubmitting(true);
-    
-    // Clear timer
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
+  const exitFullscreen = () => {
+    if (electronAvailable) {
+      (window as any).electronAPI.stopProctoring().catch(() => {});
     }
-    
-    // Clear saved progress
+  };
+
+  const handleAutoSubmit = async (reason: string) => {
+    if (isSubmittingRef.current) return;
+    if (timerRef.current) clearInterval(timerRef.current);
     localStorage.removeItem(`test_${testId}_progress`);
-    
+    exitFullscreen();
     await submitTest(reason);
-    alert(`Test auto-submitted: ${reason}`);
-    
-    // Redirect to tests page
-    router.push('/student/tests');
   };
 
   const reportProctoringViolation = async (type: string, description: string) => {
@@ -319,41 +327,41 @@ export default function TakeTestPage() {
   };
 
   const submitTest = async (autoSubmitReason?: string) => {
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    setSubmitting(true);
+    if (timerRef.current) clearInterval(timerRef.current);
     try {
       const response = await fetch(`http://localhost:4000/tests/${testId}/submit`, {
         method: 'POST',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          answers: answers.map(answer => ({
-            questionId: answer.questionId,
-            response: answer.response
-          })),
-          violations: violations,
+          answers: answers.map(a => ({ questionId: a.questionId, response: a.response })),
+          violations,
           autoSubmitted: !!autoSubmitReason,
           autoSubmitReason: autoSubmitReason || null,
-          mistakeCount
+          mistakeCount,
         }),
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to submit test');
-      }
-
-      // Clear saved progress
+      if (!response.ok) throw new Error('Failed to submit test');
       localStorage.removeItem(`test_${testId}_progress`);
-      
-      const result = await response.json();
-      router.push(`/student/results`);
-      
+      exitFullscreen();
+      router.push('/student/results');
     } catch (error) {
       console.error('Error submitting test:', error);
       alert('Failed to submit test. Please try again.');
-    } finally {
+      isSubmittingRef.current = false;
       setSubmitting(false);
     }
+  };
+
+  const handleSubmitClick = () => {
+    if (isSubmittingRef.current || submitDebounceRef.current) return;
+    submitDebounceRef.current = setTimeout(() => {
+      submitDebounceRef.current = null;
+    }, 2000);
+    submitTest();
   };
 
   const formatTime = (seconds: number) => {
@@ -370,6 +378,7 @@ export default function TakeTestPage() {
 
   const exitTest = () => {
     if (window.confirm('Are you sure you want to exit the test? Your progress will be saved.')) {
+      exitFullscreen();
       setTestStarted(false);
     }
   };
@@ -438,7 +447,7 @@ export default function TakeTestPage() {
   }
 
   if (!testStarted) {
-    return <TestInstructions test={test} onStart={startTest} />;
+    return <TestInstructions test={test} onStart={startTest} onBack={() => router.push('/student/tests')} />;
   }
 
   const currentQ = test.questions[currentQuestion];
@@ -446,6 +455,19 @@ export default function TakeTestPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white p-4 font-['Inter']">
+      {/* Full-page submitting overlay */}
+      {submitting && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 text-center shadow-2xl">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+            <p className="text-gray-800 font-semibold text-lg">Submitting your test...</p>
+            <p className="text-gray-500 text-sm mt-1">Please do not close this window</p>
+          </div>
+        </div>
+      )}
+
+      {/* Nav */}
+      <StudentNav backPath="/student/tests" backLabel="Back to Tests" />
       {/* Header with Timer and Progress */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -674,9 +696,9 @@ export default function TakeTestPage() {
 
                     {isLastQuestion ? (
                       <button
-                        onClick={() => submitTest()}
-                        disabled={submitting}
-                        className="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-medium hover:scale-105 transition-all duration-300 shadow-lg shadow-green-200/50 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={handleSubmitClick}
+                        disabled={submitting || !!submitDebounceRef.current}
+                        className="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-medium hover:scale-105 transition-all duration-300 shadow-lg shadow-green-200/50 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                       >
                         <CheckCircle className="h-4 w-4" />
                         {submitting ? 'Submitting...' : 'Submit Test'}
@@ -732,7 +754,7 @@ export default function TakeTestPage() {
 }
 
 // Instructions Component
-function TestInstructions({ test, onStart }: { test: Test; onStart: () => void }) {
+function TestInstructions({ test, onStart, onBack }: { test: Test; onStart: () => void; onBack: () => void }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white flex items-center justify-center p-4 font-['Inter']">
       <motion.div
@@ -740,6 +762,9 @@ function TestInstructions({ test, onStart }: { test: Test; onStart: () => void }
         animate={{ opacity: 1, scale: 1 }}
         className="bg-white/60 backdrop-blur-3xl rounded-2xl shadow-xl shadow-orange-100/50 p-8 max-w-2xl w-full border border-orange-200/50"
       >
+        <button onClick={onBack} className="flex items-center gap-1 text-orange-600 hover:text-orange-700 text-sm font-medium mb-6">
+          <ChevronLeft className="h-4 w-4" /> Back to Tests
+        </button>
         <div className="text-center mb-8">
           <div className="bg-gradient-to-r from-orange-400 to-orange-500 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-orange-200/50">
             <AlertTriangle className="h-8 w-8 text-white drop-shadow-sm" />

@@ -33,7 +33,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts"
-, "components/hooks/useLivekitRoom.jsx"  ],
+, "components/hooks/useLivekitRoom.ts"  ],
   "exclude": [
     "node_modules"
   ]

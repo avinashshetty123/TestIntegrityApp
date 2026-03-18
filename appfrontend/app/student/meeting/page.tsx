@@ -22,9 +22,9 @@ import {
   UserCheck,
   Clock4,
   CheckCircle2,
-  AlertCircle,
-  ArrowLeft
+  AlertCircle
 } from 'lucide-react';
+import StudentNav from '@/components/StudentNav';
 import axios from 'axios';
 import io from 'socket.io-client';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -450,6 +450,9 @@ export default function StudentMeetingDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="bg-white rounded-xl p-6 mb-6 shadow-sm border border-gray-200">
+          <div className="flex items-center mb-4">
+            <StudentNav backPath="/student" backLabel="Back" />
+          </div>
           <div className="text-center">
             <h1 className="text-4xl font-bold text-orange-800 drop-shadow-sm mb-4">
               Meeting Dashboard

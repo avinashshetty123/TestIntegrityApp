@@ -1,13 +1,12 @@
-import { Controller, Post, Get, Body, Param } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Res } from '@nestjs/common';
 import { ProctoringService } from './proctoring.service';
-import type { AnalyzeFrameDto } from './dto/analyze-frame.dto';
 
 @Controller('proctoring')
 export class ProctoringController {
   constructor(private readonly proctoringService: ProctoringService) {}
 
   @Post('analyze-frame')
-  async analyzeFrame(@Body() data: AnalyzeFrameDto) {
+  async analyzeFrame(@Body() data: Record<string, any>) {
     return this.proctoringService.analyzeFrame(data);
   }
 
@@ -102,7 +101,12 @@ export class ProctoringController {
   }
 
   @Get('live-alerts/:meetingId')
-  async getLiveAlerts(@Param('meetingId') meetingId: string) {
+  async getLiveAlerts(
+    @Param('meetingId') meetingId: string,
+    @Res({ passthrough: true }) res: any,
+  ) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
     return this.proctoringService.getLiveAlerts(meetingId);
   }
 
@@ -116,6 +120,11 @@ export class ProctoringController {
 
   @Get('meeting/:meetingId/alerts-detailed')
   async getAlertsDetailed(@Param('meetingId') meetingId: string) {
+    return this.proctoringService.getAlertsWithParticipantDetails(meetingId);
+  }
+
+  @Get('meeting/:meetingId/alerts')
+  async getAlertsByMeeting(@Param('meetingId') meetingId: string) {
     return this.proctoringService.getAlertsWithParticipantDetails(meetingId);
   }
 }

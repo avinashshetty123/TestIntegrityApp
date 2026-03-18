@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import StreamlinedStudentMeeting from "@/components/StreamlinedStudentMeeting";
-import EnhancedStudentMeetingRoom from "@/components/StudentMeeting";
+
+import EnhancedStudentMeetingRoom from "@/components/studentmeeting/StudentMeeting";
 
 export default function StudentMeetingJoinPage() {
   const params = useParams();
@@ -70,8 +70,10 @@ export default function StudentMeetingJoinPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 font-['Inter'] flex items-center justify-center">
         <div className="bg-white/10 backdrop-blur-3xl rounded-3xl p-8 shadow-2xl border border-white/20 text-center">
-          <h2 className="text-xl font-semibold mb-4 text-red-400">Connection Error</h2>
-          <button 
+          <h2 className="text-xl font-semibold mb-4 text-red-400">
+            Connection Error
+          </h2>
+          <button
             onClick={() => router.push("/student/meeting")}
             className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold py-3 px-6 rounded-2xl shadow-xl hover:scale-105 transition-all duration-300"
           >

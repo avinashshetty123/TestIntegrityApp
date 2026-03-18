@@ -42,10 +42,16 @@ async getMeetingLeaderboard(@Param('meetingId') meetingId: string) {
   }
 
   @Get('results/:quizId')
-  @Roles(UserRole.TUTOR)
+  @Roles(UserRole.TUTOR, UserRole.STUDENT)
   async getQuizResults(@Param('quizId') quizId: string, @Req() req) {
-    this.logger.log(`Tutor ${req.user.userId} getting results for quiz ${quizId}`);
+    this.logger.log(`User ${req.user.userId} getting results for quiz ${quizId}`);
     return this.quizService.getQuizResults(quizId);
+  }
+
+  @Get('responses/:quizId')
+  @Roles(UserRole.TUTOR)
+  async getQuizResponses(@Param('quizId') quizId: string) {
+    return this.quizService.getQuizResponses(quizId);
   }
 
   @Get(':meetingid/quizes')
