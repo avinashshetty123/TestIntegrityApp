@@ -505,12 +505,21 @@ export function useProctoring({
         console.error("startProctoring IPC failed:", e);
       }
 
-      // Wait for video element to have actual data before starting interval
+      // Poll until video element exists in DOM AND has data
       if (frameIntervalRef.current) clearInterval(frameIntervalRef.current);
+      let pollCount = 0;
       const startFrameLoop = () => {
         const v = localVideoRef.current;
-        const ready = v && (v.videoWidth > 0 || v.readyState >= 2);
-        console.log(`[Proctor] startFrameLoop check: videoW=${v?.videoWidth} readyState=${v?.readyState} ready=${ready}`);
+        if (!v) {
+          // video element not in DOM yet — keep waiting
+          console.log(`[Proctor] startFrameLoop #${pollCount}: video element not mounted yet`);
+          pollCount++;
+          frameIntervalRef.current = setTimeout(startFrameLoop, 300) as any;
+          return;
+        }
+        const ready = v.videoWidth > 0 || v.readyState >= 2;
+        console.log(`[Proctor] startFrameLoop check #${pollCount}: videoW=${v.videoWidth} readyState=${v.readyState} ready=${ready}`);
+        pollCount++;
         if (ready) {
           frameIntervalRef.current = setInterval(() => sendFrameToElectronRef.current?.(), 1000);
           setFaceDetectionStatus("Monitoring active (Electron)");
@@ -523,8 +532,12 @@ export function useProctoring({
       if (frameIntervalRef.current) clearInterval(frameIntervalRef.current);
       const startBrowserLoop = () => {
         const v = localVideoRef.current;
-        const ready = v && (v.videoWidth > 0 || v.readyState >= 2);
-        console.log(`[Proctor] startBrowserLoop check: videoW=${v?.videoWidth} readyState=${v?.readyState} ready=${ready}`);
+        if (!v) {
+          frameIntervalRef.current = setTimeout(startBrowserLoop, 300) as any;
+          return;
+        }
+        const ready = v.videoWidth > 0 || v.readyState >= 2;
+        console.log(`[Proctor] startBrowserLoop check: videoW=${v.videoWidth} readyState=${v.readyState} ready=${ready}`);
         if (ready) {
           frameIntervalRef.current = setInterval(() => captureAndAnalyzeRef.current?.(), 1500);
           setFaceDetectionStatus("Monitoring active (browser)");
@@ -583,17 +596,22 @@ export function useProctoring({
     };
   }, [isActive, reportBrowserActivity]);
 
-  // Start/stop: trigger on localVideoTrack (reliable LiveKit signal) OR isVideoEnabled
-  // localVideoTrack becomes non-null when LiveKit publishes the camera track
+  // Start proctoring when camera is live. In Electron, also register kiosk on first start.
+  // Guard with isActive ref so re-renders don't restart the loop.
+  const isProctoringStartedRef = useRef(false);
+
   useEffect(() => {
     const cameraReady = !!localVideoTrack || !!isVideoEnabled;
-    console.log(`[Proctor] lifecycle useEffect: localVideoTrack=${!!localVideoTrack} isVideoEnabled=${isVideoEnabled} userId=${userId} cameraReady=${cameraReady}`);
-    if (cameraReady && userId) {
-      void startProctoring();
-    } else {
-      stopProctoring();
-    }
+    console.log(`[Proctor] lifecycle useEffect: electronAvailable=${electronAvailable} localVideoTrack=${!!localVideoTrack} isVideoEnabled=${isVideoEnabled} userId=${userId} cameraReady=${cameraReady} started=${isProctoringStartedRef.current}`);
+
+    if (!userId || !cameraReady) return;
+    if (isProctoringStartedRef.current) return; // already running — don't restart on re-render
+
+    isProctoringStartedRef.current = true;
+    void startProctoring();
+
     return () => {
+      isProctoringStartedRef.current = false;
       stopProctoring();
       if (analysisListenerSet.current && typeof window !== "undefined" && window.electronAPI?.removeAllListeners) {
         window.electronAPI.removeAllListeners("proctoring-analysis");

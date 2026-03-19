@@ -143,43 +143,34 @@ function createWindow() {
   startWebSocketServer();
 }
 
+// Resolve the correct python executable:
+// 1. venv inside python-worker/proctoring_env (has cv2+numpy guaranteed)
+// 2. fall back to system python
+function getPythonExe() {
+  const venvPy = path.join(__dirname, "python-worker", "proctoring_env", "Scripts", "python.exe");
+  const fs = require("fs");
+  if (fs.existsSync(venvPy)) {
+    dbg(`Using venv python: ${venvPy}`);
+    return venvPy;
+  }
+  dbg("venv not found — falling back to system python");
+  return "python";
+}
+
 function startPythonWorker() {
-  const advancedWorkerPath = path.join(
-    __dirname,
-    "python-worker",
-    "proctoring_worker.py",
-  );
   const simpleWorkerPath = path.join(
     __dirname,
     "python-worker",
     "simple_proctoring_worker.py",
   );
-
-  let pythonScriptPath = advancedWorkerPath;
-
-  // Check if advanced dependencies are available
-  try {
-    const testProcess = spawn("python", ["-c", "import ultralytics, dlib"], {
-      stdio: "pipe",
-    });
-    testProcess.on("close", (code) => {
-      if (code !== 0) {
-        dbg("Advanced AI deps not available — using simple worker");
-        pythonScriptPath = simpleWorkerPath;
-      } else {
-        dbg("Advanced AI deps OK — using advanced worker");
-      }
-      startWorker(pythonScriptPath);
-    });
-  } catch (error) {
-    dbg(`Dep check error: ${error.message} — using simple worker`);
-    startWorker(simpleWorkerPath);
-  }
+  // Always use simple worker — it has cv2/numpy via venv
+  startWorker(simpleWorkerPath);
 }
 
 function startWorker(scriptPath) {
-  dbg(`Starting Python worker: ${scriptPath}`);
-  pythonProcess = spawn("python", [scriptPath], {
+  const pythonExe = getPythonExe();
+  dbg(`Starting Python worker: ${pythonExe} ${scriptPath}`);
+  pythonProcess = spawn(pythonExe, [scriptPath], {
     stdio: ["pipe", "pipe", "pipe"],
     cwd: path.join(__dirname, "python-worker"),
   });

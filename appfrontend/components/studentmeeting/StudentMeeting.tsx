@@ -56,21 +56,6 @@ export default function EnhancedStudentMeetingRoom({
     electronAvailable,
   });
 
-  // Enter kiosk/fullscreen as soon as student joins — don't wait for camera
-  useEffect(() => {
-    if (!electronAvailable) return;
-    (window as any).electronAPI.startProctoring({
-      meetingId: String(meetingId || ""),
-      userId: String(userInfo?.id || ""),
-      participantId: String(userInfo?.id || `participant-${Date.now()}`),
-      studentName: String(userInfo?.fullname || userInfo?.fullName || "Student"),
-    }).catch(() => {});
-    return () => {
-      (window as any).electronAPI.stopProctoring().catch(() => {});
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   if (!isConnected) {
     return (
       <ConnectionStatus
