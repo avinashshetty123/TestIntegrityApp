@@ -168,7 +168,13 @@ function startWorker(scriptPath) {
   dbg(`Starting Python worker: ${pythonExe} ${scriptPath}`);
   pythonProcess = spawn(pythonExe, [scriptPath], {
     stdio: ["pipe", "pipe", "pipe"],
-    cwd: path.join(__dirname, "python-worker"),
+    cwd: __dirname,
+    env: {
+      ...process.env,
+      // Clear PYTHONPATH so system numpy doesn't shadow venv numpy
+      PYTHONPATH: "",
+      PYTHONNOUSERSITE: "1",
+    },
   });
 
   pythonProcess.stdout.on("data", (data) => {
@@ -209,7 +215,8 @@ function startWorker(scriptPath) {
 
   pythonProcess.on("close", (code) => {
     dbg(`Python worker exited with code ${code}`);
-    if (isProctoringActive) {
+    // Only restart if proctoring is still genuinely active (not stopped by user)
+    if (isProctoringActive && code !== 0) {
       dbg("Restarting Python worker in 3 seconds...");
       setTimeout(startPythonWorker, 3000);
     }
@@ -279,8 +286,7 @@ ipcMain.handle("load-reference-face", (event, { imageUrl, userId }) => {
   if (pythonProcess && pythonProcess.stdin.writable) {
     try {
       pythonProcess.stdin.write(
-        JSON.stringify({ type: "LOAD_REFERENCE_FACE", imageUrl, userId }) +
-          "\n",
+        JSON.stringify({ type: "LOAD_REFERENCE_FACE", imageUrl, userId }) + "\n"
       );
       return true;
     } catch (error) {
@@ -342,12 +348,11 @@ ipcMain.handle("stop-proctoring", () => {
   if (blockerId) { try { powerSaveBlocker.stop(blockerId); } catch {} blockerId = null; }
   try { globalShortcut.unregisterAll(); } catch {}
 
-  console.log("🔓 Lockdown mode disabled - Window restored");
-
-  if (pythonProcess && pythonProcess.stdin.writable) {
-    pythonProcess.stdin.write(
-      JSON.stringify({ type: "STOP_PROCESSING" }) + "\n",
-    );
+  // Kill Python worker to free CPU/GPU resources
+  if (pythonProcess) {
+    try { pythonProcess.kill(); } catch {}
+    pythonProcess = null;
+    dbg("Python worker killed on stop-proctoring");
   }
   return true;
 });

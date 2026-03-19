@@ -10,6 +10,8 @@ interface VideoTileProps {
   proctoringStatus?: string;
   isProctoringActive?: boolean;
   showRecordingIndicator?: boolean;
+  identityStatus?: "unknown" | "verified" | "mismatch" | "no_ref";
+  identitySimilarity?: number | null;
 }
 
 export function VideoTile({
@@ -21,6 +23,8 @@ export function VideoTile({
   proctoringStatus,
   isProctoringActive,
   showRecordingIndicator,
+  identityStatus,
+  identitySimilarity,
 }: VideoTileProps) {
   const internalRef = useRef<HTMLVideoElement>(null);
   const videoRef = isLocal && localVideoRef ? localVideoRef : internalRef;
@@ -80,6 +84,24 @@ export function VideoTile({
           {proctoringStatus && (
             <Badge className="bg-blue-500 text-xs text-white">
               {proctoringStatus}
+            </Badge>
+          )}
+          {/* Identity verification badge */}
+          {identityStatus && identityStatus !== "no_ref" && (
+            <Badge
+              className={`text-xs text-white font-semibold ${
+                identityStatus === "verified"
+                  ? "bg-green-600"
+                  : identityStatus === "mismatch"
+                  ? "bg-red-600 animate-pulse"
+                  : "bg-yellow-500"
+              }`}
+            >
+              {identityStatus === "verified"
+                ? "✓ Identity Verified"
+                : identityStatus === "mismatch"
+                ? "⚠ Identity Mismatch"
+                : "Verifying identity..."}
             </Badge>
           )}
         </div>

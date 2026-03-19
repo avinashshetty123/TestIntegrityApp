@@ -10,6 +10,8 @@ interface VideoGridProps {
   tutorParticipant?: RemoteParticipant | null;
   isProctoringActive?: boolean;
   faceDetectionStatus?: string;
+  identityStatus?: "unknown" | "verified" | "mismatch" | "no_ref";
+  identitySimilarity?: number | null;
 }
 
 export function VideoGrid({
@@ -19,6 +21,8 @@ export function VideoGrid({
   tutorParticipant,
   isProctoringActive,
   faceDetectionStatus,
+  identityStatus,
+  identitySimilarity,
 }: VideoGridProps) {
   const [tutorVideoTrack, setTutorVideoTrack] = useState<any>(null);
   const [tutorScreenTrack, setTutorScreenTrack] = useState<any>(null);
@@ -118,6 +122,8 @@ export function VideoGrid({
         proctoringStatus={faceDetectionStatus}
         isProctoringActive={isProctoringActive}
         showRecordingIndicator={isProctoringActive}
+        identityStatus={identityStatus}
+        identitySimilarity={identitySimilarity}
       />
 
       {/* Tutor camera tile - only render when tutor is present */}

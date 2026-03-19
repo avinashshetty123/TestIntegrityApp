@@ -1,5 +1,5 @@
 // components/EnhancedStudentMeetingRoom.tsx
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useLiveKitRoom } from "../hooks/useLivekitRoom";
 import { useMediaControls } from "../hooks/useMediaControl";
 import { useProctoring } from "../hooks/useProctoring";
@@ -45,6 +45,9 @@ export default function EnhancedStudentMeetingRoom({
     alerts,
     isActive: isProctoringActive,
     faceDetectionStatus,
+    identityStatus,
+    identitySimilarity,
+    stopProctoring,
   } = useProctoring({
     meetingId,
     userId: userInfo?.id,
@@ -55,6 +58,14 @@ export default function EnhancedStudentMeetingRoom({
     userInfo,
     electronAvailable,
   });
+
+  // Stop proctoring when room disconnects (tutor ends meeting or network drop)
+  useEffect(() => {
+    if (!isConnected && isProctoringActive) {
+      stopProctoring();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected]);
 
   if (!isConnected) {
     return (
@@ -70,6 +81,7 @@ export default function EnhancedStudentMeetingRoom({
     <div className="fixed inset-0 w-screen h-screen bg-gray-900 overflow-hidden flex flex-col">
       <MeetingRoomLayout
         onBack={() => {
+          stopProctoring();
           disconnect();
           onDisconnect?.();
         }}
@@ -82,6 +94,8 @@ export default function EnhancedStudentMeetingRoom({
               tutorParticipant={tutorParticipant}
               isProctoringActive={isProctoringActive}
               faceDetectionStatus={faceDetectionStatus}
+              identityStatus={identityStatus}
+              identitySimilarity={identitySimilarity}
             />
             <ProctoringAlertsPanel alerts={alerts} />
           </div>
@@ -105,6 +119,7 @@ export default function EnhancedStudentMeetingRoom({
             onToggleScreenShare={toggleScreenShare}
             onToggleQuiz={() => setShowQuizPanel(!showQuizPanel)}
             onDisconnect={() => {
+              stopProctoring();
               disconnect();
               onDisconnect?.();
             }}

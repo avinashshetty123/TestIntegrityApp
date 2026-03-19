@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "build:main": "tsc --project tsconfig.electron.json && powershell Copy-Item -Recurse -Force electron/python-worker dist-electron/python-worker",
-    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "setup:proctoring": "python electron/python-worker/setup_proctoring.py",
+    "electron:dev": "npm run setup:proctoring && concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
     "build:electron": "tsc --project tsconfig.electron.json",
     "electron": "electron .",
     "electron:pack": "npm run build:electron && electron-builder"

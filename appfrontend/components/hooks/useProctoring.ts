@@ -37,6 +37,10 @@ export function useProctoring({
   const [alerts, setAlerts] = useState<ProctoringAlert[]>([]);
   const [isActive, setIsActive] = useState(false);
   const [faceDetectionStatus, setFaceDetectionStatus] = useState("Camera disabled");
+  const [identityStatus, setIdentityStatus] = useState<"unknown" | "verified" | "mismatch" | "no_ref">("no_ref");
+  const [identitySimilarity, setIdentitySimilarity] = useState<number | null>(null);
+  const referenceLoadedRef = useRef(false);
+  const mismatchStreakRef = useRef(0);
 
   // Stable refs — never cause useEffect re-runs
   const frameIntervalRef = useRef<NodeJS.Timeout>();
@@ -276,8 +280,8 @@ export function useProctoring({
       return;
     }
     const v = localVideoRef.current;
-    console.debug(`[Proctor] video state: readyState=${v.readyState} videoW=${v.videoWidth} videoH=${v.videoHeight} offsetW=${v.offsetWidth} paused=${v.paused} srcObject=${!!v.srcObject}`);
-    const imageData = captureFrame(320, 240);
+    // Use 640x480 so YOLO can detect phones reliably (320x240 is too small)
+    const imageData = captureFrame(640, 480);
     if (!imageData) {
       console.warn("[Proctor] captureFrame returned null — skipping frame");
       return;
@@ -304,12 +308,54 @@ export function useProctoring({
   // keep ref current so setInterval never captures a stale closure
   useEffect(() => { sendFrameToElectronRef.current = sendFrameToElectron; }, [sendFrameToElectron]);
 
+  // ── Load reference face from profilePic URL or capture from live video ──
+  const loadReferenceFace = useCallback(async (uid: string) => {
+    if (referenceLoadedRef.current) return;
+    if (!electronAvailableRef.current) return;
+
+    // Always capture from live video — profilePic has different lighting/compression
+    console.log('[Proctor] Capturing reference face from live video');
+    let attempts = 0;
+    const tryCapture = () => {
+      attempts++;
+      const frame = captureFrame(640, 480);
+      if (!frame) {
+        if (attempts < 10) setTimeout(tryCapture, 1000);
+        return;
+      }
+      window.electronAPI.loadReferenceFace(frame, uid)
+        .catch((e: any) => {
+          if (attempts < 8) setTimeout(tryCapture, 1500);
+          else console.warn('[Proctor] live capture reference failed:', e);
+        });
+    };
+    setTimeout(tryCapture, 2500);
+  }, [captureFrame, userInfo]);
+
+  const lastNoFaceToastRef = useRef(0);
+
   // Called by main.js → preload → onProctoringAnalysis
   const handleElectronAnalysis = useCallback((analysis: any) => {
     console.log("[Proctor] handleElectronAnalysis received:", JSON.stringify(analysis));
-    // Skip pure status messages (READY, PROCESSING_STARTED, etc.)
     if (analysis.status && !Array.isArray(analysis.alerts)) {
-      console.debug("[Proctor] status-only message, skipping:", analysis.status);
+      if (analysis.status === 'REFERENCE_FACE_LOADED') {
+        if (analysis.success) {
+          referenceLoadedRef.current = true;
+          setIdentityStatus('unknown');
+          console.log('[Proctor] Reference face confirmed loaded');
+        } else {
+          // Python rejected frame (blank/no face) — retry after 2s
+          console.warn('[Proctor] Reference face rejected by Python — retrying in 2s');
+          referenceLoadedRef.current = false;
+          setTimeout(() => {
+            const uid = userIdRef.current;
+            if (uid) {
+              const frame = captureFrame(640, 480);
+              if (frame) window.electronAPI.loadReferenceFace(frame, uid).catch(() => {});
+            }
+          }, 2000);
+        }
+      }
       return;
     }
 
@@ -327,17 +373,36 @@ export function useProctoring({
 
     if (analysis.faceDetected !== undefined) {
       const faceStatus = analysis.faceCount > 1
-        ? `${analysis.faceCount} faces detected`
+        ? `${analysis.faceCount} faces detected ⚠️`
         : analysis.faceDetected
           ? "Face detected ✓"
           : "No face detected";
       setFaceDetectionStatus(faceStatus);
       if (!analysis.faceDetected) {
-        toast.warning("Face not visible", { description: "Please ensure your face is clearly visible to the camera.", duration: 4000 });
+        const now = Date.now();
+        if (now - lastNoFaceToastRef.current > 10000) {
+          lastNoFaceToastRef.current = now;
+          toast.warning("Face not visible", { description: "Please ensure your face is clearly visible to the camera.", duration: 4000 });
+        }
       }
     }
 
-    // Forward to backend
+    // Update identity status from Python result
+    if (analysis.identityVerified === true) {
+      setIdentityStatus('verified');
+      setIdentitySimilarity(analysis.identitySimilarity ?? null);
+      mismatchStreakRef.current = 0;
+    } else if (analysis.identityVerified === false) {
+      setIdentityStatus('mismatch');
+      setIdentitySimilarity(analysis.identitySimilarity ?? null);
+      mismatchStreakRef.current += 1;
+    } else {
+      // identityVerified === null means Python is still building streak
+      // Reset UI back to 'unknown' so mismatch doesn't stay stuck
+      if (referenceLoadedRef.current) setIdentityStatus('unknown');
+      mismatchStreakRef.current = 0;
+    }
+
     void sendAlertsToBackend(electronAlerts, {
       faceDetected: analysis.faceDetected,
       faceCount: analysis.faceCount,
@@ -465,6 +530,8 @@ export function useProctoring({
     });
   }, [addAlert, sendAlertsToBackend]);
 
+  const isStoppedRef = useRef(false);
+
   // ── Start / Stop ─────────────────────────────────────────────────────────
   const startProctoring = useCallback(async () => {
     const uid = userIdRef.current;
@@ -486,12 +553,8 @@ export function useProctoring({
         analysisListenerSet.current = true;
       }
 
-      // Load reference face if available
-      if (userInfo?.profilePic) {
-        try {
-          await window.electronAPI.loadReferenceFace(userInfo.profilePic, uid);
-        } catch {}
-      }
+      // Load reference face (profilePic URL or live video capture)
+      await loadReferenceFace(uid);
 
       // Start proctoring session in Electron (kiosk mode etc.)
       try {
@@ -507,21 +570,22 @@ export function useProctoring({
 
       // Poll until video element exists in DOM AND has data
       if (frameIntervalRef.current) clearInterval(frameIntervalRef.current);
+      isStoppedRef.current = false;
       let pollCount = 0;
       const startFrameLoop = () => {
+        if (isStoppedRef.current) return; // meeting ended while polling
         const v = localVideoRef.current;
         if (!v) {
-          // video element not in DOM yet — keep waiting
-          console.log(`[Proctor] startFrameLoop #${pollCount}: video element not mounted yet`);
           pollCount++;
           frameIntervalRef.current = setTimeout(startFrameLoop, 300) as any;
           return;
         }
         const ready = v.videoWidth > 0 || v.readyState >= 2;
-        console.log(`[Proctor] startFrameLoop check #${pollCount}: videoW=${v.videoWidth} readyState=${v.readyState} ready=${ready}`);
         pollCount++;
         if (ready) {
-          frameIntervalRef.current = setInterval(() => sendFrameToElectronRef.current?.(), 1000);
+          frameIntervalRef.current = setInterval(() => {
+            if (!isStoppedRef.current) sendFrameToElectronRef.current?.();
+          }, 1000);
           setFaceDetectionStatus("Monitoring active (Electron)");
         } else {
           frameIntervalRef.current = setTimeout(startFrameLoop, 500) as any;
@@ -550,6 +614,7 @@ export function useProctoring({
   }, [createSession, handleElectronAnalysis, startAudioCapture, userInfo]);
 
   const stopProctoring = useCallback(() => {
+    isStoppedRef.current = true;
     setIsActive(false);
     setFaceDetectionStatus("Camera disabled");
     if (frameIntervalRef.current) {
@@ -621,5 +686,5 @@ export function useProctoring({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localVideoTrack, isVideoEnabled, userId]);
 
-  return { alerts, isActive, faceDetectionStatus, addAlert };
+  return { alerts, isActive, faceDetectionStatus, identityStatus, identitySimilarity, addAlert, stopProctoring };
 }
