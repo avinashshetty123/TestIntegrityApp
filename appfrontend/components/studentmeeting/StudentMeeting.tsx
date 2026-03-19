@@ -1,5 +1,5 @@
 // components/EnhancedStudentMeetingRoom.tsx
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState } from "react";
 import { useLiveKitRoom } from "../hooks/useLivekitRoom";
 import { useMediaControls } from "../hooks/useMediaControl";
 import { useProctoring } from "../hooks/useProctoring";
@@ -67,49 +67,51 @@ export default function EnhancedStudentMeetingRoom({
   }
 
   return (
-    <MeetingRoomLayout
-      onBack={() => {
-        disconnect();
-        onDisconnect?.();
-      }}
-      leftPanel={
-        <div className="relative h-full">
-          <VideoGrid
-            localVideoRef={localVideoRef}
-            localVideoTrack={localVideoTrack}
-            localParticipantName={userInfo?.fullname}
-            tutorParticipant={tutorParticipant}
-            isProctoringActive={isProctoringActive}
-            faceDetectionStatus={faceDetectionStatus}
+    <div className="fixed inset-0 w-screen h-screen bg-gray-900 overflow-hidden flex flex-col">
+      <MeetingRoomLayout
+        onBack={() => {
+          disconnect();
+          onDisconnect?.();
+        }}
+        leftPanel={
+          <div className="relative h-full">
+            <VideoGrid
+              localVideoRef={localVideoRef}
+              localVideoTrack={localVideoTrack}
+              localParticipantName={userInfo?.fullname}
+              tutorParticipant={tutorParticipant}
+              isProctoringActive={isProctoringActive}
+              faceDetectionStatus={faceDetectionStatus}
+            />
+            <ProctoringAlertsPanel alerts={alerts} />
+          </div>
+        }
+        rightPanel={
+          showQuizPanel ? (
+            <StudentQuizPanel
+              meetingId={meetingId}
+              isConnected={isConnected}
+              userInfo={userInfo}
+            />
+          ) : null
+        }
+        controls={
+          <MeetingControls
+            isAudioEnabled={isAudioEnabled}
+            isVideoEnabled={isVideoEnabled}
+            isScreenSharing={isScreenSharing}
+            onToggleAudio={toggleAudio}
+            onToggleVideo={toggleVideo}
+            onToggleScreenShare={toggleScreenShare}
+            onToggleQuiz={() => setShowQuizPanel(!showQuizPanel)}
+            onDisconnect={() => {
+              disconnect();
+              onDisconnect?.();
+            }}
+            showQuizPanel={showQuizPanel}
           />
-          <ProctoringAlertsPanel alerts={alerts} />
-        </div>
-      }
-      rightPanel={
-        showQuizPanel ? (
-          <StudentQuizPanel
-            meetingId={meetingId}
-            isConnected={isConnected}
-            userInfo={userInfo}
-          />
-        ) : null
-      }
-      controls={
-        <MeetingControls
-          isAudioEnabled={isAudioEnabled}
-          isVideoEnabled={isVideoEnabled}
-          isScreenSharing={isScreenSharing}
-          onToggleAudio={toggleAudio}
-          onToggleVideo={toggleVideo}
-          onToggleScreenShare={toggleScreenShare}
-          onToggleQuiz={() => setShowQuizPanel(!showQuizPanel)}
-          onDisconnect={() => {
-            disconnect();
-            onDisconnect?.();
-          }}
-          showQuizPanel={showQuizPanel}
-        />
-      }
-    />
+        }
+      />
+    </div>
   );
 }

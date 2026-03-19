@@ -454,7 +454,7 @@ export default function TakeTestPage() {
   const isLastQuestion = currentQuestion === test.questions.length - 1;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white p-4 font-['Inter']">
+    <div className="fixed inset-0 w-screen h-screen bg-gradient-to-br from-orange-50 via-orange-100 to-white overflow-y-auto font-['Inter']">
       {/* Full-page submitting overlay */}
       {submitting && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">

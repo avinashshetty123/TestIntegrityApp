@@ -158,13 +158,9 @@ function getPythonExe() {
 }
 
 function startPythonWorker() {
-  const simpleWorkerPath = path.join(
-    __dirname,
-    "python-worker",
-    "simple_proctoring_worker.py",
-  );
-  // Always use simple worker — it has cv2/numpy via venv
-  startWorker(simpleWorkerPath);
+  // simple_proctoring_worker.py has YOLO support built-in now
+  const workerPath = path.join(__dirname, "python-worker", "simple_proctoring_worker.py");
+  startWorker(workerPath);
 }
 
 function startWorker(scriptPath) {
@@ -298,15 +294,15 @@ ipcMain.handle("start-proctoring", async (event, sessionData) => {
   try {
     isProctoringActive = true;
 
-    // Enter kiosk mode — wrap each call so one failure doesn't abort the rest
-    try { mainWindow.setKiosk(true); } catch {}
-    try { mainWindow.setFullScreenable(false); } catch {}
+    // Full screen + lock down
+    try { mainWindow.setFullScreen(true); } catch {}
     try { mainWindow.setResizable(false); } catch {}
     try { mainWindow.setMinimizable(false); } catch {}
     try { mainWindow.setMaximizable(false); } catch {}
     try { mainWindow.setClosable(false); } catch {}
     try { mainWindow.setMenuBarVisibility(false); } catch {}
-    try { mainWindow.setSkipTaskbar(true); } catch {}
+    try { mainWindow.setSkipTaskbar(false); } catch {}
+    try { mainWindow.setAlwaysOnTop(true, "screen-saver"); } catch {}
     try { blockerId = powerSaveBlocker.start("prevent-display-sleep"); } catch {}
     try { mainWindow.setContentProtection(true); } catch {}
     try { globalShortcut.register("Alt+Tab", () => {}); } catch {}
@@ -335,18 +331,16 @@ ipcMain.handle("start-proctoring", async (event, sessionData) => {
 ipcMain.handle("stop-proctoring", () => {
   isProctoringActive = false;
 
-  // Restore normal window mode
-  mainWindow.setKiosk(false);
-  mainWindow.setFullScreenable(true);
-  mainWindow.setResizable(true);
-  mainWindow.setMinimizable(true);
-  mainWindow.setMaximizable(true);
-  mainWindow.setClosable(true);
-  mainWindow.setMenuBarVisibility(true);
-  mainWindow.setSkipTaskbar(false);
-  mainWindow.setContentProtection(false);
-  if (blockerId) powerSaveBlocker.stop(blockerId);
-  globalShortcut.unregisterAll();
+  try { mainWindow.setFullScreen(false); } catch {}
+  try { mainWindow.setResizable(true); } catch {}
+  try { mainWindow.setMinimizable(true); } catch {}
+  try { mainWindow.setMaximizable(true); } catch {}
+  try { mainWindow.setClosable(true); } catch {}
+  try { mainWindow.setMenuBarVisibility(true); } catch {}
+  try { mainWindow.setAlwaysOnTop(false); } catch {}
+  try { mainWindow.setContentProtection(false); } catch {}
+  if (blockerId) { try { powerSaveBlocker.stop(blockerId); } catch {} blockerId = null; }
+  try { globalShortcut.unregisterAll(); } catch {}
 
   console.log("🔓 Lockdown mode disabled - Window restored");
 
