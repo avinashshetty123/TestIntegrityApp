@@ -7,7 +7,7 @@ import { z } from "zod";
 import { ZodError } from "zod";
 import { Upload, Loader2, XCircle } from "lucide-react";
 import { toast } from "sonner";
-import {jwtDecode} from "jwt-decode";
+import { jwtDecode } from "jwt-decode";
 
 // --- Schemas ---
 const loginSchema = z.object({
@@ -24,7 +24,6 @@ const studentSchema = z.object({
   institutionName: z.string().min(1, "Institution cannot be blank"),
   profilePic: z.string().url("Must be a valid URL"),
   publicId: z.string().min(1, "Public ID is required"),
- 
 });
 
 const tutorSchema = z.object({
@@ -34,7 +33,6 @@ const tutorSchema = z.object({
   institutionName: z.string().min(1, "Institution cannot be blank"),
   designation: z.string().min(1, "Designation cannot be blank"),
   department: z.string().min(1, "Department cannot be blank"),
-
 });
 
 export default function AuthPage() {
@@ -64,7 +62,7 @@ export default function AuthPage() {
         {
           method: "POST",
           body: formData,
-        }
+        },
       );
 
       const data = await res.json();
@@ -91,91 +89,94 @@ export default function AuthPage() {
 
   // 🔹 Handle Submit
 
-type JwtPayload = {
-  sub: string;
-  email: string;
-  role: "student" | "tutor";
-  exp: number;
-};
+  type JwtPayload = {
+    sub: string;
+    email: string;
+    role: "student" | "tutor";
+    exp: number;
+  };
 
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const data = Object.fromEntries(formData) as Record<string, string>;
 
-const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault();
-  const formData = new FormData(e.currentTarget);
-  const data = Object.fromEntries(formData) as Record<string, string>;
+    delete data.role;
+    if (!isLogin && role === "student") {
+      data.profilePic = profilePic;
+      data.publicId = publicId;
+    }
 
-  delete data.role;
-  if (!isLogin && role === "student") {
-    data.profilePic = profilePic;
-    data.publicId = publicId;
-  }
+    const schema = isLogin
+      ? loginSchema
+      : role === "student"
+        ? studentSchema
+        : tutorSchema;
 
-  const schema = isLogin
-    ? loginSchema
-    : role === "student"
-    ? studentSchema
-    : tutorSchema;
-
-  const result = schema.safeParse(data);
-  if (!result.success) {
-    const fieldErrors: Record<string, string> = {};
-    result.error.issues.forEach(({ path, message }) => {
-      fieldErrors[path[0] as string] = message;
-    });
-    setErrors(fieldErrors);
-    toast.error("Validation failed ❌", {
-      description: "Please correct the highlighted fields.",
-    });
-    return;
-  }
-
-  setErrors({});
-
-  try {
-    const endpoint = isLogin
-      ? "http://localhost:4000/auth/login"
-      : `http://localhost:4000/auth/register/${role}`;
-
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(result.data),
-      credentials: "include", // ✅ important: send/receive cookies
-    });
-
-    const responseData = await res.json();
-
-    if (!res.ok) {
-      if (responseData.errors) {
-        responseData.errors.forEach((err: { field?: string; message: string }) => {
-          if (err.field) {
-            setErrors((prev) => ({ ...prev, [err.field!]: err.message }));
-          }
-          toast.error(err.message, { description: `Error in ${err.field ?? "form"}` });
-        });
-      } else if (responseData.message) {
-        toast.error(responseData.message);
-      } else {
-        toast.error("Something went wrong ❌");
-      }
+    const result = schema.safeParse(data);
+    if (!result.success) {
+      const fieldErrors: Record<string, string> = {};
+      result.error.issues.forEach(({ path, message }) => {
+        fieldErrors[path[0] as string] = message;
+      });
+      setErrors(fieldErrors);
+      toast.error("Validation failed ❌", {
+        description: "Please correct the highlighted fields.",
+      });
       return;
     }
-    
-    toast.success(isLogin ? "Login successful! ✅" : "Registration successful! ✅", {
-      description: `Welcome, ${responseData.role}!`,
-    });
 
-    router.push(responseData.role === "tutor" ? "/tutor" : "/student");
-  } catch (err) {
-    console.error("Auth error", err);
-    toast.error("Authentication failed ❌", {
-      description: "Server unreachable or invalid credentials.",
-    });
-  }
-};
+    setErrors({});
 
+    try {
+      const endpoint = isLogin
+        ? "http://localhost:4000/auth/login"
+        : `http://localhost:4000/auth/register/${role}`;
 
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(result.data),
+        credentials: "include", // ✅ important: send/receive cookies
+      });
 
+      const responseData = await res.json();
+
+      if (!res.ok) {
+        if (responseData.errors) {
+          responseData.errors.forEach(
+            (err: { field?: string; message: string }) => {
+              if (err.field) {
+                setErrors((prev) => ({ ...prev, [err.field!]: err.message }));
+              }
+              toast.error(err.message, {
+                description: `Error in ${err.field ?? "form"}`,
+              });
+            },
+          );
+        } else if (responseData.message) {
+          toast.error(responseData.message);
+        } else {
+          toast.error("Something went wrong ❌");
+        }
+        return;
+      }
+
+      toast.success(
+        isLogin ? "Login successful! ✅" : "Registration successful! ✅",
+        {
+          description: `Welcome, ${responseData.role}!`,
+        },
+      );
+
+      router.push(responseData.role === "tutor" ? "/tutor" : "/student");
+    } catch (err) {
+      console.error("Auth error", err);
+      toast.error("Authentication failed ❌", {
+        description: "Server unreachable or invalid credentials.",
+      });
+    }
+  };
 
   // 🔹 Google Sign-in (placeholder - you can integrate NextAuth.js or Firebase)
   const handleGoogleSignIn = () => {
@@ -261,7 +262,9 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                         className="w-full px-4 py-3 bg-white/40 backdrop-blur-xl border border-orange-200/30 rounded-xl focus:border-orange-400 focus:ring-2 focus:ring-orange-200/50 outline-none transition-all duration-300 shadow-lg shadow-orange-100/20 text-gray-700 placeholder-gray-500"
                       />
                       {errors.email && (
-                        <p className="text-red-500 text-sm font-medium">{errors.email}</p>
+                        <p className="text-red-500 text-sm font-medium">
+                          {errors.email}
+                        </p>
                       )}
 
                       <input
@@ -322,7 +325,9 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                         className="w-full px-4 py-3 bg-white/40 backdrop-blur-xl border border-orange-200/30 rounded-xl focus:border-orange-400 focus:ring-2 focus:ring-orange-200/50 outline-none transition-all duration-300 shadow-lg shadow-orange-100/20 text-gray-700 placeholder-gray-500"
                       />
                       {errors.email && (
-                        <p className="text-red-500 text-sm font-medium">{errors.email}</p>
+                        <p className="text-red-500 text-sm font-medium">
+                          {errors.email}
+                        </p>
                       )}
 
                       <input

@@ -69,6 +69,14 @@ export default function StudentPage() {
     setCurrentView("dashboard");
   };
 
+  const handleLogout = async () => {
+    try {
+      await fetch('http://localhost:4000/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch {}
+    document.cookie = 'accessToken=; Max-Age=0; path=/';
+    router.push('/');
+  };
+
   const [stats, setStats] = useState({
     testsCompleted: 0,
     averageScore: 0,
@@ -87,17 +95,24 @@ export default function StudentPage() {
         credentials: "include",
       });
       if (testsResponse.ok) {
-        const tests = await testsResponse.json();
-        setRecentTests(tests.slice(0, 3));
+        const results = await testsResponse.json();
+        // shape: { test, submission, result, score, totalScore, submittedAt }
+        const mapped = results.map((r: any) => ({
+          testTitle: r.test?.title || 'Test',
+          score: r.totalScore > 0 ? Math.round((r.score / r.totalScore) * 100) : 0,
+          submittedAt: r.submittedAt,
+        }));
+        setRecentTests(mapped.slice(0, 3));
 
-        // Update stats
-        if (tests.length > 0) {
-          const avgScore =
-            tests.reduce((sum: number, t: any) => sum + (t.score || 0), 0) /
-            tests.length;
+        if (results.length > 0) {
+          const evaluated = results.filter((r: any) => r.submission?.evaluated);
+          const avgScore = evaluated.length > 0
+            ? evaluated.reduce((sum: number, r: any) =>
+                sum + (r.totalScore > 0 ? (r.score / r.totalScore) * 100 : 0), 0) / evaluated.length
+            : 0;
           setStats((prev) => ({
             ...prev,
-            testsCompleted: tests.length,
+            testsCompleted: results.length,
             averageScore: Math.round(avgScore),
           }));
         }
@@ -255,6 +270,13 @@ export default function StudentPage() {
                 className="border-orange-300 text-orange-600 hover:bg-orange-50 px-6 py-3 rounded-lg font-semibold"
               >
                 View Results
+              </Button>
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                className="border-red-300 text-red-600 hover:bg-red-50 px-6 py-3 rounded-lg font-semibold"
+              >
+                Logout
               </Button>
             </div>
           </div>

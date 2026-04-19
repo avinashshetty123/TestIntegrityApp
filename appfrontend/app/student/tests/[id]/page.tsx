@@ -61,6 +61,8 @@ export default function TakeTestPage() {
   const [existingSubmission, setExistingSubmission] = useState<Submission | null>(null);
   const [testAlreadyTaken, setTestAlreadyTaken] = useState(false);
   const [mistakeCount, setMistakeCount] = useState(0);
+  const [userId, setUserId] = useState<string>('');
+  const [studentName, setStudentName] = useState<string>('Student');
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const startTimeRef = useRef<number>(0);
@@ -69,6 +71,12 @@ export default function TakeTestPage() {
   const isSubmittingRef = useRef<boolean>(false);
   const submitDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const electronAvailable = typeof window !== 'undefined' && !!(window as any).electronAPI;
+
+  // localStorage key scoped per user+test so two students on same browser don't share progress
+  const saveKey = userId ? `test_${testId}_${userId}_progress` : `test_${testId}_progress`;
+
+  // Profile is fetched inside fetchTestQuestions to guarantee userId is set
+  // before progress restore runs — no separate useEffect needed here.
 
   // Anti-cheating measures
   useEffect(() => {
@@ -158,18 +166,17 @@ export default function TakeTestPage() {
     };
   }, [testStarted, timeLeft]);
 
-  // Auto-save progress
+  // Auto-save progress — key scoped per user+test
   useEffect(() => {
-    if (testStarted && answers.length > 0) {
-      const saveKey = `test_${testId}_progress`;
-      localStorage.setItem(saveKey, JSON.stringify({
+    if (testStarted && answers.length > 0 && userId) {
+      localStorage.setItem(`test_${testId}_${userId}_progress`, JSON.stringify({
         answers,
         currentQuestion,
         startTime: startTimeRef.current,
         violations
       }));
     }
-  }, [answers, currentQuestion, testId, testStarted, violations]);
+  }, [answers, currentQuestion, testId, testStarted, violations, userId]);
 
   const fetchTestQuestions = async () => {
     try {
@@ -193,24 +200,30 @@ export default function TakeTestPage() {
 
       const data = await response.json();
       setTest(data);
-      
-      // Load saved progress if exists
-      const savedProgress = localStorage.getItem(`test_${testId}_progress`);
+
+      // Load saved progress — userId may not be set yet when this runs,
+      // so we read the profile first then restore progress
+      const profileRes = await fetch('http://localhost:4000/user/profile', { credentials: 'include' });
+      const profile = profileRes.ok ? await profileRes.json() : null;
+      const uid = profile?.id || '';
+      if (uid) { setUserId(uid); }
+      if (profile?.fullName) { setStudentName(profile.fullName); }
+      if (!profile) { router.push('/signIn'); return; }
+
+      const savedProgress = uid ? localStorage.getItem(`test_${testId}_${uid}_progress`) : null;
       if (savedProgress) {
         const progress = JSON.parse(savedProgress);
         setAnswers(progress.answers || []);
         setCurrentQuestion(progress.currentQuestion || 0);
         setViolations(progress.violations || 0);
-        
-        // Calculate remaining time
-        const elapsed = Math.floor((Date.now() - progress.startTime) / 1000);
+        startTimeRef.current = progress.startTime || Date.now();
+        const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
         const remaining = (data.durationMinutes * 60) - elapsed;
         setTimeLeft(Math.max(0, remaining));
-        setTestStarted(true); // Resume test if progress exists
+        setTestStarted(true);
       } else {
-        // Set timer: use provided duration or default to 2 hours (120 minutes)
         const duration = data.durationMinutes || 120;
-        setTimeLeft(duration * 60); // Convert minutes to seconds
+        setTimeLeft(duration * 60);
       }
     } catch (error) {
       console.error('Error fetching test questions:', error);
@@ -229,20 +242,18 @@ export default function TakeTestPage() {
   const startTest = () => {
     startTimeRef.current = Date.now();
     setTestStarted(true);
-    
-    // If no saved progress, set the timer based on test duration
-    if (!localStorage.getItem(`test_${testId}_progress`)) {
-      const duration = test?.durationMinutes || 120; // Default 2 hours
-      setTimeLeft(duration * 60); // Convert to seconds
+
+    if (!localStorage.getItem(`test_${testId}_${userId}_progress`)) {
+      const duration = test?.durationMinutes || 120;
+      setTimeLeft(duration * 60);
     }
 
-    // Enter fullscreen/kiosk mode via Electron (same as meeting)
     if (electronAvailable) {
       (window as any).electronAPI.startProctoring({
         meetingId: `test-${testId}`,
-        userId: 'student',
-        participantId: `test-${testId}-student`,
-        studentName: 'Student',
+        userId: userId || 'unknown',
+        participantId: `test-${testId}-${userId || 'student'}`,
+        studentName,
       }).catch(() => {});
     }
   };
@@ -286,7 +297,7 @@ export default function TakeTestPage() {
   const handleAutoSubmit = async (reason: string) => {
     if (isSubmittingRef.current) return;
     if (timerRef.current) clearInterval(timerRef.current);
-    localStorage.removeItem(`test_${testId}_progress`);
+    if (userId) localStorage.removeItem(`test_${testId}_${userId}_progress`);
     exitFullscreen();
     await submitTest(reason);
   };
@@ -345,7 +356,7 @@ export default function TakeTestPage() {
         }),
       });
       if (!response.ok) throw new Error('Failed to submit test');
-      localStorage.removeItem(`test_${testId}_progress`);
+      if (userId) localStorage.removeItem(`test_${testId}_${userId}_progress`);
       exitFullscreen();
       router.push('/student/results');
     } catch (error) {
@@ -679,13 +690,14 @@ export default function TakeTestPage() {
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => {
-                        const saveKey = `test_${testId}_progress`;
-                        localStorage.setItem(saveKey, JSON.stringify({
-                          answers,
-                          currentQuestion,
-                          startTime: startTimeRef.current,
-                          violations
-                        }));
+                        if (userId) {
+                          localStorage.setItem(`test_${testId}_${userId}_progress`, JSON.stringify({
+                            answers,
+                            currentQuestion,
+                            startTime: startTimeRef.current,
+                            violations
+                          }));
+                        }
                         alert('Progress saved!');
                       }}
                       className="px-6 py-3 bg-white/60 backdrop-blur-xl border border-orange-200/50 text-orange-600 rounded-xl font-medium hover:bg-white/80 hover:scale-105 transition-all duration-300 shadow-lg shadow-orange-100/30 flex items-center gap-2"

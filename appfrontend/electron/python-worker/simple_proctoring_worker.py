@@ -19,30 +19,36 @@ except ImportError:
 
 
 # ── Constants ─────────────────────────────────────────────────────────────
-FACE_SF       = 1.05
-FACE_MIN_N    = 4
-FACE_MIN_SIZE = 60
-NMS_COVER     = 0.30
-SIZE_RATIO    = 0.50
+# Higher minNeighbors + larger minSize = far fewer false positives on webcam
+FACE_SF       = 1.1
+FACE_MIN_N    = 6
+FACE_MIN_SIZE = 80
+# IoU threshold for merging duplicate detections of the same face
+NMS_IOU       = 0.25
+# Second face must be at least 20% the area of the largest
+# (40% was too aggressive — filtered out real people who are further away)
+SIZE_RATIO    = 0.20
 
-# Identity: NCC on CLAHE-equalised face crops at 3 scales
-# Webcam-to-webcam same person: 0.40-0.80 | different person: 0.05-0.25
-IDENT_THRESHOLD         = 0.30   # conservative — avoids false mismatch
-IDENTITY_CONFIRM_FRAMES = 6      # consecutive mismatches before alerting
-IDENT_MATCH_FRAMES      = 4      # consecutive matches before verified
+IDENT_THRESHOLD         = 0.30   # lowered: NCC on webcam frames rarely exceeds 0.5
+IDENTITY_CONFIRM_FRAMES = 5      # fewer frames needed to confirm mismatch
+IDENT_MATCH_FRAMES      = 3
 IDENTITY_COOL           = 120.0
 FACE_CHANGE_THRESH      = 0.15
-REF_MIN_STD             = 5.0    # minimum pixel std for a valid reference crop
+REF_MIN_STD             = 3.0    # accept slightly darker reference photos
 
-# Gaze — face-position based (eye cascade too unreliable on webcam)
-# Alert when face center drifts outside center 40-60% of frame for sustained time
-GAZE_CX_AWAY_MIN  = 0.25   # face center X below this = looking left
-GAZE_CX_AWAY_MAX  = 0.75   # face center X above this = looking right
-GAZE_CY_AWAY_MAX  = 0.30   # face center Y above this = looking up
-GAZE_SIZE_MIN     = 0.08   # face area fraction below this = head turned away
+# Gaze — based on face position in frame
+# Normal webcam: face center is 0.35-0.65 X, 0.35-0.75 Y, area > 0.04
+# Away = face drifts to edges, looks up, or becomes very small (head turned)
+GAZE_CX_AWAY_MIN  = 0.20   # looking far left
+GAZE_CX_AWAY_MAX  = 0.80   # looking far right
+GAZE_CY_AWAY_MIN  = 0.15   # looking up (face near top of frame)
+GAZE_CY_AWAY_MAX  = 0.85   # looking down (face near bottom)
+GAZE_SIZE_MIN     = 0.04   # face area < 4% = head turned away or too far
 
+# Smooth over 5 frames — majority vote catches sustained multi-face
 SMOOTH_WIN = 5
 
+# Multi-face: alert after 3s sustained, 60s cooldown
 NO_FACE_THRESH = 10.0;  NO_FACE_COOL  = 60.0
 MULTI_THRESH   = 3.0;   MULTI_COOL    = 60.0
 GAZE_THRESH    = 5.0;   GAZE_COOL     = 45.0
@@ -61,35 +67,74 @@ def _preprocess(img):
     return clahe.apply(gray)
 
 
-def _nms(rects, cover):
+def _iou(a, b):
+    """True intersection-over-union between two rects [x,y,w,h]."""
+    ax, ay, aw, ah = a
+    bx, by, bw, bh = b
+    ix = max(0, min(ax + aw, bx + bw) - max(ax, bx))
+    iy = max(0, min(ay + ah, by + bh) - max(ay, by))
+    inter = ix * iy
+    union = aw * ah + bw * bh - inter
+    return inter / union if union > 0 else 0.0
+
+
+def _nms(rects, iou_thresh):
+    """Non-max suppression using true IoU."""
     if not rects:
         return []
     rects = sorted(rects, key=lambda r: r[2] * r[3], reverse=True)
     kept = []
     for r in rects:
-        rx, ry, rw, rh = r
-        skip = False
-        for k in kept:
-            kx, ky, kw, kh = k
-            ix = max(0, min(rx + rw, kx + kw) - max(rx, kx))
-            iy = max(0, min(ry + rh, ky + kh) - max(ry, ky))
-            if rw * rh > 0 and (ix * iy) / (rw * rh) > cover:
-                skip = True
-                break
-        if not skip:
+        if not any(_iou(r, k) > iou_thresh for k in kept):
             kept.append(r)
     return kept
 
 
 def _filter_faces(rects):
-    kept = _nms(rects, NMS_COVER)
+    # First pass: merge boxes that are clearly the same face
+    kept = _nms(rects, NMS_IOU)
     if not kept:
         return []
+    # Drop detections that are too small to be a real second face
     max_area = kept[0][2] * kept[0][3]
     kept = [r for r in kept if r[2] * r[3] >= max_area * SIZE_RATIO]
-    if len(kept) > 1:
-        kept = _nms(kept, 0.15)
     return kept
+
+
+def _detect_faces_multi(face_cc, profile_cc, gray):
+    """Run frontal + profile (both orientations) and merge all results.
+    This catches a second person even when one face is profile-on."""
+    all_rects = []
+
+    # Frontal
+    raw = face_cc.detectMultiScale(
+        gray, FACE_SF, FACE_MIN_N,
+        minSize=(FACE_MIN_SIZE, FACE_MIN_SIZE),
+        flags=cv2.CASCADE_SCALE_IMAGE
+    )
+    if len(raw) > 0:
+        all_rects.extend(raw.tolist())
+
+    # Profile left
+    if not profile_cc.empty():
+        pf = profile_cc.detectMultiScale(
+            gray, FACE_SF, FACE_MIN_N,
+            minSize=(FACE_MIN_SIZE, FACE_MIN_SIZE)
+        )
+        if len(pf) > 0:
+            all_rects.extend(pf.tolist())
+
+        # Profile right (flipped)
+        W = gray.shape[1]
+        flipped = cv2.flip(gray, 1)
+        pf2 = profile_cc.detectMultiScale(
+            flipped, FACE_SF, FACE_MIN_N,
+            minSize=(FACE_MIN_SIZE, FACE_MIN_SIZE)
+        )
+        if len(pf2) > 0:
+            all_rects.extend([[W - x - w, y, w, h] for x, y, w, h in pf2.tolist()])
+
+    return _filter_faces(all_rects)
 
 
 class ProctoringAnalyzer:
@@ -98,6 +143,7 @@ class ProctoringAnalyzer:
 
         self.face_cc    = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
         self.profile_cc = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_profileface.xml")
+        self.eye_cc     = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_eye.xml")
 
         self.yolo = None
         if YOLO_AVAILABLE:
@@ -113,6 +159,7 @@ class ProctoringAnalyzer:
 
         # Identity
         self.ref_crops             = None   # list of crops at 3 scales
+        self.ref_lbp               = None   # LBP histograms for each scale
         self.ref_user_id           = None
         self.identity_alerted_at   = 0.0
         self.identity_miss_streak  = 0
@@ -122,8 +169,8 @@ class ProctoringAnalyzer:
         # Face smoothing
         self.face_history = deque(maxlen=SMOOTH_WIN)
 
-        # Gaze rolling majority
-        self.gaze_away_history = deque(maxlen=5)
+        # Gaze rolling majority over 3 frames
+        self.gaze_away_history = deque(maxlen=3)
 
         # Timers
         self.no_face_start     = None;  self.no_face_alerted_at = 0.0
@@ -162,51 +209,32 @@ class ProctoringAnalyzer:
     # ── Face detection ────────────────────────────────────────────────────
 
     def detect_faces(self, img):
-        gray  = _preprocess(img)
-        raw   = self.face_cc.detectMultiScale(gray, FACE_SF, FACE_MIN_N, minSize=(FACE_MIN_SIZE, FACE_MIN_SIZE))
-        faces = _filter_faces(raw.tolist() if len(raw) > 0 else [])
+        gray = _preprocess(img)
 
-        if not faces and not self.profile_cc.empty():
-            for flip in (False, True):
-                g  = cv2.flip(gray, 1) if flip else gray
-                pf = self.profile_cc.detectMultiScale(g, FACE_SF, FACE_MIN_N, minSize=(FACE_MIN_SIZE, FACE_MIN_SIZE))
-                if len(pf) > 0:
-                    pf = pf.tolist()
-                    if flip:
-                        W  = gray.shape[1]
-                        pf = [[W - x - w, y, w, h] for x, y, w, h in pf]
-                    faces = _filter_faces(pf)
-                    break
+        # Run frontal + profile together so a second person is never missed
+        faces = _detect_faces_multi(self.face_cc, self.profile_cc, gray)
 
         raw_count = len(faces)
         self.face_history.append(raw_count)
-        smoothed = int(np.median(list(self.face_history)))
 
-        # display_count: what the UI shows
-        # - If smoothed says 1, cap at 1 (single-frame spike of 2 is noise)
-        # - If smoothed says >1, use smoothed (sustained multi-face)
-        # - raw_count==0 always means no face (immediate)
+        # Majority vote over window
+        history  = list(self.face_history)
+        smoothed = max(set(history), key=history.count)
+
+        # display_count: trust majority vote; never hide a sustained multi-face
         if raw_count == 0:
             display_count = 0
-        elif smoothed <= 1:
-            display_count = 1
+        elif smoothed >= 2:
+            display_count = smoothed   # sustained multi-face — show real count
         else:
-            display_count = smoothed
+            display_count = raw_count  # single face — use immediate value
 
-        print(f"[PY] raw={len(raw) if hasattr(raw, '__len__') else 0} filtered={raw_count} smoothed={smoothed}", file=sys.stderr)
+        print(f"[PY] filtered={raw_count} smoothed={smoothed} display={display_count}", file=sys.stderr)
         return faces, raw_count, smoothed, display_count
 
     # ── Gaze detection ────────────────────────────────────────────────────
 
     def check_gaze_away(self, img, face_rect):
-        """
-        Face-position based gaze — reliable on any webcam without eye cascade.
-        Away if:
-          1. Face center X is outside 25-75% of frame width (looking left/right)
-          2. Face center Y is in top 30% of frame (looking up)
-          3. Face area is < 8% of frame area (head turned away / too small)
-        Rolling majority over last 5 frames to avoid flicker.
-        """
         try:
             h_img, w_img = img.shape[:2]
             fx, fy, fw, fh = face_rect
@@ -216,18 +244,28 @@ class ProctoringAnalyzer:
             face_area_frac = (fw * fh) / max(w_img * h_img, 1)
 
             away_lr   = cx < GAZE_CX_AWAY_MIN or cx > GAZE_CX_AWAY_MAX
-            away_up   = cy < GAZE_CY_AWAY_MAX
+            away_vert = cy < GAZE_CY_AWAY_MIN or cy > GAZE_CY_AWAY_MAX
             away_size = face_area_frac < GAZE_SIZE_MIN
 
-            away_frame = away_lr or away_up or away_size
+            # Eye-based check: detect eyes in upper 60% of face ROI
+            # If eyes not found, person is likely looking away
+            gray = _preprocess(img)
+            eye_roi = gray[fy: fy + int(fh * 0.60), fx: fx + fw]
+            eyes = self.eye_cc.detectMultiScale(
+                eye_roi, 1.1, 4, minSize=(int(fw * 0.10), int(fw * 0.10))
+            ) if not self.eye_cc.empty() else []
+            away_eyes = len(eyes) < 1
+
+            away_frame = away_lr or away_vert or away_size or away_eyes
 
             print(
                 f"[PY] gaze: cx={cx:.2f} cy={cy:.2f} area={face_area_frac:.3f} "
-                f"lr={away_lr} up={away_up} size={away_size} away={away_frame}",
+                f"lr={away_lr} vert={away_vert} size={away_size} eyes={len(eyes)} away={away_frame}",
                 file=sys.stderr,
             )
 
             self.gaze_away_history.append(away_frame)
+            # Majority vote over last 3 frames
             return sum(self.gaze_away_history) > len(self.gaze_away_history) / 2
 
         except Exception as e:
@@ -266,7 +304,7 @@ class ProctoringAnalyzer:
     def _face_crop_at(self, gray, face_rect, size):
         """Return a normalised face crop at given size."""
         x, y, w, h = face_rect
-        pad = int(min(w, h) * 0.10)
+        pad = int(min(w, h) * 0.15)  # slightly larger pad captures more context
         x1 = max(0, x - pad);  y1 = max(0, y - pad)
         x2 = min(gray.shape[1], x + w + pad)
         y2 = min(gray.shape[0], y + h + pad)
@@ -280,14 +318,29 @@ class ProctoringAnalyzer:
         crop = (crop - m) / s
         return crop
 
+    def _lbph_hist(self, crop_norm, size):
+        """LBP histogram on a normalised crop — more robust to lighting than raw NCC."""
+        # Denormalise to uint8 for LBP
+        img8 = np.clip(crop_norm * 32 + 128, 0, 255).astype(np.uint8)
+        # Compute LBP manually (uniform, radius=1)
+        h, w = img8.shape
+        lbp = np.zeros_like(img8, dtype=np.uint8)
+        for dy, dx in [(-1,-1),(-1,0),(-1,1),(0,1),(1,1),(1,0),(1,-1),(0,-1)]:
+            shifted = np.roll(np.roll(img8, dy, axis=0), dx, axis=1)
+            lbp = (lbp << 1) | (img8 >= shifted).astype(np.uint8)
+        hist, _ = np.histogram(lbp.flatten(), bins=32, range=(0, 256))
+        hist = hist.astype(np.float32)
+        norm = np.linalg.norm(hist)
+        return hist / norm if norm > 0 else hist
+
     def _ncc(self, a, b):
         denom = np.linalg.norm(a) * np.linalg.norm(b)
         if denom == 0:
             return 0.0
         return float(np.sum(a * b) / denom)
 
-    def _multi_scale_ncc(self, ref_crops, live_gray, face_rect):
-        """Average NCC across 3 scales for robustness."""
+    def _multi_scale_score(self, ref_crops, ref_lbp, live_gray, face_rect):
+        """Combine NCC + LBP histogram similarity across 3 scales."""
         sizes = [32, 64, 96]
         scores = []
         for i, size in enumerate(sizes):
@@ -296,7 +349,11 @@ class ProctoringAnalyzer:
             crop = self._face_crop_at(live_gray, face_rect, size)
             if crop is None:
                 continue
-            scores.append(self._ncc(ref_crops[i], crop))
+            ncc_score  = self._ncc(ref_crops[i], crop)
+            lbp_live   = self._lbph_hist(crop, size)
+            lbp_score  = self._ncc(ref_lbp[i], lbp_live) if i < len(ref_lbp) and ref_lbp[i] is not None else 0.0
+            # Weighted: 40% NCC + 60% LBP (LBP is more lighting-invariant)
+            scores.append(0.4 * ncc_score + 0.6 * lbp_score)
         if not scores:
             return 0.0
         return float(np.mean(scores))
@@ -311,36 +368,37 @@ class ProctoringAnalyzer:
         # Try progressively looser detection params
         raw = self.face_cc.detectMultiScale(gray, FACE_SF, FACE_MIN_N, minSize=(FACE_MIN_SIZE, FACE_MIN_SIZE))
         if len(raw) == 0:
-            raw = self.face_cc.detectMultiScale(gray, 1.05, 3, minSize=(40, 40))
+            raw = self.face_cc.detectMultiScale(gray, 1.05, 2, minSize=(30, 30))
         if len(raw) == 0:
-            raw = self.face_cc.detectMultiScale(gray, 1.1, 2, minSize=(30, 30))
+            raw = self.face_cc.detectMultiScale(gray, 1.1, 2, minSize=(20, 20))
         if len(raw) == 0:
-            print("[PY] load_reference_face: no face found", file=sys.stderr)
-            return False
+            # Last resort: assume the whole image is a face (profile photo)
+            h, w = gray.shape[:2]
+            margin = int(min(h, w) * 0.05)
+            raw = np.array([[margin, margin, w - 2*margin, h - 2*margin]])
+            print("[PY] load_reference_face: no face detected — using full image as face region", file=sys.stderr)
 
         best = max(raw.tolist(), key=lambda r: r[2] * r[3])
 
-        # Build multi-scale crops — reject if any scale is blank
+        # Build multi-scale crops + LBP histograms
         crops = []
-        valid = True
+        lbp_hists = []
         for size in [32, 64, 96]:
             c = self._face_crop_at(gray, best, size)
             if c is None:
-                print(f"[PY] load_reference_face: blank crop at size={size} — frame not ready", file=sys.stderr)
-                valid = False
-                break
+                print(f"[PY] load_reference_face: blank crop at size={size} — using zero crop", file=sys.stderr)
+                c = np.zeros((size, size), dtype=np.float32)
             crops.append(c)
-
-        if not valid:
-            return False
+            lbp_hists.append(self._lbph_hist(c, size))
 
         self.ref_crops             = crops
+        self.ref_lbp               = lbp_hists
         self.ref_user_id           = user_id
         self.identity_miss_streak  = 0
         self.identity_match_streak = 0
         self.identity_alerted_at   = 0.0
         self.last_face_cx          = None
-        print(f"[PY] Reference face loaded (multi-scale NCC) for {user_id}, face={best}", file=sys.stderr)
+        print(f"[PY] Reference face loaded (NCC+LBP) for {user_id}, face={best}", file=sys.stderr)
         return True
 
     def _face_changed(self, img_w, face_rect):
@@ -357,7 +415,8 @@ class ProctoringAnalyzer:
             best         = max(faces, key=lambda r: r[2] * r[3])
             face_changed = self._face_changed(img.shape[1], best)
 
-            sim = self._multi_scale_ncc(self.ref_crops, gray, best)
+            ref_lbp = getattr(self, 'ref_lbp', None) or [None, None, None]
+            sim = self._multi_scale_score(self.ref_crops, ref_lbp, gray, best)
             sim = max(0.0, min(1.0, sim))
 
             if sim >= IDENT_THRESHOLD:
@@ -446,16 +505,19 @@ class ProctoringAnalyzer:
                 self.no_face_start = None
 
             # ── Multiple faces ────────────────────────────────────────────
-            if smoothed > 1:
+            # Use display_count (majority-voted) so a sustained 2-face scene
+            # triggers the alert, but a single noisy frame does not.
+            if display_count > 1:
                 if self.multi_start is None:
                     self.multi_start = now
+                    print(f"[PY] multi_face timer started display={display_count}", file=sys.stderr)
                 else:
                     present = now - self.multi_start
-                    print(f"[PY] multi_face smoothed={smoothed} {present:.0f}s/{MULTI_THRESH}s", file=sys.stderr)
+                    print(f"[PY] multi_face display={display_count} {present:.0f}s/{MULTI_THRESH}s", file=sys.stderr)
                     if present >= MULTI_THRESH and now - self.multi_alerted_at > MULTI_COOL:
                         alerts.append({
                             "alertType": "MULTIPLE_FACES",
-                            "description": f"{smoothed} faces detected — another person may be present",
+                            "description": f"{display_count} faces detected — another person may be present",
                             "confidence": 0.90, "severity": "HIGH", "timestamp": _iso(),
                         })
                         self.multi_alerted_at = now

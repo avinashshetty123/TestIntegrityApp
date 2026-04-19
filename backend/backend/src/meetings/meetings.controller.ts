@@ -133,6 +133,40 @@ async getJoinRequests(@Param('id') id: string, @Req() req) {
     return result;
   }
 
+  @Get('/tutor/stats')
+  @Roles(UserRole.TUTOR)
+  async getTutorStats(@Req() req) {
+    const tutorId = req.user.userId;
+    const meetings = await this.meetings.findByTutor(tutorId);
+    const meetingCount = meetings.length;
+
+    // Collect all sessions across all meetings (active + ended)
+    const uniqueStudentIds = new Set<string>();
+    let totalSessions = 0;
+
+    for (const m of meetings) {
+      const sessions = await this.meetings.getAllSessions(m.id);
+      for (const s of sessions) {
+        // Only count students, not the tutor themselves
+        if (s.participantId !== tutorId && s.participantType !== 'tutor') {
+          uniqueStudentIds.add(s.participantId);
+          totalSessions++;
+        }
+      }
+    }
+
+    const avgAttendance = meetingCount > 0
+      ? Math.round((totalSessions / meetingCount) * 10) / 10
+      : 0;
+
+    return {
+      meetingCount,
+      studentsJoined: uniqueStudentIds.size,
+      avgAttendance,
+      liveMeetings: meetings.filter((m) => m.status === 'LIVE').length,
+    };
+  }
+
   @Get('/visible')
   @Roles(UserRole.STUDENT, UserRole.TUTOR)
   async visible(@Req() req) {

@@ -14,6 +14,7 @@ const fetch = require("node-fetch"); // npm install node-fetch@2
 
 let mainWindow;
 let pythonProcess;
+let pyReady = false;
 let wsServer;
 let isProctoringActive = false;
 let blockerId = null;
@@ -34,10 +35,10 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
-    resizable: false,
-    minimizable: false,
-    maximizable: false,
-    fullscreenable: false,
+    resizable: true,
+    minimizable: true,
+    maximizable: true,
+    fullscreenable: true,
     alwaysOnTop: false,
     kiosk: false,
     frame: true,
@@ -147,13 +148,14 @@ function createWindow() {
 // 1. venv inside python-worker/proctoring_env (has cv2+numpy guaranteed)
 // 2. fall back to system python
 function getPythonExe() {
-  const venvPy = path.join(__dirname, "python-worker", "proctoring_env", "Scripts", "python.exe");
+  // Must be absolute — spawn resolves relative exe against process.cwd(), not spawn cwd
+  const venvPy = path.resolve(__dirname, "python-worker", "proctoring_env", "Scripts", "python.exe");
   const fs = require("fs");
   if (fs.existsSync(venvPy)) {
-    dbg(`Using venv python: ${venvPy}`);
+    console.log(`[PROCTOR] Using venv python: ${venvPy}`);
     return venvPy;
   }
-  dbg("venv not found — falling back to system python");
+  console.log("[PROCTOR] venv not found — falling back to system python");
   return "python";
 }
 
@@ -165,45 +167,56 @@ function startPythonWorker() {
 
 function startWorker(scriptPath) {
   const pythonExe = getPythonExe();
-  dbg(`Starting Python worker: ${pythonExe} ${scriptPath}`);
-  pythonProcess = spawn(pythonExe, [scriptPath], {
+  // Absolute paths for both exe and script — no cwd ambiguity
+  const absScript = path.resolve(scriptPath);
+  const workerDir = path.resolve(__dirname, "python-worker");
+  console.log(`[PROCTOR] Starting Python worker: ${pythonExe} ${absScript}`);
+
+  pyReady = false;
+  pythonProcess = spawn(pythonExe, [absScript], {
     stdio: ["pipe", "pipe", "pipe"],
-    cwd: __dirname,
+    cwd: workerDir,
     env: {
       ...process.env,
-      // Clear PYTHONPATH so system numpy doesn't shadow venv numpy
       PYTHONPATH: "",
       PYTHONNOUSERSITE: "1",
     },
   });
 
-  pythonProcess.stdout.on("data", (data) => {
-    const output = data.toString().trim();
-    dbg(`PY-STDOUT: ${output}`);
+  // Buffer for incomplete lines
+  let stdoutBuf = "";
 
-    const lines = output.split("\n").filter((line) => line.trim());
+  pythonProcess.stdout.on("data", (data) => {
+    stdoutBuf += data.toString();
+    const lines = stdoutBuf.split("\n");
+    // Keep last incomplete chunk in buffer
+    stdoutBuf = lines.pop();
+
     lines.forEach((line) => {
+      line = line.trim();
+      if (!line) return;
       try {
-        const analysis = JSON.parse(line);
-        if (analysis.status && !analysis.alerts) {
-          dbg(`PY-STATUS: ${analysis.status}`);
+        const msg = JSON.parse(line);
+        if (msg.status && !msg.alerts) {
+          dbg(`PY-STATUS: ${msg.status}`);
+          if (msg.status === "READY") {
+            pyReady = true;
+            dbg("Python worker is READY — frames will now be processed");
+          }
           return;
         }
-        dbg(`PY-ANALYSIS: faces=${analysis.faceCount} faceDetected=${analysis.faceDetected} alerts=${JSON.stringify(analysis.alerts)}`);
+        dbg(`PY-ANALYSIS: faces=${msg.faceCount} faceDetected=${msg.faceDetected} alerts=${msg.alerts?.length ?? 0}`);
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send("proctoring-analysis", analysis);
+          mainWindow.webContents.send("proctoring-analysis", msg);
         }
         if (wsServer) {
           wsServer.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
-              client.send(
-                JSON.stringify({ type: "PROCTORING_ANALYSIS", data: analysis }),
-              );
+              client.send(JSON.stringify({ type: "PROCTORING_ANALYSIS", data: msg }));
             }
           });
         }
-      } catch (error) {
-        // Not JSON — plain log line
+      } catch (_) {
         dbg(`PY-LOG: ${line}`);
       }
     });
@@ -214,8 +227,8 @@ function startWorker(scriptPath) {
   });
 
   pythonProcess.on("close", (code) => {
+    pyReady = false;
     dbg(`Python worker exited with code ${code}`);
-    // Only restart if proctoring is still genuinely active (not stopped by user)
     if (isProctoringActive && code !== 0) {
       dbg("Restarting Python worker in 3 seconds...");
       setTimeout(startPythonWorker, 3000);
@@ -223,6 +236,7 @@ function startWorker(scriptPath) {
   });
 
   pythonProcess.on("error", (error) => {
+    pyReady = false;
     dbg(`Python worker process error: ${error.message}`);
   });
 }
@@ -265,9 +279,7 @@ ipcMain.handle("renderer-ready", () => {
 });
 
 ipcMain.handle("send-video-frame", (event, frameData) => {
-  const pyReady = pythonProcess && pythonProcess.stdin.writable;
-  dbg(`IPC send-video-frame: pyReady=${pyReady} dataLen=${frameData?.imageData?.length ?? 0}`);
-  if (pyReady) {
+  if (pyReady && pythonProcess && pythonProcess.stdin.writable) {
     try {
       pythonProcess.stdin.write(
         JSON.stringify({ type: "VIDEO_FRAME", data: frameData }) + "\n",
@@ -277,7 +289,7 @@ ipcMain.handle("send-video-frame", (event, frameData) => {
       dbg(`Failed to send frame to Python: ${error.message}`);
     }
   } else {
-    dbg("send-video-frame: Python process not ready!");
+    dbg(`send-video-frame: Python not ready (pyReady=${pyReady} writable=${pythonProcess?.stdin?.writable})`);
   }
   return false;
 });
@@ -299,6 +311,17 @@ ipcMain.handle("load-reference-face", (event, { imageUrl, userId }) => {
 ipcMain.handle("start-proctoring", async (event, sessionData) => {
   try {
     isProctoringActive = true;
+
+    // Auto-restart Python worker if it died between sessions
+    if (!pyReady || !pythonProcess) {
+      dbg("Python worker not ready at start-proctoring — restarting...");
+      startPythonWorker();
+      // Wait up to 10s for it to become ready
+      await new Promise((resolve) => {
+        const t = setInterval(() => { if (pyReady) { clearInterval(t); resolve(); } }, 200);
+        setTimeout(() => { clearInterval(t); resolve(); }, 10000);
+      });
+    }
 
     // Full screen + lock down
     try { mainWindow.setFullScreen(true); } catch {}
@@ -348,12 +371,14 @@ ipcMain.handle("stop-proctoring", () => {
   if (blockerId) { try { powerSaveBlocker.stop(blockerId); } catch {} blockerId = null; }
   try { globalShortcut.unregisterAll(); } catch {}
 
-  // Kill Python worker to free CPU/GPU resources
+  // Kill Python worker and restart it so it's ready for next session
+  pyReady = false;
   if (pythonProcess) {
     try { pythonProcess.kill(); } catch {}
     pythonProcess = null;
-    dbg("Python worker killed on stop-proctoring");
+    dbg("Python worker killed on stop-proctoring — restarting for next session");
   }
+  setTimeout(startPythonWorker, 1000);
   return true;
 });
 
@@ -393,14 +418,19 @@ ipcMain.handle("get-window-mode", () =>
 app.whenReady().then(createWindow);
 
 app.on("window-all-closed", () => {
-  if (pythonProcess) pythonProcess.kill();
-  if (wsServer) wsServer.close();
+  pyReady = false;
+  if (pythonProcess) { try { pythonProcess.kill(); } catch {} pythonProcess = null; }
+  if (wsServer) { try { wsServer.close(); } catch {} wsServer = null; }
   if (process.platform !== "darwin") app.quit();
 });
 
 app.on("before-quit", () => {
   isProctoringActive = false;
+  pyReady = false;
+  if (pythonProcess) { try { pythonProcess.kill(); } catch {} pythonProcess = null; }
 });
+
+
 
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();

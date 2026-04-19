@@ -13,32 +13,6 @@ import {
   Users,
   CalendarCheck,
 } from "lucide-react";
-import CreateMeetingForm from "@/components/CreateMeetingForm";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement,
-} from "chart.js";
-import { Bar, Line, Doughnut } from "react-chartjs-2";
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement
-);
 
 export default function TutorPage() {
   const router = useRouter();
@@ -82,89 +56,36 @@ export default function TutorPage() {
     avgAttendance: 0,
   });
 
-  const [barData, setBarData] = useState({
-    labels: [],
-    datasets: [
-      {
-        label: "Joined",
-        data: [],
-        backgroundColor: "rgba(59,130,246,0.9)",
-      },
-      {
-        label: "Attempted",
-        data: [],
-        backgroundColor: "rgba(16,185,129,0.9)",
-      },
-    ],
-  });
-
-  const [lineData, setLineData] = useState({
-    labels: [],
-    datasets: [
-      {
-        label: "Attendance %",
-        data: [],
-        borderColor: "rgba(139,92,246,1)",
-        backgroundColor: "rgba(139,92,246,0.15)",
-        tension: 0.3,
-      },
-    ],
-  });
-
-  const [donutData, setDonutData] = useState({
-    labels: ["Passed", "Failed", "Absent"],
-    datasets: [
-      {
-        data: [0, 0, 0],
-        backgroundColor: ["#22c55e", "#ef4444", "#facc15"],
-      },
-    ],
-  });
-
-  const [recentActivity, setRecentActivity] = useState([]);
+  const [recentActivity, setRecentActivity] = useState<string[]>([]);
 
   const fetchTutorData = async () => {
     try {
-      // Fetch tests created by tutor
-      const testsResponse = await fetch('http://localhost:4000/tests/tutor', {
-        credentials: 'include'
-      });
-      if (testsResponse.ok) {
-        const tests = await testsResponse.json();
-        setStats(prev => ({ ...prev, testsConducted: tests.length }));
-        
-        // Update charts with real data
-        if (tests.length > 0) {
-          setBarData({
-            labels: tests.map((t: any, i: number) => `Test ${i + 1}`),
-            datasets: [
-              {
-                label: "Joined",
-                data: tests.map((t: any) => t.participantCount || 0),
-                backgroundColor: "rgba(59,130,246,0.9)",
-              },
-              {
-                label: "Attempted",
-                data: tests.map((t: any) => t.submissionCount || 0),
-                backgroundColor: "rgba(16,185,129,0.9)",
-              },
-            ],
-          });
-        }
+      // Single stats call for dashboard counters
+      const [statsRes, testsRes, meetingsRes] = await Promise.all([
+        fetch('http://localhost:4000/meetings/tutor/stats', { credentials: 'include' }),
+        fetch('http://localhost:4000/tests/tutor', { credentials: 'include' }),
+        fetch('http://localhost:4000/meetings/visible', { credentials: 'include' }),
+      ]);
+
+      if (statsRes.ok) {
+        const s = await statsRes.json();
+        setmeetingcnt(s.meetingCount ?? 0);
+        setStats(prev => ({
+          ...prev,
+          studentsJoined: s.studentsJoined ?? 0,
+          avgAttendance: s.avgAttendance ?? 0,
+        }));
       }
-      
-      // Fetch meetings
-      const meetingsResponse = await fetch('http://localhost:4000/meetings/visible', {
-        credentials: 'include'
-      });
-      if (meetingsResponse.ok) {
-        const meetings = await meetingsResponse.json();
-        const liveMeetings = meetings.filter((m: any) => m.status === 'LIVE');
-        setStats(prev => ({ ...prev, studentsJoined: liveMeetings.reduce((sum: number, m: any) => sum + (m.participantCount || 0), 0) }));
-        
-        // Set recent activity
-        setRecentActivity(meetings.slice(0, 4).map((m: any) => `Meeting: ${m.title} - ${m.status}`));
-        setmeetingcnt(meetings.length);
+
+      if (testsRes.ok) {
+        const tests = await testsRes.json();
+        const papersChecked = tests.reduce((sum: number, t: any) => sum + (t.submissions?.filter((s: any) => s.evaluated)?.length ?? 0), 0);
+        setStats(prev => ({ ...prev, testsConducted: tests.length, papersChecked }));
+      }
+
+      if (meetingsRes.ok) {
+        const meetings = await meetingsRes.json();
+        setRecentActivity(meetings.slice(0, 4).map((m: any) => `Meeting: ${m.title} — ${m.status}`));
       }
     } catch (error) {
       console.error('Failed to fetch tutor data:', error);
@@ -184,6 +105,14 @@ export default function TutorPage() {
   const handleViewPerformance = () => router.push("/tutor/analytics");
   const handleAttendance = () => router.push("/tutor/attendance");
   const handleManageMeetings = () => router.push("/tutor/meeting");
+
+  const handleLogout = async () => {
+    try {
+      await fetch('http://localhost:4000/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch {}
+    document.cookie = 'accessToken=; Max-Age=0; path=/';
+    router.push('/');
+  };
 
   if (loading) {
     return (
@@ -286,6 +215,13 @@ export default function TutorPage() {
                 className="border-orange-300 text-orange-600 hover:bg-orange-50 px-6 py-3 rounded-lg font-semibold"
               >
                 Edit Profile
+              </Button>
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                className="border-red-300 text-red-600 hover:bg-red-50 px-6 py-3 rounded-lg font-semibold"
+              >
+                Logout
               </Button>
             </div>
           </div>

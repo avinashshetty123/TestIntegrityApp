@@ -49,7 +49,7 @@ class ProctoringAnalyzer:
         # ── Identity ──────────────────────────────────────────────────────
         self.reference_face_signature = None
         self.reference_user_id = None
-        self.identity_similarity_threshold = 0.40
+        self.identity_similarity_threshold = 0.55
         self.identity_alerted_at = 0.0
         self.identity_alert_cooldown = 60.0
 
@@ -59,9 +59,9 @@ class ProctoringAnalyzer:
         self.no_face_alerted_at = 0.0
         self.no_face_cooldown = 30.0
 
-        # ── Multiple faces: 5s → alert, 45s cooldown ─────────────────────
+        # ── Multiple faces: 8s → alert, 45s cooldown ─────────────────────
         self.multi_face_start = None
-        self.multi_face_threshold = 5.0
+        self.multi_face_threshold = 8.0
         self.multi_face_alerted_at = 0.0
         self.multi_face_cooldown = 45.0
 
@@ -134,32 +134,34 @@ class ProctoringAnalyzer:
         ge = self._gray_eq(image)
         faces = []
 
+        # Frontal detection with higher minNeighbors to reduce false positives
         for gray in (gc, ge):
             found = self.face_cascade.detectMultiScale(
-                gray, scaleFactor=1.05, minNeighbors=4,
-                minSize=(60, 60), flags=cv2.CASCADE_SCALE_IMAGE
+                gray, scaleFactor=1.1, minNeighbors=6,
+                minSize=(80, 80), flags=cv2.CASCADE_SCALE_IMAGE
             )
             if len(found) > 0:
                 faces = found.tolist()
                 break
 
+        # Only use profile cascade if frontal found nothing
         if not faces and not self.face_profile_cascade.empty():
             for gray in (gc, ge):
                 found = self.face_profile_cascade.detectMultiScale(
-                    gray, scaleFactor=1.05, minNeighbors=4, minSize=(60, 60)
+                    gray, scaleFactor=1.1, minNeighbors=6, minSize=(80, 80)
                 )
                 if len(found) > 0:
                     faces = found.tolist()
                     break
                 flipped = cv2.flip(gray, 1)
                 found = self.face_profile_cascade.detectMultiScale(
-                    flipped, scaleFactor=1.05, minNeighbors=4, minSize=(60, 60)
+                    flipped, scaleFactor=1.1, minNeighbors=6, minSize=(80, 80)
                 )
                 if len(found) > 0:
                     faces = found.tolist()
                     break
 
-        # Deduplicate IoU > 0.4
+        # Deduplicate with tighter IoU threshold (0.3) to merge same-face detections
         unique = []
         for f in faces:
             fx, fy, fw, fh = f
@@ -168,7 +170,9 @@ class ProctoringAnalyzer:
                 ux, uy, uw, uh = uf
                 ox = max(0, min(fx + fw, ux + uw) - max(fx, ux))
                 oy = max(0, min(fy + fh, uy + uh) - max(fy, uy))
-                if ox * oy / max(fw * fh, 1) > 0.4:
+                inter = ox * oy
+                union = fw * fh + uw * uh - inter
+                if inter / max(union, 1) > 0.3:
                     dup = True
                     break
             if not dup:
@@ -177,7 +181,7 @@ class ProctoringAnalyzer:
         body_detected = False
         if not unique and not self.upper_body_cascade.empty():
             bodies = self.upper_body_cascade.detectMultiScale(
-                gc, scaleFactor=1.05, minNeighbors=3, minSize=(60, 60)
+                gc, scaleFactor=1.1, minNeighbors=4, minSize=(80, 80)
             )
             body_detected = len(bodies) > 0
 
@@ -186,21 +190,21 @@ class ProctoringAnalyzer:
     # ── Gaze ──────────────────────────────────────────────────────────────
 
     def check_gaze_away(self, image, face_rect):
-        """No eyes found in top 55% of face ROI = looking away."""
+        """Fewer than 2 eyes found in top 60% of face ROI = looking away."""
         try:
             gc = self._gray_clahe(image)
             fx, fy, fw, fh = face_rect
-            roi = gc[fy: fy + int(fh * 0.55), fx: fx + fw]
+            roi = gc[fy: fy + int(fh * 0.60), fx: fx + fw]
             eyes = self.eye_cascade.detectMultiScale(
-                roi, scaleFactor=1.1, minNeighbors=3, minSize=(15, 15)
+                roi, scaleFactor=1.1, minNeighbors=5, minSize=(20, 20)
             )
-            if len(eyes) == 0:
-                return True
+            centered = []
             for ex, ey, ew, eh in eyes:
                 cx = (ex + ew / 2) / fw
-                if 0.15 < cx < 0.85:
-                    return False
-            return True
+                if 0.10 < cx < 0.90:
+                    centered.append((ex, ey, ew, eh))
+            # Need at least 2 eyes detected to confirm looking at screen
+            return len(centered) < 2
         except Exception:
             return False
 

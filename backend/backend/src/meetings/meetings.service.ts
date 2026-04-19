@@ -231,6 +231,14 @@ export class MeetingsService {
     });
   }
 
+  // All sessions including ended ones
+  async getAllSessions(meetingId: string): Promise<MeetingSession[]> {
+    return this.sessionRepo.find({
+      where: { meetingId },
+      order: { joinedAt: 'ASC' },
+    });
+  }
+
   async delete(id: string, teacherId: string) {
     const meeting = await this.meetingRepo.findOne({ where: { id } });
     if (!meeting) throw new NotFoundException('Meeting not found');
